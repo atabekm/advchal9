@@ -124,6 +124,16 @@ def grade_all(runs, problem, model):
     with ThreadPoolExecutor(max_workers=8) as pool:
         list(pool.map(one, runs))
 
+PANEL_NOTE = (
+    "experts:chair bills the whole method -- the panel's three calls\n"
+    "  plus its own. The other expert rows show only their own call."
+)
+
+def panel_note(rows):
+    """The experts rows bill asymmetrically; say so rather than hide it."""
+    if "experts:chair" in rows:
+        print(style(f"\n  {PANEL_NOTE}", DIM))
+
 def mark(correct):
     return {True: "✓", False: "✗", None: "–"}[correct]
 
@@ -131,7 +141,7 @@ def truncate(text, width):
     text = " ".join(text.split())
     return text if len(text) <= width else text[:width - 1] + "…"
 
-def problem_table(problem, runs, rows, runs_per_method):
+def problem_table(problem, runs, rows, runs_per_method, note=True):
     """One problem's results, a row per method."""
     print(style("\n" + rule(f"comparison: {problem.name}"), BOLD))
     if problem.graded:
@@ -158,6 +168,9 @@ def problem_table(problem, runs, rows, runs_per_method):
               f"{sum(r.tokens for r in group):>9}"
               f"{sum(r.calls for r in group):>7}"
               f"{sum(r.elapsed for r in group):>7.1f}s")
+
+    if note:
+        panel_note(rows)
 
     if not problem.graded:
         agreed = {grading.normalise(run.extracted) for run in runs}
@@ -192,6 +205,8 @@ def summary_table(results, rows, runs_per_method):
         total = len(graded) * runs_per_method
         score = f"{correct}/{total}" if total else "–"
         print(f"  {row:<18}{cells}{score:>9}{tokens:>9}")
+
+    panel_note(rows)
 
 def save(results, model, runs_per_method):
     """Write every response and extraction, so any score can be audited."""
@@ -338,7 +353,8 @@ def main():
         return 1
 
     for problem, runs in results:
-        problem_table(problem, runs, rows, args.runs)
+        # In a sweep the note belongs under the summary, printed once.
+        problem_table(problem, runs, rows, args.runs, note=len(results) == 1)
     if len(results) > 1:
         summary_table(results, rows, args.runs)
 

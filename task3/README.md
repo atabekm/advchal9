@@ -80,6 +80,9 @@ one this task actually produced.
   experts:engineer         ✓       ✓       ✓       ✓      4/4     4522
   experts:critic           ✓       ✓       ✓       ✓      4/4     3386
   experts:chair            ✓       ✓       ✓       ✓      4/4    12874
+
+  experts:chair bills the whole method -- the panel's three calls
+  plus its own. The other expert rows show only their own call.
 ```
 
 **Only one column discriminates.** `count`, `logic` and `easy` are solved by
@@ -102,6 +105,9 @@ So the same problem, five runs each:
   experts:engineer             3   5/5     6436      5   51.7s
   experts:critic               3   5/5     3160      5   29.2s
   experts:chair                3   5/5    16384     20  140.0s
+
+  experts:chair bills the whole method -- the panel's three calls
+  plus its own. The other expert rows show only their own call.
 ```
 
 The `answer` column is every distinct answer that method gave across its five
@@ -133,6 +139,12 @@ experts:analyst   1112 tokens/run     5/5
 experts:engineer  1287 tokens/run     5/5
 experts:chair     3276 tokens/run     5/5
 ```
+
+Those figures are per row, and the expert rows deliberately do not sum: the
+three personas are billed for their own call, while `experts:chair` is billed
+for the whole method — its three panel calls plus its own. Showing the chair
+its own ~250 tokens would make the most expensive method on the table look
+like the cheapest.
 
 The critic persona costs **6% fewer tokens than asking directly** and goes from
 3/5 to 5/5. It is not more accurate because it thinks longer — it thinks
