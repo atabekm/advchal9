@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Temperature comparison</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="masthead">
+  <h1>Temperature comparison</h1>
+  <p>One prompt, three temperatures, side by side.</p>
+</header>
+
+<main>
+
+<section class="panel">
+  <div class="grid-2">
+    <label class="field">
+      <span class="label">API key</span>
+      <input id="key" type="password" placeholder="sk-…" autocomplete="off" spellcheck="false">
+      <span class="hint" id="keyHint">Kept in this browser only.</span>
+    </label>
+    <label class="field">
+      <span class="label">Model</span>
+      <select id="model">
+        <option value="deepseek-chat">deepseek-chat</option>
+        <option value="deepseek-reasoner">deepseek-reasoner</option>
+      </select>
+    </label>
+  </div>
+
+  <label class="field">
+    <span class="label">Prompt</span>
+    <textarea id="prompt" rows="5" spellcheck="false"
+      placeholder="Ask the same thing of all three…"></textarea>
+  </label>
+
+  <div class="actions">
+    <button id="run" class="primary">Run</button>
+    <button id="stop" hidden>Stop</button>
+    <span id="status" class="hint"></span>
+  </div>
+</section>
+
+<section class="columns">
+  <div class="column">
+    <div class="column-head">
+      <label class="temp-label">temperature
+        <input class="temp" type="number" value="0" min="0" max="2" step="0.1">
+      </label>
+      <span class="hint meta"></span>
+    </div>
+    <div class="response"></div>
+  </div>
+
+  <div class="column">
+    <div class="column-head">
+      <label class="temp-label">temperature
+        <input class="temp" type="number" value="0.7" min="0" max="2" step="0.1">
+      </label>
+      <span class="hint meta"></span>
+    </div>
+    <div class="response"></div>
+  </div>
+
+  <div class="column">
+    <div class="column-head">
+      <label class="temp-label">temperature
+        <input class="temp" type="number" value="1.2" min="0" max="2" step="0.1">
+      </label>
+      <span class="hint meta"></span>
+    </div>
+    <div class="response"></div>
+  </div>
+  <div class="column">
+    <div class="column-head">
+      <label class="temp-label">temperature
+        <input class="temp" type="number" value="1.5" min="0" max="2" step="0.1">
+      </label>
+      <span class="hint meta"></span>
+    </div>
+    <div class="response"></div>
+  </div>
+</section>
+
+</main>
+
+<script src="api.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
