@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The first agent</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="masthead">
+  <div class="brand">
+    <h1>The first agent</h1>
+    <p>A chat, and the agent behind it — everything it holds, everything it does.</p>
+  </div>
+  <label class="key">
+    <span class="hint">DeepSeek API key</span>
+    <input id="key" type="password" placeholder="sk-…" autocomplete="off" spellcheck="false">
+  </label>
+  <label class="pick">
+    <span class="hint">transport <em>(injected)</em></span>
+    <select id="transport"></select>
+  </label>
+</header>
+
+<main class="workspace">
+
+  <section class="chat">
+    <div class="log" id="log">
+      <div class="empty" id="empty">
+        <p>Ask something, then ask a follow-up that only makes sense if the first one was remembered —
+        <em>“now say that in French”</em>. The debug tab shows why it works.</p>
+      </div>
+    </div>
+    <form class="composer" id="composer">
+      <textarea id="input" rows="2" placeholder="Message the agent…" spellcheck="false"></textarea>
+      <div class="composer-actions">
+        <button type="submit" id="send" class="primary">Send</button>
+        <button type="button" id="stop" hidden>Stop</button>
+        <button type="button" id="reset">New conversation</button>
+        <span class="hint" id="status"></span>
+      </div>
+    </form>
+  </section>
+
+  <aside class="side">
+    <div class="tabs">
+      <button type="button" class="tab active" data-tab="config">config</button>
+      <button type="button" class="tab" data-tab="debug">debug</button>
+    </div>
+
+    <div class="tabpanel" id="configPanel">
+      <div class="fields" id="fields"></div>
+      <div class="readonly" id="readonly"></div>
+    </div>
+
+    <div class="tabpanel" id="debugPanel" hidden>
+      <div class="debug-tools">
+        <select id="filter">
+          <option value="">everything</option>
+          <option value="request">requests only</option>
+          <option value="memory:trim">memory only</option>
+          <option value="configure">config changes only</option>
+          <option value="problems">retries and errors</option>
+        </select>
+        <button type="button" id="copyLog">Copy</button>
+        <button type="button" id="clearLog">Clear</button>
+      </div>
+      <div class="events" id="events"></div>
+    </div>
+
+    <p class="stats hint" id="stats">no turns yet</p>
+  </aside>
+
+</main>
+
+<script src="markdown.js"></script>
+<script src="api.js"></script>
+<script src="agent.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
