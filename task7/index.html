@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The agent that remembers</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="masthead">
+  <div class="brand">
+    <h1>The agent that remembers</h1>
+    <p>The conversation outlives the process holding it. The panel shows the seam.</p>
+  </div>
+  <label class="key">
+    <span class="hint">DeepSeek API key</span>
+    <input id="key" type="password" placeholder="sk-…" autocomplete="off" spellcheck="false">
+  </label>
+  <label class="pick">
+    <span class="hint">transport <em>(injected)</em></span>
+    <select id="transport"></select>
+  </label>
+</header>
+
+<main class="workspace">
+
+  <section class="chat">
+    <div class="sessionbar">
+      <input id="title" class="session-title" spellcheck="false" aria-label="conversation title">
+      <span class="hint" id="sessionMeta"></span>
+    </div>
+    <div class="banner" id="banner" hidden></div>
+    <div class="log" id="log">
+      <div class="empty" id="empty">
+        <p>Ask something, then close this tab and open the page again. The conversation
+        comes back; the stats and the log do not, because they belong to the run that
+        just ended. The sessions tab holds everything that was kept.</p>
+      </div>
+    </div>
+    <form class="composer" id="composer">
+      <textarea id="input" rows="2" placeholder="Message the agent…" spellcheck="false"></textarea>
+      <div class="composer-actions">
+        <button type="submit" id="send" class="primary">Send</button>
+        <button type="button" id="stop" hidden>Stop</button>
+        <button type="button" id="reset">New conversation</button>
+        <span class="hint" id="status"></span>
+      </div>
+    </form>
+  </section>
+
+  <aside class="side">
+    <div class="tabs">
+      <button type="button" class="tab active" data-tab="sessions">sessions</button>
+      <button type="button" class="tab" data-tab="config">config</button>
+      <button type="button" class="tab" data-tab="debug">debug</button>
+    </div>
+
+    <div class="tabpanel" id="sessionsPanel">
+      <div class="session-tools">
+        <button type="button" id="newSession">New</button>
+        <button type="button" id="exportSession">Export</button>
+        <button type="button" id="importSession">Import</button>
+        <input type="file" id="importFile" accept="application/json,.json" hidden>
+      </div>
+      <div class="sessions" id="sessions"></div>
+      <div class="readonly" id="storage"></div>
+    </div>
+
+    <div class="tabpanel" id="configPanel" hidden>
+      <div class="fields" id="fields"></div>
+      <div class="readonly" id="readonly"></div>
+    </div>
+
+    <div class="tabpanel" id="debugPanel" hidden>
+      <div class="debug-tools">
+        <select id="filter">
+          <option value="">everything</option>
+          <option value="request">requests only</option>
+          <option value="memory:trim">memory only</option>
+          <option value="configure">config changes only</option>
+          <option value="storage">storage only</option>
+          <option value="problems">retries and errors</option>
+        </select>
+        <button type="button" id="copyLog">Copy</button>
+        <button type="button" id="clearLog">Clear</button>
+      </div>
+      <div class="events" id="events"></div>
+    </div>
+
+    <p class="stats hint" id="stats">no turns yet</p>
+  </aside>
+
+</main>
+
+<script src="markdown.js"></script>
+<script src="api.js"></script>
+<script src="store.js"></script>
+<script src="agent.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
