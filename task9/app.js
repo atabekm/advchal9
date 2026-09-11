@@ -52,6 +52,15 @@ const dom = {
   calibration: el('calibration'),
   projection: el('projection'),
   compare: el('compare'),
+  memoryPanel: el('memoryPanel'),
+  split: el('split'),
+  splitRows: el('splitRows'),
+  summaryNote: el('summaryNote'),
+  summaryText: el('summaryText'),
+  savedRows: el('savedRows'),
+  foldRows: el('foldRows'),
+  generationsNote: el('generationsNote'),
+  generations: el('generations'),
   labShort: el('labShort'),
   labLong: el('labLong'),
   labOverflow: el('labOverflow'),
@@ -927,12 +936,19 @@ function readout(node, title, entries) {
 // window is drawn across it as a line you have gone past.
 function renderMeter(plan) {
   const scale = plan.overflow ? plan.total : plan.limit;
+  /* The summary is inside plan.history — the counter does not know one message
+   * from another — so it is pulled back out and drawn as its own band. It is
+   * the one part of the bar that is not proportional to what it represents,
+   * and a bar that hid it would be hiding the whole point. */
+  const versus = agent.counterfactual(dom.input.value);
+  const summaryTokens = Math.min(versus.summaryTokens, plan.history);
   const segments = [
     ['system', plan.system, 'seg-system'],
-    ['history', plan.history, 'seg-history'],
+    ['summary', summaryTokens, 'seg-summary'],
+    ['history', plan.history - summaryTokens, 'seg-history'],
     ['this message', plan.next, 'seg-next'],
     ['reserved for the reply', plan.reserved, 'seg-reserved'],
-  ];
+  ].filter(([, value]) => value > 0);
 
   dom.meter.replaceChildren();
   dom.meter.classList.toggle('over', plan.overflow);
@@ -973,6 +989,7 @@ function renderMeter(plan) {
   const key = document.createElement('div');
   key.className = 'meter-key';
   for (const [label, value, kind] of segments) {
+    if (!value) continue;
     const item = document.createElement('span');
     item.className = 'meter-key-item';
     const swatch = document.createElement('i');
@@ -1317,7 +1334,246 @@ function syncTokens() {
     renderTurns();
     renderCalibration(plan);
     renderProjection(plan);
+    syncMemory();
   });
+}
+
+/* ---------- memory tab ---------- */
+
+/* The conversation as three quantities: what is being sent word for word, what
+ * has been compressed into prose, and what has been deleted. Task 8 only ever
+ * had two of these and called them both "dropped", which is why a trimmed
+ * conversation and a compressed one looked the same in the panel right up
+ * until somebody asked the model a question about the beginning. */
+function renderSplit() {
+  const held = agent.history.length;
+  dom.split.replaceChildren();
+
+  if (!held) {
+    dom.splitRows.replaceChildren();
+    const hint = document.createElement('p');
+    hint.className = 'hint';
+    hint.textContent = 'Nothing said yet. Every message starts verbatim; what happens to it '
+      + 'after that is the memory policy’s decision, and this is where it is shown.';
+    dom.split.append(hint);
+    return;
+  }
+
+  const selection = compressor.select(agent.history);
+  const versus = agent.counterfactual(dom.input.value);
+  const verbatim = selection.verbatim.length;
+  const bands = [
+    ['summarised', selection.folded, 'band-summarised'],
+    ['verbatim', verbatim - selection.pending, 'band-verbatim'],
+    ['awaiting the next fold', selection.pending, 'band-pending'],
+    ['deleted', selection.dropped, 'band-dropped'],
+  ].filter(([, value]) => value > 0);
+
+  const bar = document.createElement('div');
+  bar.className = 'split-bar';
+  for (const [label, value, kind] of bands) {
+    const part = document.createElement('span');
+    part.className = `split-seg ${kind}`;
+    part.style.width = `${(value / held) * 100}%`;
+    part.title = `${label}: ${plural(value, 'message')}`;
+    bar.append(part);
+  }
+
+  const key = document.createElement('div');
+  key.className = 'split-key';
+  for (const [label, value, kind] of bands) {
+    const item = document.createElement('span');
+    item.className = 'split-key-item';
+    const swatch = document.createElement('i');
+    swatch.className = `split-seg ${kind}`;
+    const text = document.createElement('span');
+    text.textContent = `${label} ${value}`;
+    item.append(swatch, text);
+    key.append(item);
+  }
+  dom.split.append(bar, key);
+
+  const policy = agent.config.memoryPolicy;
+  readout(dom.splitRows, null, [
+    ['policy', policy],
+    ['in memory', plural(held, 'message')],
+    ['sent verbatim', plural(verbatim, 'message')],
+    ['sent as summary', selection.folded
+      ? `${plural(selection.folded, 'message')} as ${count(versus.summaryTokens)} tokens`
+      : 'none'],
+    ['deleted for good', selection.dropped
+      ? `${plural(selection.dropped, 'message')} — the model cannot see them`
+      : 'none', selection.dropped ? 'bad' : ''],
+    ['prompt this turn', `${count(versus.actual)} tokens`],
+    ['full would send', `${count(versus.full)} tokens`,
+      versus.saved > 0 ? 'good' : ''],
+  ]);
+}
+
+function renderSummary() {
+  const summary = compressor.summary;
+  dom.summaryText.replaceChildren();
+
+  if (!summary) {
+    dom.summaryNote.textContent = agent.config.memoryPolicy === 'compress'
+      ? `Nothing folded yet. The first fold happens once ${agent.config.compressEvery} messages `
+        + `have piled up beyond the ${agent.config.keepRecent} kept verbatim.`
+      : `The memory policy is ${agent.config.memoryPolicy}, so nothing is being summarised.`;
+    return;
+  }
+
+  dom.summaryNote.textContent = `Generation ${summary.generation} · `
+    + `${count(summary.tokens)} tokens standing in for ${plural(summary.foldedMessages, 'message')} `
+    + `· written by ${summary.model} ${relative(summary.at)}`
+    + (summary.generation > 1
+      ? ` · it has been through the summariser ${summary.generation} times`
+      : '');
+
+  if (summary.truncated) {
+    const warn = document.createElement('p');
+    warn.className = 'summary-warn';
+    warn.textContent = `This summary hit its ${agent.config.summaryBudget}-token ceiling and `
+      + 'stopped where it stopped. Whatever came after that is gone.';
+    dom.summaryText.append(warn);
+  }
+
+  const body = document.createElement('pre');
+  body.className = 'summary-body';
+  // Deliberately not rendered as markdown. This is the exact text sitting in
+  // the system slot of every request, and the one place it must not be
+  // prettified is the place you go to check what it says.
+  body.textContent = summary.text;
+  dom.summaryText.append(body);
+}
+
+function renderSaved() {
+  const stats = agent.stats;
+  const versus = agent.counterfactual(dom.input.value);
+  const rows = [
+    ['this turn', versus.full
+      ? `${count(versus.actual)} instead of ${count(versus.full)} · ${percent(versus.ratio)} less`
+      : '—', versus.saved > 0 ? 'good' : ''],
+  ];
+
+  if (stats.wouldHaveSent) {
+    const ratio = 1 - stats.actuallySent / stats.wouldHaveSent;
+    rows.push(
+      ['sent so far', `${count(stats.actuallySent)} tokens`],
+      ['full would have sent', `${count(stats.wouldHaveSent)} tokens`],
+      ['saved across the run', `${count(stats.wouldHaveSent - stats.actuallySent)} tokens `
+        + `· ${percent(ratio)}`, ratio > 0 ? 'good' : ''],
+      // The number that is easy to quote and easy to quote dishonestly, so it
+      // is stated with the folding bill already taken out of it.
+      ['net of what folding cost',
+        `${count(stats.wouldHaveSent - stats.actuallySent - stats.foldTokens)} tokens`,
+        (stats.wouldHaveSent - stats.actuallySent - stats.foldTokens) > 0 ? 'good' : 'bad'],
+    );
+  }
+  readout(dom.savedRows, null, rows);
+}
+
+function renderFolds() {
+  const stats = agent.stats;
+  const savings = compressor.savings({ held: agent.history.length });
+
+  if (!stats.folds && !stats.foldFailures) {
+    readout(dom.foldRows, null, [['folds', 'none yet — nothing has been spent on compression']]);
+    return;
+  }
+
+  const rows = [
+    ['folds', plural(stats.folds, 'fold')],
+    ['spent writing summaries', `${count(stats.foldTokens)} tokens · ${money(stats.foldCost)}`],
+    ['time spent folding', seconds(stats.foldElapsed)],
+    ['saves per turn', `${count(savings.savedPerTurn)} tokens`],
+  ];
+
+  if (savings.breakEvenTurns != null) {
+    rows.push(['pays for itself in', plural(savings.breakEvenTurns, 'turn')]);
+    rows.push(['turns since the last fold', plural(savings.turnsSinceFold, 'turn')]);
+    rows.push(['verdict', savings.net > 0
+      ? `ahead by ${count(savings.net)} tokens`
+      : `still ${count(-savings.net)} tokens behind — `
+        + (savings.turnsSinceFold < savings.breakEvenTurns
+          ? `${plural(savings.breakEvenTurns - savings.turnsSinceFold, 'turn')} to go`
+          : 'this conversation is too short to be worth compressing'),
+    savings.net > 0 ? 'good' : 'bad']);
+  }
+  if (stats.foldFailures) {
+    rows.push([`${plural(stats.foldFailures, 'fold')} failed`,
+      'nothing was lost — those turns went out uncompressed']);
+  }
+  readout(dom.foldRows, null, rows);
+}
+
+/* Summary size across folds. A rolling summary with no ceiling converges on
+ * the length of the history it replaced, at which point you are paying for
+ * both — so the interesting thing about this table is whether the middle
+ * column stops climbing. */
+function renderGenerations() {
+  const rows = compressor.growth();
+  dom.generations.replaceChildren();
+
+  if (!rows.length) {
+    dom.generationsNote.textContent = 'No folds yet.';
+    return;
+  }
+
+  const first = rows[0];
+  const last = rows[rows.length - 1];
+  const foldedAll = rows.reduce((sum, row) => sum + row.foldedMessages, 0);
+  dom.generationsNote.textContent = rows.length === 1
+    ? `One fold · ${plural(foldedAll, 'message')} became ${count(last.tokens)} tokens. `
+      + 'The column to watch is `out` — it is what stops a rolling summary from growing '
+      + 'back into the history it replaced.'
+    : `${plural(rows.length, 'fold')} · ${plural(foldedAll, 'message')} compressed · `
+      + `the summary went from ${count(first.tokens)} tokens to ${count(last.tokens)}`
+      + (last.tokens <= first.tokens * 1.5
+        ? ' — bounded, which is what the ceiling is for'
+        : ' — growing, which is what the ceiling is meant to stop');
+
+  const table = document.createElement('div');
+  table.className = 'gtable';
+
+  const head = document.createElement('div');
+  head.className = 'grow ghead';
+  for (const label of ['gen', 'folded', 'in', 'out', 'saves/turn', 'cost', 'why']) {
+    const cell = document.createElement('span');
+    cell.textContent = label;
+    head.append(cell);
+  }
+  table.append(head);
+
+  for (const row of rows) {
+    const item = document.createElement('div');
+    item.className = 'grow';
+    if (row.truncated) item.classList.add('truncated');
+    const cells = [
+      String(row.generation),
+      plural(row.foldedMessages, 'msg'),
+      count(row.foldedTokens),
+      count(row.tokens) + (row.truncated ? ' ✂' : ''),
+      count(row.savedPerTurn),
+      money(row.spentCost),
+      row.reason,
+    ];
+    for (const value of cells) {
+      const cell = document.createElement('span');
+      cell.textContent = value;
+      item.append(cell);
+    }
+    table.append(item);
+  }
+  dom.generations.append(table);
+}
+
+function syncMemory() {
+  if (!agent || !compressor) return;
+  renderSplit();
+  renderSummary();
+  renderSaved();
+  renderFolds();
+  renderGenerations();
 }
 
 /* ---------- the lab ---------- */
@@ -1817,6 +2073,7 @@ function start() {
     tab.addEventListener('click', () => {
       for (const other of document.querySelectorAll('.tab')) other.classList.toggle('active', other === tab);
       dom.tokensPanel.hidden = tab.dataset.tab !== 'tokens';
+    dom.memoryPanel.hidden = tab.dataset.tab !== 'memory';
       dom.sessionsPanel.hidden = tab.dataset.tab !== 'sessions';
       dom.configPanel.hidden = tab.dataset.tab !== 'config';
       dom.debugPanel.hidden = tab.dataset.tab !== 'debug';

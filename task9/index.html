@@ -55,6 +55,7 @@
   <aside class="side">
     <div class="tabs">
       <button type="button" class="tab active" data-tab="tokens">tokens</button>
+      <button type="button" class="tab" data-tab="memory">memory</button>
       <button type="button" class="tab" data-tab="sessions">sessions</button>
       <button type="button" class="tab" data-tab="config">config</button>
       <button type="button" class="tab" data-tab="debug">debug</button>
@@ -107,6 +108,42 @@
       </div>
     </div>
 
+    <div class="tabpanel" id="memoryPanel" hidden>
+      <div class="tokenscroll">
+
+        <section class="tsection">
+          <h2>what goes up the wire</h2>
+          <div class="split" id="split"></div>
+          <div class="readonly" id="splitRows"></div>
+        </section>
+
+        <section class="tsection">
+          <h2>the summary</h2>
+          <p class="hint" id="summaryNote"></p>
+          <div class="summary" id="summaryText"></div>
+        </section>
+
+        <section class="tsection">
+          <h2>what it saved</h2>
+          <div class="readonly" id="savedRows"></div>
+        </section>
+
+        <section class="tsection">
+          <h2>what it cost</h2>
+          <p class="hint">A summary is a second request. It is billed, and until it has
+          saved more than it spent it is a cost.</p>
+          <div class="readonly" id="foldRows"></div>
+        </section>
+
+        <section class="tsection">
+          <h2>generations</h2>
+          <p class="hint" id="generationsNote"></p>
+          <div class="generations" id="generations"></div>
+        </section>
+
+      </div>
+    </div>
+
     <div class="tabpanel" id="sessionsPanel" hidden>
       <div class="session-tools">
         <button type="button" id="newSession">New</button>
@@ -130,6 +167,7 @@
           <option value="request">requests only</option>
           <option value="tokens">tokens only</option>
           <option value="memory">memory only</option>
+          <option value="memory:summary">summaries only</option>
           <option value="configure">config changes only</option>
           <option value="storage">storage only</option>
           <option value="problems">retries and errors</option>
