@@ -486,7 +486,17 @@ class Compressor {
     const latest = this._chain.latest;
     const savedPerTurn = latest ? latest.savedPerTurn : 0;
     const spentTokens = this._spent.tokens;
-    const breakEven = savedPerTurn > 0 ? Math.ceil(spentTokens / savedPerTurn) : null;
+    /* Break-even is asked of the latest fold against its own bill, not against
+     * every fold ever made.
+     *
+     * The cumulative version looks more rigorous and is simply wrong: it
+     * charges one fold for the cost of all four while crediting it with only
+     * its own per-turn saving, and then reports a conversation as losing money
+     * when the counterfactual on the same screen says it has saved half its
+     * tokens. Earlier folds have already been paid off by the turns that ran
+     * between them, which is what breakEvenTurns measured at the time. */
+    const spentOnLatest = latest ? latest.spentTokens : 0;
+    const breakEven = savedPerTurn > 0 ? Math.ceil(spentOnLatest / savedPerTurn) : null;
 
     /* Turns since the fold, not turns in the conversation. The distinction
      * decides whether the panel says a fold has paid for itself, and counting
@@ -505,9 +515,12 @@ class Compressor {
       savedPerTurn,
       generation: this._chain.generation,
       summaryTokens: latest ? latest.tokens : 0,
-      // Tokens not carried since the last fold, against tokens spent making it
-      // possible. Negative means the fold has not paid for itself yet.
-      net: savedPerTurn * turnsSinceFold - spentTokens,
+      spentOnLatest,
+      // Tokens the latest fold has saved so far, against what that fold cost.
+      // Negative means it has not paid for itself yet. The whole run's position
+      // is a different number and the agent keeps it, because only the agent
+      // sees every turn.
+      net: savedPerTurn * turnsSinceFold - spentOnLatest,
       breakEvenTurns: breakEven,
       paidOff: breakEven != null && turnsSinceFold >= breakEven,
     };

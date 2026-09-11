@@ -1485,24 +1485,31 @@ function renderFolds() {
     return;
   }
 
+  /* Two questions that look like one. "Has the last fold earned its keep yet"
+   * is about one fold and the turns since it; "is compression winning" is
+   * about the whole run and is the counterfactual the agent has been
+   * accumulating. Reporting either one under the other's name is how a panel
+   * ends up contradicting itself on the same screen. */
+  const net = stats.wouldHaveSent - stats.actuallySent - stats.foldTokens;
   const rows = [
     ['folds', plural(stats.folds, 'fold')],
     ['spent writing summaries', `${count(stats.foldTokens)} tokens · ${money(stats.foldCost)}`],
     ['time spent folding', seconds(stats.foldElapsed)],
-    ['saves per turn', `${count(savings.savedPerTurn)} tokens`],
+    ['the latest fold cost', `${count(savings.spentOnLatest)} tokens`],
+    ['and saves per turn', `${count(savings.savedPerTurn)} tokens`],
   ];
 
   if (savings.breakEvenTurns != null) {
-    rows.push(['pays for itself in', plural(savings.breakEvenTurns, 'turn')]);
-    rows.push(['turns since the last fold', plural(savings.turnsSinceFold, 'turn')]);
-    rows.push(['verdict', savings.net > 0
-      ? `ahead by ${count(savings.net)} tokens`
-      : `still ${count(-savings.net)} tokens behind — `
-        + (savings.turnsSinceFold < savings.breakEvenTurns
-          ? `${plural(savings.breakEvenTurns - savings.turnsSinceFold, 'turn')} to go`
-          : 'this conversation is too short to be worth compressing'),
-    savings.net > 0 ? 'good' : 'bad']);
+    rows.push(['so it pays for itself in', plural(savings.breakEvenTurns, 'turn')]);
+    rows.push(['turns since it was made', plural(savings.turnsSinceFold, 'turn')
+      + (savings.paidOff ? ' — paid off' : ` — ${plural(
+        savings.breakEvenTurns - savings.turnsSinceFold, 'turn')} to go`)]);
   }
+
+  rows.push(['the run, net of folding', net >= 0
+    ? `${count(net)} tokens ahead`
+    : `${count(-net)} tokens behind — this conversation is too short to be worth compressing`,
+  net >= 0 ? 'good' : 'bad']);
   if (stats.foldFailures) {
     rows.push([`${plural(stats.foldFailures, 'fold')} failed`,
       'nothing was lost — those turns went out uncompressed']);
