@@ -136,6 +136,19 @@
         </section>
 
         <section class="tsection">
+          <h2>the benchmark</h2>
+          <p class="hint">The same conversation under three policies: everything,
+          last-few-only, and last-few-plus-summary. Facts are planted early, buried,
+          then asked about. The answers are graded, not admired.</p>
+          <div class="lab-tools">
+            <button type="button" id="benchRun">run all three</button>
+            <button type="button" id="benchClear">Clear</button>
+          </div>
+          <p class="hint" id="benchStatus"></p>
+          <div class="bench" id="bench"></div>
+        </section>
+
+        <section class="tsection">
           <h2>generations</h2>
           <p class="hint" id="generationsNote"></p>
           <div class="generations" id="generations"></div>

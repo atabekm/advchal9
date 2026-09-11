@@ -683,3 +683,44 @@ button:disabled { opacity: 0.5; cursor: default; border-color: var(--line); }
  * connects the row to the band in the meter above it. */
 .lrow.summarised { border-left-color: #7a5aa8; }
 .lrow.summarised .lrow-bar { background: #7a5aa8; }
+
+/* ---------- the benchmark ---------- */
+
+.btable { font-size: 11px; font-family: var(--mono); margin-top: 8px; }
+.brow {
+  display: grid;
+  grid-template-columns: 5.2em 2.8em 2.2em 2.2em 2.2em 1fr 1fr 1fr 1fr;
+  gap: 5px;
+  padding: 5px 0 4px;
+  align-items: baseline;
+}
+.brow span { text-align: right; overflow: hidden; text-overflow: ellipsis; }
+.brow span:first-child { text-align: left; font-weight: 600; }
+.bhead { color: var(--dim); border-bottom: 1px solid var(--ink); }
+.brow.perfect span:nth-child(2) { color: #3d7a4f; font-weight: 600; }
+.brow.amnesiac span:nth-child(2) { color: var(--bad); font-weight: 600; }
+
+.bnote {
+  margin: 0 0 2px;
+  font-family: inherit;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--dim);
+}
+.bwhere {
+  margin: 0 0 8px;
+  font-size: 10.5px;
+  color: var(--dim);
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 8px;
+  word-break: break-word;
+}
+.bverdict {
+  margin: 10px 0 0;
+  padding: 9px 11px;
+  border-left: 3px solid #7a5aa8;
+  background: var(--bg);
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.5;
+}

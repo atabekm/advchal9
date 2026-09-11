@@ -61,6 +61,10 @@ const dom = {
   foldRows: el('foldRows'),
   generationsNote: el('generationsNote'),
   generations: el('generations'),
+  benchRun: el('benchRun'),
+  benchClear: el('benchClear'),
+  benchStatus: el('benchStatus'),
+  bench: el('bench'),
   labShort: el('labShort'),
   labLong: el('labLong'),
   labOverflow: el('labOverflow'),
@@ -1576,6 +1580,316 @@ function syncMemory() {
   renderGenerations();
 }
 
+/* ---------- the benchmark ----------
+ *
+ * The brief asks for a comparison of response quality with and without
+ * compression. Reading a few replies and deciding which is nicer measures
+ * nothing, so quality here is a number, and the number is graded.
+ *
+ * Facts are planted in a scripted conversation, buried under enough filler that
+ * a six-message verbatim window cannot reach them, and then asked about. A
+ * reply either contains the fact or it does not.
+ *
+ * Two things guard the score.
+ *
+ * Confabulation: some questions ask about facts that were never stated. A
+ * confident answer to one of those is worse than forgetting, because a summary
+ * that invents a plausible detail launders it into the system slot of every
+ * future request. Those score against the run.
+ *
+ * Position: facts are planted at the start, in the middle and late, so the
+ * table can tell "compression preserved it" apart from "it was never
+ * compressed in the first place".
+ */
+
+const BENCH_FACTS = [
+  { at: 'start', say: 'Before we start: my dog is called Kepler.', ask: 'What is my dog called?', want: 'Kepler' },
+  { at: 'start', say: 'Also worth noting, the project deadline is 4 March.', ask: 'When is the project deadline?', want: '4 March' },
+  { at: 'middle', say: 'The staging box lives at 10.2.0.7.', ask: 'What address is staging on?', want: '10.2.0.7' },
+  { at: 'middle', say: 'I prefer metric units in every report.', ask: 'Which units do I prefer?', want: 'metric' },
+  { at: 'late', say: 'The release branch is release/2026-04.', ask: 'Which release branch are we on?', want: 'release/2026-04' },
+];
+
+// Questions about things nobody said. The right answer is an admission.
+const BENCH_TRAPS = [
+  'What is my cat called?',
+  'What is the budget in euros?',
+];
+
+const BENCH_FILLER = [
+  'Anyway, just checking in — nothing much to report.',
+  'Thanks, that is roughly what I expected.',
+  'Sure, carry on. No news at this end.',
+  'Fine by me. Let us keep going.',
+];
+
+const BENCH_POLICIES = [
+  { policy: 'full', note: 'Everything, every turn. The ground truth for quality and the ceiling for cost.' },
+  { policy: 'window', note: 'Task 8’s answer: keep the last few, delete the rest. Cheapest, and the control.' },
+  { policy: 'compress', note: 'Keep the last few, summarise the rest. Costs more than window, and is supposed to buy something with the difference.' },
+];
+
+let benchRuns = [];
+let benchBusy = false;
+
+function benchWorking(isWorking, label) {
+  benchBusy = isWorking;
+  dom.benchRun.disabled = isWorking;
+  dom.benchClear.disabled = isWorking;
+  dom.benchStatus.textContent = label || '';
+}
+
+function benchScript() {
+  const script = [];
+  const plant = (at) => BENCH_FACTS.filter((fact) => fact.at === at)
+    .forEach((fact) => script.push({ kind: 'plant', text: fact.say }));
+
+  plant('start');
+  for (let i = 0; i < 8; i += 1) script.push({ kind: 'filler', text: `${BENCH_FILLER[i % BENCH_FILLER.length]} (${i + 1})` });
+  plant('middle');
+  for (let i = 8; i < 16; i += 1) script.push({ kind: 'filler', text: `${BENCH_FILLER[i % BENCH_FILLER.length]} (${i + 1})` });
+  plant('late');
+  return script;
+}
+
+async function benchOne(spec) {
+  const restore = {
+    memoryPolicy: agent.config.memoryPolicy,
+    model: agent.config.model,
+    summaryModel: agent.config.summaryModel,
+  };
+
+  newSession();
+  saveConfig(agent.configure({
+    memoryPolicy: spec.policy,
+    model: 'stub-16k',
+    summaryModel: 'stub-16k',
+  }));
+  syncFields();
+
+  const script = benchScript();
+  const outcome = {
+    policy: spec.policy,
+    note: spec.note,
+    planted: { start: 0, middle: 0, late: 0 },
+    recalled: { start: 0, middle: 0, late: 0 },
+    from: {},
+    confabulated: 0,
+    ok: true,
+    reason: '',
+  };
+
+  try {
+    let step = 0;
+    for (const line of script) {
+      step += 1;
+      benchWorking(true, `${spec.policy} · saying things · ${step}/${script.length}`);
+      bubble('user', 'you', Date.now()).set(line.text);
+      const view = bubble('agent', agent.config.name, Date.now());
+      const result = await agent.send(line.text);
+      view.set(result.reply);
+      view.render();
+      syncTokens();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+
+    // Everything above was setup. Everything below is the measurement.
+    for (const fact of BENCH_FACTS) {
+      benchWorking(true, `${spec.policy} · asking · ${fact.want}`);
+      outcome.planted[fact.at] += 1;
+      bubble('user', 'you', Date.now()).set(fact.ask);
+      const view = bubble('agent', agent.config.name, Date.now());
+      const result = await agent.send(fact.ask);
+      view.set(result.reply);
+      view.render();
+
+      if (result.reply.includes(fact.want)) {
+        outcome.recalled[fact.at] += 1;
+        // Where an answer survived is as interesting as whether it did.
+        outcome.from[fact.want] = /compressed summary/.test(result.reply)
+          ? 'summary'
+          : (/verbatim/.test(result.reply) ? 'verbatim' : 'answered');
+      } else {
+        outcome.from[fact.want] = 'lost';
+      }
+      syncTokens();
+    }
+
+    for (const trap of BENCH_TRAPS) {
+      benchWorking(true, `${spec.policy} · trap · ${clip(trap, 24)}`);
+      bubble('user', 'you', Date.now()).set(trap);
+      const view = bubble('agent', agent.config.name, Date.now());
+      const result = await agent.send(trap);
+      view.set(result.reply);
+      view.render();
+      if (!/cannot answer|do not know|don’t know|no record|not in/i.test(result.reply)) {
+        outcome.confabulated += 1;
+      }
+      syncTokens();
+    }
+  } catch (error) {
+    outcome.ok = false;
+    outcome.reason = error.message;
+  }
+
+  const rows = agent.ledger.rows;
+  const stats = agent.stats;
+  outcome.lastPrompt = rows.length ? rows[rows.length - 1].promptTokens : 0;
+  outcome.billed = (rows.length ? rows[rows.length - 1].cumulativeTokens : 0) + stats.foldTokens;
+  outcome.foldTokens = stats.foldTokens;
+  outcome.folds = stats.folds;
+  outcome.cost = stats.cost;
+  outcome.generations = compressor.generation;
+  outcome.summaryTokens = compressor.summary ? compressor.summary.tokens : 0;
+
+  persist(null);
+  saveConfig(agent.configure(restore));
+  syncFields();
+  return outcome;
+}
+
+async function runBench() {
+  if (benchBusy || agent.busy) return;
+  benchRuns = [];
+  renderBench();
+  try {
+    for (const spec of BENCH_POLICIES) {
+      benchRuns.push(await benchOne(spec));
+      renderBench();
+    }
+  } finally {
+    benchWorking(false, '');
+    syncStats();
+    syncTokens();
+  }
+}
+
+function startBench() {
+  if (agent.transport.id === 'echo') {
+    runBench();
+    return;
+  }
+  /* On a live transport this is about seventy requests, and the offline stub
+   * answers only from what it was given — which is precisely the property the
+   * quality column is measuring. The free version is not a lesser version. */
+  banner('warn',
+    `The benchmark runs three conversations of about 23 turns each against `
+    + `${agent.transport.label}. That is roughly seventy billed requests, and the `
+    + 'comparison it produces is visible on the echo transport for nothing.',
+    [
+      { label: 'Spend it', run: () => { dom.banner.hidden = true; runBench(); } },
+      { label: 'Cancel', run: () => { dom.banner.hidden = true; } },
+    ]);
+}
+
+function renderBench() {
+  dom.bench.replaceChildren();
+
+  if (!benchRuns.length) {
+    const hint = document.createElement('p');
+    hint.className = 'hint';
+    hint.textContent = benchBusy
+      ? 'Running. Each policy gets its own conversation; the current one is left alone.'
+      : `${BENCH_FACTS.length} facts planted across 21 turns, then asked about, `
+        + `plus ${BENCH_TRAPS.length} questions about things nobody said.`;
+    dom.bench.append(hint);
+    return;
+  }
+
+  const total = BENCH_FACTS.length;
+  const table = document.createElement('div');
+  table.className = 'btable';
+
+  const head = document.createElement('div');
+  head.className = 'brow bhead';
+  for (const label of ['policy', 'recall', 'start', 'mid', 'late', 'traps', 'last prompt', 'billed', 'cost']) {
+    const cell = document.createElement('span');
+    cell.textContent = label;
+    head.append(cell);
+  }
+  table.append(head);
+
+  for (const run of benchRuns) {
+    const hits = Object.values(run.recalled).reduce((sum, value) => sum + value, 0);
+    const row = document.createElement('div');
+    row.className = 'brow';
+    if (hits === total) row.classList.add('perfect');
+    if (!hits) row.classList.add('amnesiac');
+
+    const cells = [
+      run.policy,
+      `${hits}/${total}`,
+      `${run.recalled.start}/${run.planted.start}`,
+      `${run.recalled.middle}/${run.planted.middle}`,
+      `${run.recalled.late}/${run.planted.late}`,
+      run.confabulated ? `${run.confabulated} invented` : 'clean',
+      count(run.lastPrompt),
+      count(run.billed),
+      money(run.cost),
+    ];
+    for (const value of cells) {
+      const cell = document.createElement('span');
+      cell.textContent = value;
+      row.append(cell);
+    }
+    table.append(row);
+
+    const note = document.createElement('p');
+    note.className = 'bnote';
+    note.textContent = run.ok
+      ? `${run.note}${run.folds
+        ? ` ${plural(run.folds, 'fold')}, ${count(run.foldTokens)} tokens spent writing `
+          + `${plural(run.generations, 'generation')} of summary.`
+        : ''}`
+      : `stopped: ${run.reason}`;
+    table.append(note);
+
+    const where = Object.entries(run.from);
+    if (where.length) {
+      const trail = document.createElement('p');
+      trail.className = 'bwhere';
+      trail.textContent = where
+        .map(([fact, source]) => `${fact} → ${source}`)
+        .join(' · ');
+      table.append(trail);
+    }
+  }
+  dom.bench.append(table);
+
+  /* The sentence the table is for. Stated as a comparison against the control
+   * rather than against `full`, because `compress` beating `full` on cost is
+   * not news — every policy beats full on cost, including the one that
+   * remembers nothing. */
+  const byPolicy = Object.fromEntries(benchRuns.map((run) => [run.policy, run]));
+  if (byPolicy.full && byPolicy.window && byPolicy.compress) {
+    const score = (run) => Object.values(run.recalled).reduce((sum, value) => sum + value, 0);
+    const verdict = document.createElement('p');
+    verdict.className = 'bverdict';
+    const savedVsFull = 1 - byPolicy.compress.billed / byPolicy.full.billed;
+    verdict.textContent = `compress recalled ${score(byPolicy.compress)} of ${total} where `
+      + `window recalled ${score(byPolicy.window)} and full recalled ${score(byPolicy.full)}, `
+      + `for ${percent(savedVsFull)} less than full and `
+      + `${count(byPolicy.compress.billed - byPolicy.window.billed)} tokens more than window. `
+      + 'That difference is the price of remembering.';
+    dom.bench.append(verdict);
+
+    /* The caveat that keeps the table from flattering itself. Under `window`
+     * a message past the keep count is deleted the moment it falls out; under
+     * `compress` it waits for the next fold, so compress is holding up to
+     * keepRecent + compressEvery messages verbatim, not keepRecent. Some of
+     * what looks like compression working is simply a larger window, and the
+     * `where facts survived` line above says which is which. */
+    const caveat = document.createElement('p');
+    caveat.className = 'bnote';
+    caveat.textContent = `Read the row above with this in mind: window deletes a message as `
+      + `soon as it falls past ${agent.config.keepRecent}, while compress keeps it until the `
+      + `next fold — up to ${agent.config.keepRecent + agent.config.compressEvery} messages `
+      + 'verbatim. The "where facts survived" line separates what the summary saved from '
+      + 'what simply had not been folded yet.';
+    dom.bench.append(caveat);
+  }
+}
+
 /* ---------- the lab ---------- */
 
 const FILLER = [
@@ -2004,6 +2318,7 @@ function start() {
   syncStats();
   syncTokens();
   renderCompare();
+  renderBench();
 
   try {
     dom.key.value = getKey();
@@ -2107,6 +2422,8 @@ function start() {
     renderSessions();
   });
 
+  dom.benchRun.addEventListener('click', startBench);
+  dom.benchClear.addEventListener('click', () => { benchRuns = []; renderBench(); });
   dom.labShort.addEventListener('click', () => startLab(LAB_RUNS.short));
   dom.labLong.addEventListener('click', () => startLab(LAB_RUNS.long));
   dom.labOverflow.addEventListener('click', () => startLab(LAB_RUNS.overflow));
