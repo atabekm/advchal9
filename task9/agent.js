@@ -7,6 +7,7 @@
  * messages array it built itself.
  *
  *   agent.config              frozen snapshot of every constructor property
+ *   agent.compressor          the memory policy, for panels that want to read it
  *   agent.configure(patch)    the only way to change one
  *   agent.send(text, opts)    one turn, start to finish
  *   agent.reset()             forget the conversation
@@ -69,11 +70,55 @@ const AGENT_SCHEMA = [
     help: 'Hitting it shows as finish_reason: length.',
   },
   {
-    key: 'carryHistory',
-    type: 'toggle',
-    label: 'carry history',
-    default: true,
-    help: 'Off makes the agent stateless — and the prompt stops growing.',
+    key: 'memoryPolicy',
+    type: 'select',
+    label: 'memory',
+    default: 'compress',
+    options: ['none', 'full', 'window', 'compress'],
+    help: 'none is stateless. full resends everything. window keeps the last few '
+      + 'and deletes the rest. compress keeps the last few and summarises the rest.',
+  },
+  {
+    key: 'keepRecent',
+    type: 'number',
+    label: 'keep verbatim',
+    default: 6,
+    min: 2,
+    max: 60,
+    step: 2,
+    help: 'Messages kept exactly as they were said. Everything older is summarised '
+      + 'under compress, or deleted under window.',
+  },
+  {
+    key: 'compressEvery',
+    type: 'number',
+    label: 'fold every',
+    default: 10,
+    min: 2,
+    max: 60,
+    step: 2,
+    help: 'Messages that must pile up beyond the verbatim window before a fold is '
+      + 'owed. Smaller folds more often and pays the summariser more often.',
+  },
+  {
+    key: 'summaryModel',
+    type: 'select',
+    label: 'summariser',
+    default: 'deepseek-flash',
+    options: ['deepseek-flash', 'deepseek-v4-pro', 'stub-16k'],
+    help: 'Writing the summary is a second request and it is billed. It does not '
+      + 'have to be the model holding the conversation.',
+  },
+  {
+    key: 'summaryBudget',
+    type: 'number',
+    label: 'summary ceiling',
+    default: 256,
+    min: 64,
+    max: 2048,
+    step: 32,
+    help: 'A rolling summary with no ceiling grows until it is as long as the '
+      + 'history it replaced, and then you are paying for both.',
   },
   {
     key: 'historyBudget',
@@ -91,7 +136,8 @@ const AGENT_SCHEMA = [
     label: 'on overflow',
     default: 'trim',
     options: ['trim', 'refuse', 'send'],
-    help: 'trim drops the oldest turns, refuse stops before the request, send lets the API say no.',
+    help: 'The last resort, after the memory policy has had its say: trim drops the '
+      + 'oldest turns, refuse stops before the request, send lets the API say no.',
   },
   {
     key: 'retries',
@@ -167,7 +213,7 @@ class Agent {
   }
 
   constructor(options = {}) {
-    const { transport, onEvent, counter, ...config } = options;
+    const { transport, onEvent, counter, compressor, ...config } = options;
     if (!transport) throw new Error('Agent needs a transport.');
 
     this._transport = transport;
@@ -175,6 +221,12 @@ class Agent {
     // what it has learned about this tokeniser, and that learning must outlive
     // any one agent object.
     this._counter = counter instanceof TokenCounter ? counter : new TokenCounter();
+    // The compressor is injected for a third reason: it holds the summary, and
+    // the summary is part of the conversation. Swapping transports must not
+    // amnesia the compressed half any more than it amnesias the verbatim half.
+    this._compressor = compressor instanceof Compressor
+      ? compressor
+      : new Compressor({ counter: this._counter });
     this._ledger = new TurnLedger();
     this._onEvent = typeof onEvent === 'function' ? onEvent : () => {};
     this._config = Agent.defaults();
@@ -191,11 +243,24 @@ class Agent {
       cacheHitTokens: 0,
       cost: 0,
       elapsed: 0,
+      // Folding is billed. It is kept in its own columns so that a fold is
+      // never mistaken for an expensive answer, and added into `cost` anyway
+      // because the money left the account either way.
+      folds: 0,
+      foldFailures: 0,
+      foldTokens: 0,
+      foldCost: 0,
+      foldElapsed: 0,
+      // What `full` would have cost, accumulated turn by turn on this same
+      // conversation. The honest version of "before and after".
+      wouldHaveSent: 0,
+      actuallySent: 0,
     };
 
     for (const [key, value] of Object.entries(config)) {
       if (key in this._config) this._config[key] = this._coerce(key, value);
     }
+    this._syncCompressor();
 
     this._emit('agent:new', {
       transport: this._transport.id,
@@ -232,14 +297,54 @@ class Agent {
     return this._ledger;
   }
 
+  get compressor() {
+    return this._compressor;
+  }
+
+  /* The memory policy is four fields in the config and one object underneath,
+   * and the config is the one that a person edits. This keeps them in step —
+   * called from the constructor and from configure(), and nowhere else. */
+  _syncCompressor() {
+    this._compressor.configure({
+      policy: this._config.memoryPolicy,
+      keepRecent: this._config.keepRecent,
+      compressEvery: this._config.compressEvery,
+      summaryBudget: this._config.summaryBudget,
+    });
+  }
+
+  /* What the past looks like on the way out: the summary, if there is one, then
+   * the messages still being sent verbatim. The counter takes a list of
+   * messages and does not care that one of them is prose the agent wrote about
+   * the others, so the summary goes in as a message here and as a system
+   * message on the wire. Both are true; only one is billable arithmetic. */
+  _carried(selection) {
+    const carried = selection.verbatim.map((message) => ({
+      role: message.role,
+      content: message.content,
+    }));
+    if (selection.summary) {
+      carried.unshift({ role: 'system', content: selection.summary.text });
+    }
+    return carried;
+  }
+
   // What the next request would cost, counted without sending it. `text` is
   // whatever is sitting in the composer, including nothing.
   plan(text = '') {
-    return this._counter.plan({
-      model: this._config.model,
+    const selection = this._compressor.select(this._messages);
+    return this._planFor(this._carried(selection), text);
+  }
+
+  // The same question asked of the policy that keeps nothing back. Two numbers
+  // side by side are the only honest way to say what compression is worth, and
+  // measuring them on one conversation beats measuring them on two.
+  counterfactual(text = '') {
+    return this._compressor.counterfactual({
+      messages: this._messages,
       systemPrompt: this._config.systemPrompt,
-      history: this._config.carryHistory ? this._messages : [],
       next: text,
+      model: this._config.model,
       maxTokens: this._config.maxTokens,
     });
   }
@@ -287,15 +392,24 @@ class Agent {
       changed.push({ field: key, from: this._config[key], to: value });
       this._config[key] = value;
     }
-    if (changed.length) this._emit('configure', { changed });
+    if (changed.length) {
+      this._syncCompressor();
+      this._emit('configure', { changed });
+    }
     return this.config;
   }
 
   reset() {
     const forgotten = this._messages.length;
+    const generations = this._compressor.generation;
     this._messages = [];
     this._turn = 0;
     this._ledger.clear();
+    // The summary is part of the conversation, so it goes when the
+    // conversation goes. A summary that outlived its messages would be a
+    // description of something that no longer exists, sitting in the system
+    // slot of every request in a conversation it never saw.
+    this._compressor.reset();
     this._stats = {
       turns: 0,
       failed: 0,
@@ -305,8 +419,15 @@ class Agent {
       cacheHitTokens: 0,
       cost: 0,
       elapsed: 0,
+      folds: 0,
+      foldFailures: 0,
+      foldTokens: 0,
+      foldCost: 0,
+      foldElapsed: 0,
+      wouldHaveSent: 0,
+      actuallySent: 0,
     };
-    this._emit('reset', { forgotten });
+    this._emit('reset', { forgotten, generations });
   }
 
   // The only doors into memory. app.js may open them; it may not climb through
@@ -315,6 +436,11 @@ class Agent {
   snapshot() {
     return Object.freeze({
       messages: this._messages.map((message) => Object.freeze({ ...message })),
+      // The compressed half. Stored beside the messages, never inside them:
+      // restoring a conversation without its summary would silently re-expand
+      // it to full price, and restoring a summary without its cut point would
+      // send the folded messages twice.
+      memory: this._compressor.snapshot(),
       config: { ...this._config },
       transport: this._transport.id,
     });
@@ -339,11 +465,25 @@ class Agent {
     const replaced = this._messages.length;
     this._messages = messages;
 
+    /* A restored summary is only meaningful against the messages it was made
+     * from, so the cut point is clamped to what actually came back. A snapshot
+     * with no memory — every task 8 record, and every conversation that has
+     * never been folded — restores as "nothing folded yet", which is true. */
+    this._compressor.reset();
+    if (snapshot.memory) {
+      this._compressor.restore({
+        ...snapshot.memory,
+        folded: Math.min(Number(snapshot.memory.folded) || 0, messages.length),
+      });
+    }
+
     // Stats and the turn counter are pointedly left alone. They measure this
     // run, and this run has just started; the conversation has not.
     this._emit('agent:restored', {
       messages: messages.length,
       replaced,
+      generations: this._compressor.generation,
+      folded: this._compressor.snapshot().folded,
       savedAt: snapshot.savedAt || null,
       heldUnder: snapshot.config
         ? { model: snapshot.config.model, name: snapshot.config.name, transport: snapshot.transport }
@@ -351,17 +491,6 @@ class Agent {
     });
 
     return this.history;
-  }
-
-  /* System prompt, then as much recent history as the budget allows, then the
-   * new turn. Oldest exchanges fall off the front; the window always opens on a
-   * user message so the model never sees a reply with nothing to reply to. */
-  _wire(kept, text) {
-    return [
-      { role: 'system', content: this._config.systemPrompt },
-      ...kept.map((message) => ({ role: message.role, content: message.content })),
-      { role: 'user', content: text },
-    ];
   }
 
   _planFor(kept, text) {
@@ -374,13 +503,32 @@ class Agent {
     });
   }
 
-  // Everything that decides what goes up the wire happens here, and all of it
-  // is arithmetic done before a byte is sent.
+  /* Everything that decides what goes up the wire happens here, and all of it
+   * is arithmetic done before a byte is sent.
+   *
+   * Two questions in order, and task 8 ran them together. The first is the
+   * standing one — how much of the past does this agent carry at all — and the
+   * memory policy answers it. The second only comes up when the first answer
+   * still does not fit, and the overflow policy answers that one. Folding
+   * happens before either, in send(), because it needs the network. */
   _assemble(text) {
     const model = this._config.model;
-    let kept = this._config.carryHistory ? this._messages.slice() : [];
-    const held = kept.length;
+    const selection = this._compressor.select(this._messages);
+    const summary = selection.summary;
+    // The summary is held out of everything that slices below. It is the
+    // densest thing in the payload — hundreds of messages for the price of one
+    // — so trimming it to make room would be the worst available trade, and
+    // trimming it by accident, which is what slicing a combined array does,
+    // would silently undo the fold that produced it.
+    let kept = selection.verbatim.map((message) => ({
+      role: message.role,
+      content: message.content,
+    }));
+    const held = this._messages.length;
     const reasons = [];
+    const withSummary = (list) => (summary
+      ? [{ role: 'system', content: summary.text }, ...list]
+      : list);
 
     // A cap of the caller's own goes first. It is a preference; the window is
     // a fact, and preferences are applied before facts get a say.
@@ -393,50 +541,68 @@ class Agent {
       }
     }
 
-    let plan = this._planFor(kept, text);
+    let plan = this._planFor(withSummary(kept), text);
 
     if (plan.overflow) {
       const policy = this._config.overflowPolicy;
-      // Room left for the past once the fixed costs are paid.
-      const room = plan.limit - plan.reserved - plan.system - plan.next - plan.priming;
+      // Room left for the past once the fixed costs are paid. The summary is a
+      // fixed cost now: it has already been written and paid for, and the
+      // alternative to carrying it is not carrying less, it is forgetting.
+      const summaryTokens = summary
+        ? this._counter.countMessage({ content: summary.text }, model)
+        : 0;
+      const room = plan.limit - plan.reserved - plan.system - plan.next
+        - plan.priming - summaryTokens;
 
       this._emit('tokens:overflow', {
         policy,
+        memoryPolicy: this._config.memoryPolicy,
         prompt: plan.prompt,
         reserved: plan.reserved,
         total: plan.total,
         limit: plan.limit,
         over: plan.overflowBy,
         roomForHistory: room,
+        summaryTokens,
         held,
       });
 
       if (policy === 'refuse') throw new ContextOverflowError(plan);
 
       if (policy === 'trim') {
-        // Nothing to trim: the system prompt, this message and the reserved
-        // reply already exceed the window. Dropping history cannot save this
-        // one, so say so rather than sending a request that must fail.
+        // Nothing to trim: the system prompt, this message, the summary and the
+        // reserved reply already exceed the window. Dropping verbatim history
+        // cannot save this one, so say so rather than sending a request that
+        // must fail.
         if (room <= 0) throw new ContextOverflowError(plan);
         const fit = this._counter.fit(kept, model, room);
         kept = kept.slice(fit.from);
         reasons.push('context window');
-        plan = this._planFor(kept, text);
+        plan = this._planFor(withSummary(kept), text);
       }
       // 'send' falls through on purpose: the endpoint gets to be the one that
       // refuses, which is the only way to see what that actually looks like.
     }
 
-    const dropped = held - kept.length;
+    /* Two ways for a message not to be in this request, and they are not the
+     * same event. One of them is recoverable — the text is still in memory and
+     * a summary of it is going up the wire — and one of them is the model
+     * losing the start of the conversation for good. */
+    const sent = kept.length;
+    const summarised = selection.folded;
+    const dropped = held - sent - summarised;
+
     if (dropped > 0) {
       this._emit('memory:trim', {
         dropped,
-        because: reasons.join(' then '),
-        droppedPreview: this._messages.slice(0, dropped).map((message) => ({
-          role: message.role,
-          preview: message.content.slice(0, 60),
-        })),
-        kept: kept.length,
+        because: reasons.length ? reasons.join(' then ') : this._config.memoryPolicy,
+        droppedPreview: this._messages.slice(summarised, summarised + dropped)
+          .map((message) => ({
+            role: message.role,
+            preview: message.content.slice(0, 60),
+          })),
+        kept: sent,
+        recoverable: false,
         estimatedTokens: plan.history,
         budget: cap || plan.limit,
       });
@@ -455,13 +621,41 @@ class Agent {
       headroom: plan.headroom,
       fraction: plan.fraction,
       overflow: plan.overflow,
-      messages: kept.length,
+      messages: sent,
+      summarised,
       dropped,
+      memoryPolicy: this._config.memoryPolicy,
+      generation: summary ? summary.generation : 0,
       worstCaseCost: plan.worstCaseCost,
       calibration: this._counter.status(plan.model),
     });
 
-    return { messages: this._wire(kept, text), plan };
+    /* The payload. The summary goes in as a *system* message, never as a
+     * fabricated user or assistant turn: it is not something anybody said, so
+     * giving it a speaker would be a lie the model then reasons from. */
+    const wire = this._compressor.wire({
+      messages: this._messages,
+      systemPrompt: this._config.systemPrompt,
+      next: text,
+    });
+    // The compressor does not know about the history cap or the overflow trim,
+    // so when either of them cut something, the payload is rebuilt from what
+    // actually survived rather than from what the policy would have sent.
+    const messages = (dropped > 0)
+      ? [
+        { role: 'system', content: this._config.systemPrompt },
+        ...withSummary(kept).map((message) => (message.role === 'system'
+          ? {
+            role: 'system',
+            content: `Earlier in this conversation (compressed, generation `
+              + `${summary.generation}):\n${summary.text}`,
+          }
+          : message)),
+        { role: 'user', content: text },
+      ]
+      : wire.messages;
+
+    return { messages, plan, selection, summarised, dropped };
   }
 
   // Everything that happens to a turn once the transport has answered: the
@@ -536,6 +730,133 @@ class Agent {
     return entry;
   }
 
+  /* Writing a summary is a request. It has a model, a prompt, a ceiling and a
+   * bill, and pretending otherwise is how a technique that saves tokens gets
+   * demonstrated without anyone counting the tokens it spends.
+   *
+   * It is deliberately the plainest request this agent ever makes: temperature
+   * zero because a summary is not a creative act, no streaming because nobody
+   * is reading it, and thinking off because reasoning would be billed at output
+   * rates out of the same ceiling the summary itself has to fit in. */
+  async _summarise(source, { system, budget, generation }) {
+    const model = this._config.summaryModel;
+    const started = Date.now();
+
+    this._emit('memory:summarise', {
+      generation,
+      model,
+      budget,
+      sourceCharacters: source.length,
+      estimatedPrompt: this._counter.estimate(`${system}\n${source}`, model),
+    });
+
+    const result = await this._transport.send({
+      model,
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: source },
+      ],
+      temperature: 0,
+      maxTokens: budget,
+      stream: false,
+      thinking: 'off',
+      signal: null,
+      onChunk: null,
+    });
+
+    const usage = result.usage || {};
+    this._stats.foldElapsed += (Date.now() - started) / 1000;
+    this._stats.foldTokens += (usage.promptTokens || 0) + (usage.completionTokens || 0);
+    if (typeof result.cost === 'number') {
+      this._stats.foldCost += result.cost;
+      // Into the headline total as well. It is kept in its own column so a fold
+      // is never mistaken for an expensive answer, and added here anyway
+      // because the money left the account either way.
+      this._stats.cost += result.cost;
+    }
+
+    return result;
+  }
+
+  /* Does the past need folding before this turn goes out, and if so, do it.
+   *
+   * Two triggers. The schedule is the ordinary one — enough messages have piled
+   * up beyond the verbatim window. Pressure is the other: the request does not
+   * fit, and folding early beats refusing on principle.
+   *
+   * A fold that fails is not a turn that fails. The conversation is untouched,
+   * the turn proceeds uncompressed and more expensively, and the log says so.
+   * The alternative — losing messages because a summariser timed out — is not a
+   * trade-off, it is data loss. */
+  async _maybeFold(text) {
+    if (this._config.memoryPolicy !== 'compress') return null;
+
+    let due = this._compressor.due(this._messages);
+    if (!due.due) {
+      if (!due.count) return null;
+      // Nothing owed on schedule. Ask the cheaper question — would this request
+      // fit as things stand? — and only fold early if the answer is no.
+      const probe = this.plan(text);
+      if (!probe.overflow) return null;
+      due = this._compressor.due(this._messages, { pressure: true });
+      if (!due.due) return null;
+    }
+
+    const source = this._compressor.foldSource(this._messages);
+    if (!source) return null;
+
+    this._emit('memory:fold', {
+      reason: due.reason,
+      messages: source.slice.length,
+      from: source.from,
+      to: source.to,
+      previousGeneration: source.previous ? source.previous.generation : 0,
+      preview: source.slice.slice(0, 3).map((message) => ({
+        role: message.role,
+        preview: message.content.slice(0, 60),
+      })),
+    });
+
+    try {
+      const entry = await this._compressor.fold(this._messages, {
+        model: this._config.model,
+        reason: due.reason,
+        summarise: (sourceText, options) => this._summarise(sourceText, options),
+      });
+      if (!entry) return null;
+
+      this._stats.folds += 1;
+      this._emit('memory:summary', {
+        generation: entry.generation,
+        reason: entry.reason,
+        text: entry.text,
+        tokens: entry.tokens,
+        foldedMessages: entry.foldedMessages,
+        foldedTokens: entry.foldedTokens,
+        savedPerTurn: entry.savedPerTurn,
+        spentTokens: entry.spentTokens,
+        spentCost: entry.spentCost,
+        truncated: entry.truncated,
+        breakEvenTurns: entry.savedPerTurn > 0
+          ? Math.ceil(entry.spentTokens / entry.savedPerTurn)
+          : null,
+      });
+      return entry;
+    } catch (error) {
+      this._stats.foldFailures += 1;
+      // Deliberately not rethrown. The question was "can this be cheaper", the
+      // answer came back "not right now", and that is not a reason to refuse to
+      // answer the person who is waiting.
+      this._emit('memory:fold-failed', {
+        reason: due.reason,
+        message: error.message,
+        messagesAtRisk: source.slice.length,
+        kept: true,
+      });
+      return null;
+    }
+  }
+
   async _attempt(messages, { onChunk, signal }) {
     const { model, temperature, maxTokens, stream, retries, thinking } = this._config;
     let attempt = 0;
@@ -578,12 +899,17 @@ class Agent {
     const blocked = this._transport.ready();
     if (blocked) throw new Error(blocked);
 
-    const facts = MODELS[this._config.model];
-    if (facts && facts.stub && this._transport.id !== 'echo') {
-      throw new Error(
-        `${this._config.model} is not a real model — it is a small window kept for the `
-        + 'offline transport. The API would refuse it. Switch model, or switch transport.'
-      );
+    for (const key of ['model', 'summaryModel']) {
+      const name = this._config[key];
+      const facts = MODELS[name];
+      if (facts && facts.stub && this._transport.id !== 'echo') {
+        throw new Error(
+          `${name} is not a real model — it is a small window kept for the `
+          + 'offline transport. The API would refuse it. Switch model, or switch transport.'
+        );
+      }
+      // The summariser only matters when something might be summarised.
+      if (this._config.memoryPolicy !== 'compress') break;
     }
 
     this._busy = true;
@@ -610,7 +936,34 @@ class Agent {
       // that a turn stopped by arithmetic ends the same way a turn stopped by
       // the network does — logged, counted as failed, and with the agent free
       // to take the next one.
-      const { messages, plan } = this._assemble(content);
+      /* Before anything is counted, the past gets its chance to become
+       * smaller. This is the one place in the agent where a turn makes two
+       * requests, and it happens here — before the preflight — so that the
+       * meter, the ledger and the refusal all see the conversation as it will
+       * actually be sent rather than as it was a moment ago. */
+      await this._maybeFold(content);
+
+      // What `full` would have sent, against what is actually going out. Two
+      // numbers on one conversation, which is the only comparison that is not
+      // really a comparison of two different conversations.
+      const versus = this.counterfactual(content);
+      this._stats.wouldHaveSent += versus.full;
+      this._stats.actuallySent += versus.actual;
+
+      const { messages, plan, selection, summarised, dropped } = this._assemble(content);
+      this._emit('memory:sent', {
+        policy: this._config.memoryPolicy,
+        generation: selection.summary ? selection.summary.generation : 0,
+        held: this._messages.length,
+        sentVerbatim: selection.verbatim.length - dropped,
+        summarised,
+        dropped,
+        pending: selection.pending,
+        wouldHaveSent: versus.full,
+        actuallySent: versus.actual,
+        saved: versus.saved,
+        ratio: versus.ratio,
+      });
       this._emit('request', {
         transport: this._transport.id,
         endpoint: this._transport.endpoint,

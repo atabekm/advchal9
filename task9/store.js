@@ -1,7 +1,13 @@
 // The store. It knows about slots, bytes, versions and corruption.
 // It does not know what a message means, and it never touches the DOM.
 
-const SCHEMA_VERSION = 1;
+/* v2 adds `memory`: the summary chain and the cut point that goes with it.
+ *
+ * A v1 record is not corrupt, it is older — it simply predates the idea that a
+ * conversation has a compressed half. It loads with `memory: null`, which the
+ * compressor reads as "nothing has been folded", and the first fold after that
+ * writes a v2 record. Nothing is migrated eagerly and nothing is thrown away. */
+const SCHEMA_VERSION = 2;
 const SESSION_PREFIX = 'task9.session.';
 const ACTIVE_KEY = 'task9.session.active';
 const TITLE_LENGTH = 48;
@@ -111,6 +117,48 @@ function titleFrom(messages) {
   return flat.length > TITLE_LENGTH ? `${flat.slice(0, TITLE_LENGTH)}…` : flat;
 }
 
+/* A stored summary chain, validated the same way messages are: anything that
+ * is not the right shape is dropped rather than trusted. A summary that has
+ * been tampered with goes into the system slot of every future request, so this
+ * is the one field in the record where a shrug would be expensive. */
+function parseMemory(memory) {
+  if (!memory || typeof memory !== 'object' || Array.isArray(memory)) return null;
+
+  const summaries = Array.isArray(memory.summaries)
+    ? memory.summaries
+      .filter((entry) => entry && typeof entry.text === 'string' && entry.text.trim())
+      .map((entry, index) => ({
+        generation: Number(entry.generation) || index + 1,
+        text: entry.text,
+        tokens: Number(entry.tokens) || 0,
+        model: typeof entry.model === 'string' ? entry.model : null,
+        at: Number.isFinite(entry.at) ? entry.at : Date.now(),
+        covers: Number(entry.covers) || 0,
+        foldedMessages: Number(entry.foldedMessages) || 0,
+        foldedTokens: Number(entry.foldedTokens) || 0,
+        savedPerTurn: Number(entry.savedPerTurn) || 0,
+        spentTokens: Number(entry.spentTokens) || 0,
+        spentCost: Number(entry.spentCost) || 0,
+        reason: typeof entry.reason === 'string' ? entry.reason : null,
+        truncated: Boolean(entry.truncated),
+      }))
+    : [];
+
+  if (!summaries.length) return null;
+
+  const spent = memory.spent && typeof memory.spent === 'object' ? memory.spent : {};
+  return {
+    folded: Math.max(0, Number(memory.folded) || 0),
+    summaries,
+    spent: {
+      folds: Number(spent.folds) || summaries.length,
+      tokens: Number(spent.tokens) || 0,
+      cost: Number(spent.cost) || 0,
+      failures: Number(spent.failures) || 0,
+    },
+  };
+}
+
 class SessionStore {
   constructor(backend, { onEvent } = {}) {
     this._backend = backend && backend.available() ? backend : createMemoryBackend();
@@ -194,6 +242,11 @@ class SessionStore {
         ? { ...record.provenance }
         : null,
       messages,
+      /* The compressed half of the conversation. Stored beside the messages
+       * rather than inside them, because a summary is not something anybody
+       * said — and because the panel has to be able to show both at once.
+       * A v1 record has none, which reads as "nothing folded yet". */
+      memory: parseMemory(record.memory),
       pending: record.pending && typeof record.pending === 'object'
         ? {
           turn: Number(record.pending.turn) || 0,
@@ -214,11 +267,12 @@ class SessionStore {
       updatedAt: record.updatedAt,
       provenance: record.provenance || null,
       messages: record.messages,
+      memory: record.memory || null,
       pending: record.pending || null,
     }, null, 2);
   }
 
-  create({ messages = [], provenance = null, title = null } = {}) {
+  create({ messages = [], provenance = null, title = null, memory = null } = {}) {
     const now = Date.now();
     return {
       v: SCHEMA_VERSION,
@@ -229,6 +283,7 @@ class SessionStore {
       updatedAt: now,
       provenance,
       messages,
+      memory: memory || null,
       pending: null,
     };
   }
@@ -296,7 +351,12 @@ class SessionStore {
       throw new StoreError(`Could not write the session: ${error.message}`, { kind: 'write' });
     }
 
-    this._emit('store:save', { id: next.id, messages: next.messages.length, bytes: payload.length });
+    this._emit('store:save', {
+      id: next.id,
+      messages: next.messages.length,
+      summaries: next.memory ? next.memory.summaries.length : 0,
+      bytes: payload.length,
+    });
     return next;
   }
 
