@@ -600,3 +600,86 @@ button:disabled { opacity: 0.5; cursor: default; border-color: var(--line); }
 .event.kind-tokens-starved .event-type { color: var(--bad); }
 .chart-think { fill: #8a6fb0; }
 .thinking-note { margin: 8px 0 0; line-height: 1.5; }
+
+/* ---------- memory ----------
+ *
+ * The summary gets its own colour everywhere it appears — in the window meter,
+ * in the split bar, in the ledger — because it is the one thing in the payload
+ * that nobody said, and a reader should be able to find it at a glance. */
+
+.seg-summary { background: #7a5aa8; }
+
+.split-bar {
+  display: flex;
+  height: 16px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--bg);
+  border: 1px solid var(--line);
+}
+.split-seg { display: block; height: 100%; }
+.band-summarised { background: #7a5aa8; }
+.band-verbatim { background: var(--accent); }
+.band-pending { background: var(--accent); opacity: 0.45; }
+.band-dropped {
+  background: repeating-linear-gradient(
+    45deg, var(--bad), var(--bad) 3px, transparent 3px, transparent 6px
+  );
+}
+
+.split-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--dim);
+}
+.split-key-item { display: inline-flex; align-items: center; gap: 5px; }
+.split-key-item i {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  flex: none;
+}
+
+.tsection .readonly-row.good span:last-child { color: #3d7a4f; }
+
+.summary-body {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-left: 3px solid #7a5aa8;
+  border-radius: 4px;
+  background: var(--bg);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.summary-warn {
+  margin: 0 0 8px;
+  font-size: 11px;
+  color: var(--bad);
+}
+
+.gtable { font-size: 11px; font-family: var(--mono); }
+.grow {
+  display: grid;
+  grid-template-columns: 2.2em 4.2em 1fr 1fr 1fr 1fr 4.5em;
+  gap: 6px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--line);
+}
+.grow span { text-align: right; overflow: hidden; text-overflow: ellipsis; }
+.grow span:first-child, .grow span:last-child { text-align: left; }
+.ghead { color: var(--dim); border-bottom-color: var(--ink); }
+.grow.truncated span:nth-child(4) { color: var(--bad); }
+
+/* A summary row in the carried-messages ledger. Same purple, so the eye
+ * connects the row to the band in the meter above it. */
+.lrow.summarised { border-left-color: #7a5aa8; }
+.lrow.summarised .lrow-bar { background: #7a5aa8; }

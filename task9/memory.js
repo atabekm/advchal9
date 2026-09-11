@@ -138,6 +138,7 @@ class SummaryChain {
         model: entry.model || null,
         at: Number(entry.at) || Date.now(),
         covers: Number(entry.covers) || 0,
+        atMessages: Number(entry.atMessages) || Number(entry.covers) || 0,
         foldedMessages: Number(entry.foldedMessages) || 0,
         foldedTokens: Number(entry.foldedTokens) || 0,
         savedPerTurn: Number(entry.savedPerTurn) || 0,
@@ -419,6 +420,9 @@ class Compressor {
       model: model || null,
       at: Date.now(),
       covers: source.to,
+      // How long the conversation was when this fold happened, so "how many
+      // turns has it had to pay for itself" is a fact rather than a guess.
+      atMessages: messages.length,
       foldedMessages: source.slice.length,
       foldedTokens,
       savedPerTurn,
@@ -478,13 +482,22 @@ class Compressor {
    * one. A summary is written by a model, in a second request, and it is
    * billed. Compression that has not yet paid for itself is a cost, not a
    * saving, and for a short conversation it never will be. */
-  savings({ turnsSinceFold = 0 } = {}) {
+  savings({ held = 0 } = {}) {
     const latest = this._chain.latest;
     const savedPerTurn = latest ? latest.savedPerTurn : 0;
     const spentTokens = this._spent.tokens;
     const breakEven = savedPerTurn > 0 ? Math.ceil(spentTokens / savedPerTurn) : null;
 
+    /* Turns since the fold, not turns in the conversation. The distinction
+     * decides whether the panel says a fold has paid for itself, and counting
+     * from the start of the conversation would credit a fold with every turn
+     * that happened before it existed. */
+    const turnsSinceFold = latest
+      ? Math.max(0, Math.floor((held - latest.atMessages) / 2))
+      : 0;
+
     return {
+      turnsSinceFold,
       folds: this._spent.folds,
       failures: this._spent.failures,
       spentTokens,
