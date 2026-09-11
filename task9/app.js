@@ -64,6 +64,7 @@ let log = [];
 let store = null;
 let session = null;
 let counter = null;
+let compressor = null;
 let labRuns = [];
 let labBusy = false;
 
@@ -152,8 +153,9 @@ function size(value) {
   return `${(value / 1024 / 1024).toFixed(2)} MB`;
 }
 
-function plural(count, word) {
-  return `${count} ${word}${count === 1 ? '' : 's'}`;
+function plural(count, word, plural_) {
+  if (count === 1) return `${count} ${word}`;
+  return `${count} ${plural_ || `${word}s`}`;
 }
 
 function clip(text, length) {
@@ -286,26 +288,48 @@ function syncFields() {
   }
 }
 
+/* Task 8 ended this line on "billed again on the next turn", which was the
+ * honest thing to say when everything in memory was resent at full price.
+ * It is no longer necessarily true, so the line says which half is which. */
+function memoryLine() {
+  if (!counter || !agent) return '';
+  const held = agent.history.length;
+  const carried = counter.countMessages(agent.history, agent.config.model);
+  if (!held) return '';
+  const selection = compressor.select(agent.history);
+  if (!selection.summary) {
+    return `${plural(held, 'message')} ≈ ${count(carried)} tokens in memory`;
+  }
+  const versus = agent.counterfactual('');
+  return `${plural(held, 'message')} in memory · ${selection.folded} of them as a `
+    + `${count(versus.summaryTokens)}-token summary · ${count(versus.actual)} sent `
+    + `where full would send ${count(versus.full)}`;
+}
+
 function syncStats() {
   const stats = agent.stats;
   if (!stats.turns && !stats.failed) {
-    const carried = counter ? counter.countMessages(agent.history, agent.config.model) : 0;
     dom.stats.textContent = agent.history.length
-      ? `restored · ${plural(agent.history.length, 'message')} ≈ ${count(carried)} tokens `
-        + 'in memory · billed again on the next turn'
+      ? `restored · ${memoryLine()}`
       : 'no turns yet';
     return;
   }
-  const memory = counter ? counter.countMessages(agent.history, agent.config.model) : 0;
   const parts = [
     `${stats.turns} turn${stats.turns === 1 ? '' : 's'}`,
-    `${agent.history.length} in memory ≈ ${count(memory)} tok`,
+    memoryLine(),
     `${stats.promptTokens} in / ${stats.completionTokens} out`
       + (stats.reasoningTokens ? ` (${stats.reasoningTokens} thinking)` : ''),
     `${stats.cacheHitTokens} cached`,
     money(stats.cost),
     seconds(stats.elapsed),
-  ];
+  ].filter(Boolean);
+  // Folding is billed, so it is in the total above. It gets its own clause so
+  // that nobody reads the total as the price of answering questions.
+  if (stats.folds) {
+    parts.push(`${plural(stats.folds, 'fold')} · ${count(stats.foldTokens)} tok · `
+      + `${money(stats.foldCost)}`);
+  }
+  if (stats.foldFailures) parts.push(`${stats.foldFailures} folds failed`);
   if (stats.failed) parts.push(`${stats.failed} failed`);
   dom.stats.textContent = parts.join(' · ');
 }
@@ -318,7 +342,25 @@ const SUMMARY = {
     .map((change) => `${change.field}: ${clip(change.from, 24)} → ${clip(change.to, 24)}`)
     .join(' · '),
   'turn:start': (e) => `“${clip(e.text, 56)}” · ${e.historyLength} in memory`,
-  'memory:trim': (e) => `dropped ${e.dropped}, kept ${e.kept} · ~${e.estimatedTokens}/${e.budget} tokens`,
+  'memory:trim': (e) => `dropped ${e.dropped} for good, kept ${e.kept} · ${e.because} · `
+    + `~${e.estimatedTokens}/${e.budget} tokens`,
+  'memory:fold': (e) => `folding ${plural(e.messages, 'message')} (${e.from}–${e.to}) · `
+    + `${e.reason}${e.previousGeneration ? ` · rolling in generation ${e.previousGeneration}` : ''}`,
+  'memory:summarise': (e) => `generation ${e.generation} · ${e.model} · `
+    + `~${count(e.estimatedPrompt)} in, ${count(e.budget)}-token ceiling`,
+  'memory:summary': (e) => `generation ${e.generation} · ${count(e.foldedTokens)} tokens of `
+    + `history → ${count(e.tokens)} · saves ${count(e.savedPerTurn)}/turn · `
+    + `cost ${count(e.spentTokens)} tokens`
+    + (e.breakEvenTurns != null ? ` · pays for itself in ${plural(e.breakEvenTurns, 'turn')}` : '')
+    + (e.truncated ? ' · CUT OFF at the ceiling' : ''),
+  'memory:fold-failed': (e) => `${e.message} · ${plural(e.messagesAtRisk, 'message')} kept, `
+    + 'nothing lost, this turn goes out uncompressed',
+  'memory:sent': (e) => `${e.sentVerbatim} verbatim`
+    + (e.summarised ? ` + ${e.summarised} summarised (gen ${e.generation})` : '')
+    + (e.dropped ? ` · ${e.dropped} dropped` : '')
+    + (e.pending ? ` · ${e.pending} awaiting the next fold` : '')
+    + ` · ${count(e.actuallySent)} sent where full would have sent ${count(e.wouldHaveSent)}`
+    + (e.saved > 0 ? ` (${percent(e.ratio)} less)` : ''),
   request: (e) => `${e.body.messages.length} messages · ${e.body.model} · temp ${e.body.temperature}`,
   'first-token': (e) => `${e.afterMs} ms to first token (${e.kind})`,
   retry: (e) => `attempt ${e.attempt}/${e.of} · ${e.status ? `HTTP ${e.status}` : 'network'} · waiting ${e.delayMs} ms`,
@@ -331,11 +373,15 @@ const SUMMARY = {
   'turn:end': (e) => `${e.ok ? 'ok' : 'failed'} · ${(e.totalMs / 1000).toFixed(2)}s · ${e.historyLength} in memory`,
   error: (e) => `${e.status ? `HTTP ${e.status} · ` : ''}${e.message}`,
   aborted: () => 'stopped by the user',
-  reset: (e) => `forgot ${e.forgotten} messages`,
+  reset: (e) => `forgot ${e.forgotten} messages`
+    + (e.generations ? ` and ${plural(e.generations, 'summary', 'summaries')} of them` : ''),
   'agent:restored': (e) => `${plural(e.messages, 'message')} back in memory`
+    + (e.generations ? ` · ${e.folded} of them compressed into generation ${e.generations}` : '')
     + (e.savedAt ? ` · saved ${relative(e.savedAt)}` : '')
     + (e.heldUnder ? ` · held under ${e.heldUnder.name} on ${e.heldUnder.model}` : ''),
-  'store:save': (e) => `${e.id} · ${plural(e.messages, 'message')} · ${size(e.bytes)}`,
+  'store:save': (e) => `${e.id} · ${plural(e.messages, 'message')}`
+    + (e.summaries ? ` + ${plural(e.summaries, 'summary', 'summaries')}` : '')
+    + ` · ${size(e.bytes)}`,
   'store:remove': (e) => `${e.id} deleted`,
   'store:import': (e) => `${plural(e.messages, 'message')} in`
     + (e.renamed ? ' · id was taken, given a fresh one' : ''),
@@ -346,7 +392,8 @@ const SUMMARY = {
   'tokens:settled': (e) => `${count(e.estimated)} guessed / ${count(e.actual)} billed `
     + `(${signed(e.drift)}) · ${count(e.completion)} out · ${money(e.cost)} · `
     + `${money(e.cumulativeCost)} this run`,
-  'tokens:overflow': (e) => `over by ${count(e.over)} of ${count(e.limit)} · policy: ${e.policy}`,
+  'tokens:overflow': (e) => `over by ${count(e.over)} of ${count(e.limit)} · `
+    + `memory: ${e.memoryPolicy} · then: ${e.policy}`,
   'tokens:truncated': (e) => `finish_reason: length · stopped at the ${e.ceiling}-token ceiling`,
   'tokens:starved': (e) => `${count(e.completion)} tokens written, ${count(e.reasoning)} of them `
     + `reasoning, none of them content · ${e.ceiling}-token ceiling · ${money(e.cost)} for nothing`,
@@ -355,6 +402,7 @@ const SUMMARY = {
 function matchesFilter(event, filter) {
   if (!filter) return true;
   if (filter === 'tokens') return event.type.startsWith('tokens:');
+  if (filter === 'memory') return event.type.startsWith('memory:');
   if (filter === 'problems') return event.type === 'retry' || event.type === 'error';
   if (filter === 'storage') {
     return event.type.startsWith('store:') || event.type === 'agent:restored';
@@ -565,6 +613,10 @@ function capture(pending) {
   return {
     ...session,
     messages: snapshot.messages.map((message) => ({ ...message })),
+    // Stored beside the messages, never inside them. A conversation restored
+    // without its summary quietly goes back to full price; a summary restored
+    // without its cut point sends the folded messages twice.
+    memory: snapshot.memory && snapshot.memory.summaries.length ? snapshot.memory : null,
     provenance: provenanceOf(),
     pending: pending === undefined ? (session.pending || null) : pending,
   };
@@ -656,6 +708,7 @@ function adopt(record, { announced = true } = {}) {
   session = { ...record, stored: true };
   agent.restore({
     messages: record.messages,
+    memory: record.memory || null,
     savedAt: record.updatedAt,
     config: record.provenance,
     transport: record.provenance ? record.provenance.transport : null,
@@ -956,14 +1009,27 @@ function renderLedger(plan) {
     return;
   }
 
-  // Which of these the agent would leave behind at send time, if it had to.
+  /* These rows are what is carried, not what was said. Since task 9 those are
+   * two different lists: the first row can be a summary standing in for
+   * hundreds of messages, and the messages it stands in for are not here. */
   const room = plan.limit - plan.reserved - plan.system - plan.next - plan.priming;
-  const cut = plan.overflow && room > 0
-    ? counter.fit(agent.history, agent.config.model, room).from
-    : 0;
+  let cut = 0;
+  if (plan.overflow && room > 0) {
+    let used = 0;
+    cut = rows.length;
+    while (cut > 0 && used + rows[cut - 1].tokens <= room) {
+      used += rows[cut - 1].tokens;
+      cut -= 1;
+    }
+  }
 
+  const selection = compressor.select(agent.history);
   dom.ledgerNote.textContent = `${plural(rows.length, 'message')} · ${count(plan.history)} tokens `
-    + `carried into every turn from here on`
+    + 'carried into every turn from here on'
+    + (selection.folded
+      ? ` · ${selection.folded} older ${selection.folded === 1 ? 'message is' : 'messages are'} `
+        + `the first row, compressed`
+      : '')
     + (cut ? ` · the first ${cut} would be dropped to make this one fit` : '');
 
   const widest = rows.reduce((max, row) => Math.max(max, row.tokens), 1);
@@ -978,7 +1044,12 @@ function renderLedger(plan) {
 
     const who = document.createElement('span');
     who.className = 'lrow-role';
-    who.textContent = row.role === 'user' ? 'you' : agent.config.name;
+    if (row.role === 'system') {
+      who.textContent = `summary · gen ${compressor.generation}`;
+      item.classList.add('summarised');
+    } else {
+      who.textContent = row.role === 'user' ? 'you' : agent.config.name;
+    }
 
     const tokens = document.createElement('span');
     tokens.className = 'lrow-tokens';
@@ -998,7 +1069,9 @@ function renderLedger(plan) {
     meta.className = 'lrow-meta';
     meta.textContent = row.index < cut
       ? `${count(row.chars)} chars · dropped`
-      : `${count(row.chars)} chars`;
+      : (row.role === 'system'
+        ? `${count(row.chars)} chars · standing in for ${plural(selection.folded, 'message')}`
+        : `${count(row.chars)} chars`);
 
     item.append(head, bar, meta);
     dom.ledger.append(item);
@@ -1651,7 +1724,7 @@ async function submit() {
 
 function buildAgent(transportId) {
   const transport = TRANSPORTS.find((entry) => entry.id === transportId) || TRANSPORTS[0];
-  agent = new Agent({ transport, onEvent: record, counter, ...savedConfig() });
+  agent = new Agent({ transport, onEvent: record, counter, compressor, ...savedConfig() });
   saveConfig(agent.config);
 }
 
@@ -1664,6 +1737,10 @@ function start() {
   }
 
   counter = new TokenCounter({ calibration: savedCalibration() });
+  // The compressor outlives the agent for the same reason the counter does:
+  // it holds half the conversation, and swapping transports must not amnesia
+  // the compressed half any more than it amnesias the verbatim one.
+  compressor = new Compressor({ counter });
   buildAgent(TRANSPORTS[0].id);
   buildFields();
   boot();
@@ -1694,6 +1771,7 @@ function start() {
       if (messages.length) {
         agent.restore({
           messages,
+          memory: session.memory || null,
           savedAt: session.updatedAt,
           config: session.provenance,
           transport: session.provenance ? session.provenance.transport : null,
