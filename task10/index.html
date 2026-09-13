@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The agent that counts</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="masthead">
+  <div class="brand">
+    <h1>The agent that keeps the point</h1>
+    <p>Three ways to decide what the model still knows, none of them a summary: keep the last few, keep what was said as facts, or fork the conversation and keep both answers.</p>
+  </div>
+  <label class="key">
+    <span class="hint">DeepSeek API key</span>
+    <input id="key" type="password" placeholder="sk-…" autocomplete="off" spellcheck="false">
+  </label>
+  <label class="pick">
+    <span class="hint">transport <em>(injected)</em></span>
+    <select id="transport"></select>
+  </label>
+</header>
+
+<main class="workspace">
+
+  <section class="chat">
+    <div class="sessionbar">
+      <input id="title" class="session-title" spellcheck="false" aria-label="conversation title">
+      <span class="hint" id="sessionMeta"></span>
+    </div>
+    <div class="banner" id="banner" hidden></div>
+    <div class="log" id="log">
+      <div class="empty" id="empty">
+        <p>Type, and the counter under the composer starts moving before you send anything.
+        Send, and the context tab fills in: which messages are still going up the wire, which
+        facts are standing in for the ones that are not, and what the difference costs. The
+        strategy switch is at the top of it, the branch tree is halfway down, and the
+        benchmark at the bottom runs one requirements conversation under every strategy and
+        grades the answers.</p>
+      </div>
+    </div>
+    <form class="composer" id="composer">
+      <textarea id="input" rows="2" placeholder="Message the agent…" spellcheck="false"></textarea>
+      <div class="draft" id="draft"></div>
+      <div class="composer-actions">
+        <button type="submit" id="send" class="primary">Send</button>
+        <button type="button" id="stop" hidden>Stop</button>
+        <button type="button" id="reset">New conversation</button>
+        <span class="hint" id="status"></span>
+      </div>
+    </form>
+  </section>
+
+  <aside class="side">
+    <div class="tabs">
+      <button type="button" class="tab active" data-tab="tokens">tokens</button>
+      <button type="button" class="tab" data-tab="context">context</button>
+      <button type="button" class="tab" data-tab="sessions">sessions</button>
+      <button type="button" class="tab" data-tab="config">config</button>
+      <button type="button" class="tab" data-tab="debug">debug</button>
+    </div>
+
+    <div class="tabpanel" id="tokensPanel">
+      <div class="tokenscroll">
+
+        <section class="tsection">
+          <h2>this request</h2>
+          <div class="meter" id="meter"></div>
+          <div class="readonly" id="windowRows"></div>
+        </section>
+
+        <section class="tsection">
+          <h2>the conversation</h2>
+          <p class="hint" id="ledgerNote"></p>
+          <div class="ledger" id="ledger"></div>
+        </section>
+
+        <section class="tsection">
+          <h2>growth</h2>
+          <div class="chart" id="chart"></div>
+          <div class="turns" id="turns"></div>
+        </section>
+
+        <section class="tsection">
+          <h2>estimate vs bill</h2>
+          <div class="readonly" id="calibration"></div>
+        </section>
+
+        <section class="tsection">
+          <h2>where this is heading</h2>
+          <div class="readonly" id="projection"></div>
+        </section>
+
+        <section class="tsection">
+          <h2>lab</h2>
+          <p class="hint">Three conversations, measured the same way. Each starts a fresh
+          session and leaves the current one where it is.</p>
+          <div class="lab-tools">
+            <button type="button" id="labShort">short · 3 turns</button>
+            <button type="button" id="labLong">long · 20 turns</button>
+            <button type="button" id="labOverflow">overflow it</button>
+            <button type="button" id="labClear">Clear</button>
+          </div>
+          <div class="compare" id="compare"></div>
+        </section>
+
+      </div>
+    </div>
+
+    <div class="tabpanel" id="contextPanel" hidden>
+      <div class="tokenscroll">
+
+        <section class="tsection">
+          <h2>the strategy</h2>
+          <div class="strategy" id="strategy"></div>
+          <p class="hint" id="strategyNote"></p>
+        </section>
+
+        <section class="tsection">
+          <h2>what goes up the wire</h2>
+          <div class="split" id="split"></div>
+          <div class="readonly" id="splitRows"></div>
+        </section>
+
+        <section class="tsection">
+          <h2>the facts</h2>
+          <p class="hint" id="factsNote"></p>
+          <div class="summary" id="factsBlock"></div>
+          <div class="ftable" id="factsTable"></div>
+          <div class="readonly" id="factsRows"></div>
+        </section>
+
+        <section class="tsection">
+          <h2>branches</h2>
+          <p class="hint">A checkpoint is a place. Two branches from one place continue
+          independently — separate messages, separate facts — and neither can write to
+          the other.</p>
+          <div class="lab-tools">
+            <button type="button" id="markHere">Checkpoint here</button>
+            <button type="button" id="forkHere">Branch from here</button>
+          </div>
+          <div class="branches" id="branchTree"></div>
+          <div class="readonly" id="branchRows"></div>
+        </section>
+
+        <section class="tsection">
+          <h2>what it saved</h2>
+          <div class="readonly" id="savedRows"></div>
+        </section>
+
+        <section class="tsection">
+          <h2>what it cost</h2>
+          <p class="hint">Extraction and summarisation are both second requests. They are
+          billed, and until one has saved more than it spent it is a cost.</p>
+          <div class="readonly" id="extractRows"></div>
+          <div class="readonly" id="foldRows"></div>
+        </section>
+
+        <section class="tsection">
+          <h2>the benchmark</h2>
+          <p class="hint">One requirements conversation, run under every policy: everything,
+          last-few-only, last-few-plus-summary, last-few-plus-facts. Facts are planted
+          early, buried, revised, then asked about. The answers are graded, not admired.</p>
+          <div class="lab-tools">
+            <button type="button" id="benchRun">run them all</button>
+            <button type="button" id="benchClear">Clear</button>
+          </div>
+          <p class="hint" id="benchStatus"></p>
+          <div class="bench" id="bench"></div>
+        </section>
+
+        <section class="tsection">
+          <h2>the summary</h2>
+          <p class="hint" id="summaryNote"></p>
+          <div class="summary" id="summaryText"></div>
+        </section>
+
+        <section class="tsection">
+          <h2>generations</h2>
+          <p class="hint" id="generationsNote"></p>
+          <div class="generations" id="generations"></div>
+        </section>
+
+      </div>
+    </div>
+
+    <div class="tabpanel" id="sessionsPanel" hidden>
+      <div class="session-tools">
+        <button type="button" id="newSession">New</button>
+        <button type="button" id="exportSession">Export</button>
+        <button type="button" id="importSession">Import</button>
+        <input type="file" id="importFile" accept="application/json,.json" hidden>
+      </div>
+      <div class="sessions" id="sessions"></div>
+      <div class="readonly" id="storage"></div>
+    </div>
+
+    <div class="tabpanel" id="configPanel" hidden>
+      <div class="fields" id="fields"></div>
+      <div class="readonly" id="readonly"></div>
+    </div>
+
+    <div class="tabpanel" id="debugPanel" hidden>
+      <div class="debug-tools">
+        <select id="filter">
+          <option value="">everything</option>
+          <option value="request">requests only</option>
+          <option value="tokens">tokens only</option>
+          <option value="memory">memory only</option>
+          <option value="facts">facts only</option>
+          <option value="branch">branches only</option>
+          <option value="memory:summary">summaries only</option>
+          <option value="configure">config changes only</option>
+          <option value="storage">storage only</option>
+          <option value="problems">retries and errors</option>
+        </select>
+        <button type="button" id="copyLog">Copy</button>
+        <button type="button" id="clearLog">Clear</button>
+      </div>
+      <div class="events" id="events"></div>
+    </div>
+
+    <p class="stats hint" id="stats">no turns yet</p>
+  </aside>
+
+</main>
+
+<script src="markdown.js"></script>
+<script src="tokens.js"></script>
+<script src="facts.js"></script>
+<script src="branch.js"></script>
+<script src="memory.js"></script>
+<script src="api.js"></script>
+<script src="store.js"></script>
+<script src="agent.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
