@@ -263,7 +263,9 @@ proven.
 - `router.js` — the rules and the decision log
 - `api.js` — the DeepSeek transport, chat and extraction
 - `agent.js` — the turn: assemble, send, extract, route, write
+- `ablation.js` — one memory, four configurations, five questions
 - `app.js` — the chat and the inspector; not one line of what-is-a-layer
+- `test.js` — the rules and the assembly, checked with no network and no key
 
 ## Stages
 
@@ -298,6 +300,16 @@ table.
 ### Stage 7 — the writing
 `README.md`. What landed in each layer, what the router dropped and why, the
 ablation, and the places the model proposed a layer the rules overruled.
+
+The stages landed as planned, with three changes worth naming. Rule 4's "an
+identifier with no tie to the task" became the simplest form of that test —
+*is a task open at all* — because every richer version was a similarity
+measure pretending to be a rule. The ablation's probes are asked in a fresh
+conversation rather than at the end of the scripted one, because probes asked
+in sequence can be answered from each other's replies and the column would
+then be measuring the transcript. And `test.js` was not in the plan: once
+`plan()` was split from `commit()` so the rules could be exercised without a
+model, writing the checks was cheaper than not writing them.
 
 ## Risks
 
