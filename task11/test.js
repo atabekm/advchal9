@@ -18,7 +18,7 @@ const fs = require('fs');
 const vm = require('vm');
 const path = require('path');
 
-for (const file of ['layers.js', 'extract.js', 'router.js']) {
+for (const file of ['layers.js', 'extract.js', 'router.js', 'api.js', 'agent.js']) {
   vm.runInThisContext(fs.readFileSync(path.join(__dirname, file), 'utf8'), { filename: file });
 }
 
@@ -32,9 +32,14 @@ function ok(claim, condition, detail = '') {
   console.error(`  ✗ ${claim}${detail ? `\n      ${detail}` : ''}`);
 }
 
+// Some groups are async. They are run in order, one at a time, so that a
+// failure is printed under the heading it belongs to.
+const queue = [];
 function group(name, body) {
-  console.log(`\n${name}`);
-  body();
+  queue.push(async () => {
+    console.log(`\n${name}`);
+    await body();
+  });
 }
 
 /* ------------------------------------------------------------- the layers */
@@ -251,7 +256,132 @@ group('promotion happens at the close, and not before', () => {
     memory.long.get('decisions', 'db').promotedFrom.goal === 'the migration');
 });
 
+/* ---------------------------------------------------------- the assembly */
+
+/* A transport that answers from a script. It is not a stand-in for a model —
+ * there is deliberately no such thing in this task — it is a way of asking the
+ * agent what it *sent*, which is the only question these checks have. */
+function scripted({ reply = 'noted', candidates = [] } = {}) {
+  const seen = { reply: null, extraction: null };
+  return {
+    seen,
+    id: 'scripted',
+    ready: () => '',
+    async send({ messages }) {
+      seen.reply = messages;
+      return { text: reply, usage: { promptTokens: 10, completionTokens: 2 }, cost: 0, elapsed: 0 };
+    },
+    async json({ messages }) {
+      seen.extraction = messages;
+      return {
+        text: JSON.stringify({ candidates }),
+        usage: { promptTokens: 10, completionTokens: 2 },
+        cost: 0,
+        elapsed: 0,
+      };
+    },
+  };
+}
+
+group('the three layers arrive as three separate blocks, in order', async () => {
+  const transport = scripted();
+  const agent = new Agent({ transport });
+  agent.memory.long.put({ compartment: 'profile', key: 'name', value: 'Atabek' });
+  agent.openTask('the migration');
+  agent.memory.short.put({ role: 'user', content: 'earlier' });
+  agent.memory.short.put({ role: 'assistant', content: 'earlier reply' });
+
+  const plan = agent.assemble('and now?');
+  const layers = plan.blocks.map((block) => block.layer);
+  ok('persona, long, working, short — in that order',
+    JSON.stringify(layers) === JSON.stringify(['persona', 'long', 'working', 'short']),
+    JSON.stringify(layers));
+
+  const systems = plan.messages.filter((m) => m.role === 'system');
+  ok('each layer is its own system message, not one merged block', systems.length === 3);
+  ok('no layer is given a speaker who might have said it',
+    plan.messages.every((m) => m.role !== 'system' || !/^(user|assistant):/.test(m.content)));
+  ok('the last message is the thing being asked now',
+    plan.messages[plan.messages.length - 1].content === 'and now?');
+});
+
+group('a layer that is switched off does not go up the wire', () => {
+  const agent = new Agent({ transport: scripted() });
+  agent.memory.long.put({ compartment: 'profile', key: 'name', value: 'Atabek' });
+  agent.openTask('the migration');
+  agent.memory.short.put({ role: 'user', content: 'earlier' });
+
+  agent.configure({ useLong: false });
+  ok('long-term is gone', !agent.assemble('x').blocks.some((b) => b.layer === 'long'));
+  ok('and the others are not', agent.assemble('x').blocks.some((b) => b.layer === 'working'));
+
+  agent.configure({ useLong: true, useWorking: false });
+  ok('working is gone', !agent.assemble('x').blocks.some((b) => b.layer === 'working'));
+  ok('and long-term is back', agent.assemble('x').blocks.some((b) => b.layer === 'long'));
+
+  agent.configure({ useWorking: true, useShort: false });
+  const plan = agent.assemble('x');
+  ok('short-term sends nothing', plan.blocks.find((b) => b.layer === 'short').shown === 0);
+  ok('but the turn itself still goes', plan.messages[plan.messages.length - 1].content === 'x');
+});
+
+group('a turn is two requests, and the second one may fail alone', async () => {
+  const transport = scripted({
+    reply: 'Understood.',
+    candidates: [{ key: 'deadline', value: '11 March', kind: 'decision', layer: 'working', from: 'user' }],
+  });
+  const agent = new Agent({ transport });
+  agent.openTask('the migration');
+
+  const turn = await agent.send('the deadline is 11 March');
+  ok('the reply landed in short-term', agent.memory.short.length === 2);
+  ok('nothing is remembered yet', agent.memory.working.get('deadline') === null);
+
+  await agent.remember(turn);
+  ok('the second request stored it', agent.memory.working.get('deadline').value === '11 March');
+  ok('the turn knows what both calls cost', turn.reply !== null && turn.extraction.usage !== null);
+
+  const broken = new Agent({
+    transport: {
+      ...transport,
+      async json() { throw new TransportError('429', { status: 429, retryable: true }); },
+    },
+  });
+  const second = await broken.send('anything');
+  const outcome = await broken.remember(second);
+  ok('a failed extraction is reported, not thrown', Boolean(outcome.failed));
+  ok('and the turn survives it', broken.memory.short.length === 2);
+});
+
+group('switching extraction off does not send the second request', async () => {
+  const transport = scripted({ candidates: [{ key: 'x', value: 'y', kind: 'other', from: 'user' }] });
+  const agent = new Agent({ transport, extract: false });
+  const turn = await agent.send('hello');
+  const outcome = await agent.remember(turn);
+  ok('it says why it did nothing', Boolean(outcome.skipped));
+  ok('and nothing was sent', transport.seen.extraction === null);
+});
+
+group('a new conversation keeps the person and the task', async () => {
+  const agent = new Agent({ transport: scripted() });
+  agent.memory.long.put({ compartment: 'profile', key: 'name', value: 'Atabek' });
+  agent.openTask('the migration');
+  agent.memory.working.put({ key: 'deadline', value: '11 March', kind: 'decision' });
+  await agent.send('hello');
+
+  agent.resetDialogue();
+  ok('the dialogue is gone', agent.memory.short.length === 0);
+  ok('the task is not', agent.memory.working.get('deadline') !== null);
+  ok('the person is not', agent.memory.long.get('profile', 'name') !== null);
+  ok('and the next request still carries both',
+    agent.assemble('who am I?').blocks.some((b) => b.layer === 'long')
+    && agent.assemble('who am I?').blocks.some((b) => b.layer === 'working'));
+});
+
 /* --------------------------------------------------------------- the end */
 
-console.log(`\n${checks - failures}/${checks} checks passed`);
-if (failures) process.exit(1);
+(async () => {
+  for (const run of queue) await run();
+  console.log(`\n${checks - failures}/${checks} checks passed`);
+  if (failures) process.exit(1);
+})();
