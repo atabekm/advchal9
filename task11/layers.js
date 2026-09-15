@@ -341,9 +341,14 @@ class Working {
       kind,
       from: item.from === 'assistant' ? 'assistant' : 'user',
       source: item.source || null,
-      rule: item.rule || null,
+      rule: item.rule == null ? null : item.rule,
       proposed: item.proposed || null,
       promotable: Boolean(item.promotable),
+      /* Typed, not quoted. The verbatim rule has nothing to check a
+       * hand-written item against, and rather than pretend it passed, the item
+       * carries the fact that nobody said it. A provenance column that cannot
+       * tell the two apart is worse than none. */
+      typed: Boolean(item.typed),
       at: now(),
       // Revisions are kept for the panel and never sent. Sending both the old
       // value and the new one is how `full` context ends up unable to say when
@@ -448,9 +453,10 @@ class Working {
         kind: WORKING_KINDS[item.kind] ? item.kind : 'artifact',
         from: item.from === 'assistant' ? 'assistant' : 'user',
         source: item.source || null,
-        rule: item.rule || null,
+        rule: item.rule == null ? null : item.rule,
         proposed: item.proposed || null,
         promotable: Boolean(item.promotable),
+        typed: Boolean(item.typed),
         at: Number(item.at) || now(),
         history: Array.isArray(item.history) ? item.history : [],
       });
@@ -563,9 +569,10 @@ class LongTerm {
       value,
       from: item.from === 'assistant' ? 'assistant' : 'user',
       source: item.source || null,
-      rule: item.rule || null,
+      rule: item.rule == null ? null : item.rule,
       proposed: item.proposed || null,
       promotedFrom: item.promotedFrom || null,
+      typed: Boolean(item.typed),
       firstSeen: previous ? previous.firstSeen : now(),
       lastConfirmed: now(),
       confirmations: previous ? previous.confirmations : 0,
@@ -706,9 +713,10 @@ class LongTerm {
           value: trim(item.value, this._config.maxValue),
           from: item.from === 'assistant' ? 'assistant' : 'user',
           source: item.source || null,
-          rule: item.rule || null,
+          rule: item.rule == null ? null : item.rule,
           proposed: item.proposed || null,
           promotedFrom: item.promotedFrom || null,
+          typed: Boolean(item.typed),
           firstSeen: Number(item.firstSeen) || now(),
           lastConfirmed: Number(item.lastConfirmed) || now(),
           confirmations: Number(item.confirmations) || 0,

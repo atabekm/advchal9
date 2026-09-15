@@ -397,6 +397,7 @@ class Router {
           source: decision.source,
           rule: decision.rule.n,
           proposed: candidate.proposed,
+          typed: Boolean(decision.typed),
         });
         return this._record({
           ...base,
@@ -420,6 +421,7 @@ class Router {
         rule: decision.rule.n,
         proposed: candidate.proposed,
         promotable: Boolean(decision.promotable),
+        typed: Boolean(decision.typed),
       });
       return this._record({
         ...base,
@@ -485,6 +487,95 @@ class Router {
       outcome,
       agreed: null,
     });
+  }
+
+  /* ------------------------------------------------------- review mode ---
+   *
+   * `plan()` has always returned decisions without writing them. In automatic
+   * routing the agent hands them straight to `commit()` and nobody ever sees
+   * the gap. These three methods are that gap opened up: a decision can be
+   * committed as the rules wrote it, committed somewhere else entirely, or
+   * refused — and all three are one line each, because the seam was already
+   * there.
+   *
+   * This is the difference between a router that is explicit and a router that
+   * is *yours*. The rules still decide by default; review mode makes the
+   * default an offer.
+   */
+
+  /* Commit a decision somewhere other than where the rules put it.
+   *
+   * The rule becomes 0. A rerouted item keeps its provenance — it is still the
+   * same quoted span of the same message — so nothing about the verbatim rule
+   * is weakened by moving it; only the layer changes, and the log says who
+   * changed it. */
+  reroute(decision, { layer, compartment = 'knowledge', kind = 'artifact' } = {}) {
+    if (!decision || !layer) return null;
+    return {
+      ...decision,
+      /* A decision the rules refused carries no key — `decide()` stopped
+       * before it needed one. Overruling that refusal means supplying it now,
+       * from the candidate, or the write lands nowhere and reports a key that
+       * names nothing. */
+      key: decision.key || Memory.key(decision.candidate && decision.candidate.key),
+      rule: MANUAL_RULE,
+      stage: 'manual',
+      accepted: true,
+      layer,
+      compartment: layer === 'long' ? compartment : null,
+      kind: layer === 'working' ? kind : decision.kind,
+      promotable: layer === 'working' && kind === 'decision',
+    };
+  }
+
+  /* Refuse one. It writes nothing and is logged anyway: a tray whose
+   * rejections vanished would make "I chose not to store that" and "the
+   * extraction never proposed it" look identical a week later. */
+  discard(decision, { reason = 'you decided not to store it' } = {}) {
+    const candidate = (decision && decision.candidate) || {};
+    return this._record({
+      key: decision.key || candidate.key,
+      value: candidate.value,
+      kind: candidate.kind || null,
+      from: candidate.from,
+      proposed: candidate.proposed,
+      source: decision.source || null,
+      rule: MANUAL_RULE,
+      layer: null,
+      outcome: 'discarded',
+      reason,
+      agreed: null,
+    });
+  }
+
+  /* Write something nobody said.
+   *
+   * The verbatim gate has nothing to check a typed item against, and this is
+   * the one place in the app where that is acceptable: a person at a keyboard
+   * is not a model confabulating. The item is flagged `typed` for the rest of
+   * its life so that the provenance column never implies it was quoted. */
+  add({ layer, compartment = 'knowledge', key = '', value = '', kind = 'artifact', from = 'user' } = {}) {
+    const clean = layer === 'long' && compartment === 'profile'
+      ? String(key || '').trim().toLowerCase()
+      : Memory.key(key);
+    if (!clean) return { written: false, reason: `"${key}" does not name what the value is about` };
+    if (!String(value || '').trim()) return { written: false, reason: 'a value is required' };
+
+    const decision = {
+      candidate: { key: clean, value: String(value).trim(), kind, proposed: null, from, op: 'set' },
+      stage: 'manual',
+      accepted: true,
+      rule: MANUAL_RULE,
+      layer,
+      compartment: layer === 'long' ? compartment : null,
+      kind,
+      promotable: layer === 'working' && kind === 'decision',
+      key: clean,
+      source: null,
+      typed: true,
+    };
+    const entry = this.commit([decision])[0];
+    return { written: entry.outcome !== 'dropped', reason: entry.reason || null, entry };
   }
 
   /* A task closed and something in it outlived the task.

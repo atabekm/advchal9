@@ -83,6 +83,16 @@ const AGENT_SCHEMA = [
     help: 'The second request. Off for small talk you do not want to pay to have considered.',
   },
   {
+    key: 'routing',
+    type: 'select',
+    label: 'routing',
+    default: 'auto',
+    options: ['auto', 'review'],
+    help: 'auto lets the seven rules write. review holds every candidate in a tray '
+      + 'until you accept it, send it somewhere else, or refuse it — the rules still '
+      + 'answer first, but the answer becomes an offer.',
+  },
+  {
     key: 'useLong',
     type: 'toggle',
     label: 'send long-term',
@@ -400,7 +410,7 @@ class Agent {
     }
 
     const parsed = parseCandidates(result.text);
-    const entries = this.router.handle(parsed.candidates, {
+    const decisions = this.router.plan(parsed.candidates, {
       turn: { user: turn.user, assistant: turn.assistant },
       source: { dialogueId: this._dialogueId, index: turn.index, at: turn.at },
     });
@@ -413,6 +423,26 @@ class Agent {
       error: parsed.error,
       raw: result.text,
     };
+
+    /* Review mode.
+     *
+     * The gate's refusals are committed either way. They are not choices — a
+     * value that was never said is not a thing anybody gets to decide about,
+     * and putting it in a tray would invite someone to wave it through. What
+     * is held back is everything a *rule* decided, including the rule-2 drops:
+     * "store nothing" is a decision, and a person is allowed to disagree with
+     * it.
+     */
+    if (this._config.routing === 'review') {
+      const refused = decisions.filter((decision) => decision.stage === 'gate');
+      const held = decisions.filter((decision) => decision.stage !== 'gate');
+      turn.entries = this.router.commit(refused);
+      turn.pending = held;
+      this._onEvent('extract', { kind: 'held', proposed: parsed.candidates.length, held: held.length });
+      return { pending: held, entries: turn.entries, extraction: turn.extraction };
+    }
+
+    const entries = this.router.commit(decisions);
     turn.entries = entries;
     this._onEvent('extract', {
       kind: 'done',

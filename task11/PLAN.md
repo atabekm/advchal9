@@ -297,6 +297,22 @@ Task open and close, promotion of surviving decisions, retraction,
 Layer switches, the scripted run, the five questions, the cached comparison
 table.
 
+### Stage 8 — the choice, made by hand
+Not in the original plan. It arrived from a fair challenge to the second
+requirement: the routing was explicit, numbered and auditable, but it was not
+*yours in the moment* — the rules fired, the items landed, and your only move
+was corrective.
+
+`routing: review` holds every rule-decided candidate in a tray until you take
+the rule's answer, send it somewhere else, or refuse it. The gate's refusals
+are still committed automatically, because a value nobody said is not a choice.
+A rule-2 drop is held, because "store nothing" is. And each keyed layer gains
+an *+ add by hand* form for facts that were never said at all, flagged `typed`
+so the provenance column never implies they were quoted.
+
+It cost no change to the rules. `plan()` had always returned decisions without
+writing them; review mode is that gap opened up.
+
 ### Stage 7 — the writing
 `README.md`. What landed in each layer, what the router dropped and why, the
 ablation, and the places the model proposed a layer the rules overruled.

@@ -232,6 +232,11 @@ function parseDialogue(raw) {
     taskId: raw.taskId ? String(raw.taskId) : null,
     short: raw.short && typeof raw.short === 'object' ? raw.short : { messages: [] },
     log: Array.isArray(raw.log) ? raw.log : [],
+    /* Decisions the rules have answered and nobody has accepted yet. They live
+     * with the dialogue because they are about its messages, and they are
+     * saved because a reload that silently emptied the tray would lose exactly
+     * the items somebody was still thinking about. */
+    pending: Array.isArray(raw.pending) ? raw.pending : [],
   };
 }
 

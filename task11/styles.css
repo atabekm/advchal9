@@ -394,6 +394,35 @@ button:disabled { opacity: 0.5; cursor: default; border-color: var(--line); }
   color: var(--dim);
 }
 
+/* ---------- the review tray ---------- */
+
+.tray .held {
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+}
+.tray .held.nowhere { border-left-color: var(--dim); }
+.tray .held .line { display: flex; gap: 6px; align-items: baseline; }
+.tray .held .key { font-family: var(--mono); font-size: 11.5px; color: var(--dim); flex: none; }
+.tray .held .value { flex: 1; font-size: 12.5px; word-break: break-word; }
+.tray .held .says { font-size: 11.5px; margin-top: 3px; }
+.tray .held .says strong { font-weight: 600; }
+.tray .held .why { font-size: 11px; color: var(--dim); margin-top: 2px; }
+.tray .held .actions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 7px; }
+
+/* ---------- adding something by hand ---------- */
+
+.addform { padding: 8px 10px; border-top: 1px solid var(--line); background: var(--bg); }
+.addform .line { display: flex; gap: 6px; margin-bottom: 6px; }
+.addform .line > * { flex: 1; }
+.addform .line .short { flex: 0 0 34%; }
+.addform input, .addform select { padding: 5px 7px; font-size: 12px; }
+.addform .actions { display: flex; gap: 6px; }
+.addform .problem { color: var(--bad); font-size: 11px; margin-top: 5px; }
+.layer-head .addtoggle { float: right; }
+
 /* ---------- task ---------- */
 
 .taskbox { border: 1px solid var(--line); border-radius: 8px; padding: 10px; }

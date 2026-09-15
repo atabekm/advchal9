@@ -405,6 +405,138 @@ group('a new conversation keeps the person and the task', async () => {
     && agent.assemble('who am I?').blocks.some((b) => b.layer === 'working'));
 });
 
+/* ------------------------------------------------------------ review mode */
+
+group('review mode writes nothing until a person says so', async () => {
+  const transport = scripted({
+    reply: 'Understood.',
+    candidates: [
+      { key: 'deadline', value: '11 March', kind: 'decision', layer: 'long', from: 'user' },
+      { key: 'name', value: 'Atabek', kind: 'profile', layer: 'long', from: 'user' },
+      { key: 'summary', value: 'a sentence nobody said', kind: 'knowledge', layer: 'long', from: 'user' },
+    ],
+  });
+  const agent = new Agent({ transport, routing: 'review' });
+  agent.openTask('the migration');
+
+  const turn = await agent.send('the deadline is 11 March and my name is Atabek');
+  const outcome = await agent.remember(turn);
+
+  ok('the rule-decided candidates are held', outcome.pending.length === 2,
+    `held ${outcome.pending.length}`);
+  ok('and nothing reached a layer',
+    agent.memory.working.get('deadline') === null && agent.memory.long.get('profile', 'name') === null);
+  ok('the gate refusal was not held — it is not a choice anybody gets to make',
+    outcome.entries.length === 1 && outcome.entries[0].outcome === 'rejected');
+
+  const [first, second] = outcome.pending;
+  ok('each held decision still carries the rule that answered it',
+    first.rule.n === 6 && second.rule.n === 3);
+
+  agent.router.commit([first]);
+  ok('taking the answer writes it where the rule said',
+    agent.memory.working.get('deadline').value === '11 March');
+  ok('and the item keeps the rule number, not a manual mark',
+    agent.memory.working.get('deadline').rule === 6);
+});
+
+group('a person can send a held candidate somewhere the rules did not', async () => {
+  const transport = scripted({
+    candidates: [{ key: 'deadline', value: '11 March', kind: 'decision', layer: 'working', from: 'user' }],
+  });
+  const agent = new Agent({ transport, routing: 'review' });
+  agent.openTask('the migration');
+  const turn = await agent.send('the deadline is 11 March');
+  const { pending } = await agent.remember(turn);
+
+  const held = pending[0];
+  ok('the rules wanted working', held.layer === 'working' && held.rule.n === 6);
+
+  agent.router.commit([agent.router.reroute(held, { layer: 'long', compartment: 'decisions' })]);
+  ok('it went where the person said', agent.memory.long.get('decisions', 'deadline') !== null);
+  ok('the task did not get a copy', agent.memory.working.get('deadline') === null);
+  ok('and the item says a person did it', agent.memory.long.get('decisions', 'deadline').rule === 0);
+  ok('the log says so too', agent.router.log[0].rule.name === 'manual');
+  ok('the provenance survived the move',
+    agent.memory.long.get('decisions', 'deadline').source !== null);
+});
+
+group('refusing one writes nothing, and is still on the record', async () => {
+  const transport = scripted({
+    candidates: [{ key: 'deadline', value: '11 March', kind: 'decision', from: 'user' }],
+  });
+  const agent = new Agent({ transport, routing: 'review' });
+  agent.openTask('the migration');
+  const turn = await agent.send('the deadline is 11 March');
+  const { pending } = await agent.remember(turn);
+
+  agent.router.discard(pending[0]);
+  ok('nothing was stored', agent.memory.working.get('deadline') === null);
+  ok('but it is in the log', agent.router.log[0].outcome === 'discarded');
+  ok('attributed to a person', agent.router.log[0].rule.n === 0);
+});
+
+group('a rule-2 drop is held too, because storing nothing is a decision', async () => {
+  const transport = scripted({
+    candidates: [{ key: 'mood', value: 'Sounds good to me', kind: 'other', from: 'user' }],
+  });
+  const agent = new Agent({ transport, routing: 'review' });
+  const turn = await agent.send('Sounds good to me');
+  const { pending } = await agent.remember(turn);
+
+  ok('it is offered rather than dropped quietly', pending.length === 1);
+  ok('with the rule that would have dropped it', pending[0].rule.n === 2 && pending[0].accepted === false);
+
+  agent.router.commit([agent.router.reroute(pending[0], { layer: 'working', kind: 'artifact' })]);
+  ok('and a person may overrule it', agent.memory.working.get('mood') !== null);
+});
+
+group('auto routing is unchanged by any of this', async () => {
+  const transport = scripted({
+    candidates: [{ key: 'deadline', value: '11 March', kind: 'decision', from: 'user' }],
+  });
+  const agent = new Agent({ transport });
+  agent.openTask('the migration');
+  const turn = await agent.send('the deadline is 11 March');
+  const outcome = await agent.remember(turn);
+  ok('nothing is held', !outcome.pending);
+  ok('and it was written straight away', agent.memory.working.get('deadline').rule === 6);
+});
+
+/* ------------------------------------------------------- written by hand */
+
+group('an item can be typed rather than said', () => {
+  const memory = new Memory();
+  memory.working.open('the migration');
+  const router = new Router({ memory });
+
+  const written = router.add({ layer: 'long', compartment: 'profile', key: 'name', value: 'Atabek' });
+  ok('it is stored', written.written && memory.long.get('profile', 'name').value === 'Atabek');
+  ok('as rule 0', memory.long.get('profile', 'name').rule === 0);
+  ok('and marked as typed, not quoted', memory.long.get('profile', 'name').typed === true);
+  ok('while a routed item is not', (() => {
+    router.handle([normalise({ key: 'db', value: 'Postgres', kind: 'knowledge', from: 'user' })],
+      { turn: { user: 'we use Postgres', assistant: 'ok' } });
+    return memory.long.get('knowledge', 'db').typed === false;
+  })());
+
+  const task = router.add({ layer: 'working', key: 'runbook', value: 'docs/runbook.md', kind: 'artifact' });
+  ok('the working layer takes one too', task.written && memory.working.get('runbook') !== null);
+
+  ok('a key that names nothing is refused with a reason',
+    router.add({ layer: 'working', key: 'it', value: 'something' }).written === false);
+  ok('so is an empty value',
+    router.add({ layer: 'working', key: 'runbook', value: '  ' }).written === false);
+  ok('and a profile field that does not exist',
+    router.add({ layer: 'long', compartment: 'profile', key: 'favourite_colour', value: 'blue' }).written === false);
+
+  ok('a typed item survives a save and a reload', (() => {
+    const back = new Memory();
+    back.restore(JSON.parse(JSON.stringify(memory.snapshot())));
+    return back.long.get('profile', 'name').typed === true;
+  })());
+});
+
 /* ---------------------------------------------------------- the ablation */
 
 /* The ablation's mechanics, without a model.

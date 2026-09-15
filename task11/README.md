@@ -28,7 +28,8 @@ is what a model proposes to remember and where the rules put it; a stub
 proposing candidates by regular expression would be measuring the regular
 expression. So the chat needs a DeepSeek key. The inspector does not — with an
 empty key field you can still read every layer, write items into them by hand,
-move them between layers and watch the log record that a person did it.
+move them between layers, retract them, and watch the log record that a person
+did each one.
 
 ## The three layers
 

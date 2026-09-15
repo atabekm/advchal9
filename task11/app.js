@@ -73,6 +73,18 @@ const agent = new Agent({ transport: deepseekTransport, memory, onEvent: note })
 let dialogue = null;
 let controller = null;
 
+/* Candidates the rules have answered but nobody has accepted.
+ *
+ * Only ever non-empty under `routing: review`. It accumulates across turns
+ * rather than being replaced by each one — a tray that dropped last turn's
+ * unanswered questions to make room for this turn's would be a queue that
+ * silently loses the thing you were still thinking about. */
+let pending = [];
+
+// Which layer's "add by hand" form is open, if any.
+let addingTo = null;
+let addProblem = '';
+
 /* Restore, layer by layer, from three different places. This function is the
  * shape of the whole task: the person comes back whatever else happened, the
  * task comes back if it is still open, and the dialogue comes back only if it
@@ -88,6 +100,7 @@ function boot() {
     memory.short.restore(record.short);
     agent.dialogueId = record.id;
     agent.router.restoreLog(record.log);
+    pending = Array.isArray(record.pending) ? record.pending : [];
     const task = store.loadTask(record.taskId);
     if (task && !task.closed) memory.working.restore({ task, items: task.items });
   } else {
@@ -116,6 +129,7 @@ function persist() {
       short: snapshot.short,
       taskId: task.id,
       log: agent.router.log,
+      pending,
     });
     store.setLastActive(dialogue.id);
   } catch (error) {
@@ -144,10 +158,13 @@ function messageNode(role, content, { pending = false } = {}) {
 
 // What this turn put where, under the reply. Four words, so that the memory
 // model stays in view without anybody having to open a panel.
-function storedStrip(entries) {
+function storedStrip(entries, held = 0) {
   const strip = el('div', 'stored');
   const written = entries.filter((entry) => entry.layer);
-  if (!written.length) {
+  if (held) {
+    strip.append(el('span', null, `${held} candidate${held === 1 ? '' : 's'} waiting for you in the routing tab`));
+    if (!written.length) return strip;
+  } else if (!written.length) {
     strip.append(el('span', null, entries.length ? 'nothing stored — everything was dropped or refused' : 'nothing to store'));
     return strip;
   }
@@ -177,7 +194,8 @@ function renderChat() {
     const node = messageNode(message.role, message.content);
     if (message.role === 'assistant') {
       const turn = turns.find((t) => t.index === index - 1);
-      if (turn && turn.entries) node.append(storedStrip(turn.entries));
+      const held = turn && turn.pending ? turn.pending.length : 0;
+      if (turn && (turn.entries || held)) node.append(storedStrip(turn.entries || [], held));
     }
     log.append(node);
   });
@@ -234,13 +252,14 @@ function itemNode(item, layer) {
 
   const meta = el('div', 'meta');
   if (item.kind) meta.append(el('span', 'badge kind', item.kind));
-  if (item.rule === 0) meta.append(el('span', 'badge manual', 'by hand'));
+  if (item.typed) meta.append(el('span', 'badge manual', 'typed'));
+  else if (item.rule === 0) meta.append(el('span', 'badge manual', 'by hand'));
   else if (item.rule === 'opened') meta.append(el('span', 'badge kind', 'named with the task'));
   else if (item.rule) meta.append(el('span', 'badge rule', `rule ${item.rule}`));
   if (item.proposed && item.proposed !== layer) {
     meta.append(el('span', 'badge overruled', `model said ${item.proposed}`));
   }
-  meta.append(el('span', null, `said by the ${item.from}`));
+  meta.append(el('span', null, item.typed ? 'nobody said this — it was typed' : `said by the ${item.from}`));
   if (item.confirmations) meta.append(el('span', null, `confirmed ×${item.confirmations}`));
   if (item.lastConfirmed) meta.append(el('span', null, ago(item.lastConfirmed)));
   if (item.history && item.history.length) {
@@ -260,10 +279,108 @@ function itemNode(item, layer) {
 
 function layerHead(layer, { name, lifetime, counts, off }) {
   const head = el('div', 'layer-head');
-  head.append(el('div', 'name', name));
+  const title = el('div', 'name', name);
+  /* Short-term is the transcript. There is nothing to add to it except by
+   * saying something, and the composer is where saying something happens —
+   * a button that injected a message nobody sent would be the exact failure
+   * the verbatim rule exists to prevent, committed by the app itself. */
+  if (layer !== 'short') {
+    const toggle = el('button', 'tiny addtoggle', addingTo === layer ? 'cancel' : '+ add by hand');
+    toggle.addEventListener('click', () => {
+      addingTo = addingTo === layer ? null : layer;
+      addProblem = '';
+      renderBoard();
+    });
+    title.append(toggle);
+  }
+  head.append(title);
   head.append(el('div', 'lifetime', lifetime));
   head.append(el('div', 'counts', counts + (off ? ' · not being sent' : '')));
   return head;
+}
+
+/* The form.
+ *
+ * It writes as rule 0 and flags the item `typed`, so the provenance column
+ * says "typed by hand, not quoted" for the rest of that item's life. The
+ * verbatim gate is not bypassed here so much as inapplicable: there is no
+ * cited message to check a typed value against, and a person at a keyboard is
+ * not a model confabulating.
+ */
+function addForm(layer) {
+  const form = el('div', 'addform');
+  const first = el('div', 'line');
+
+  let compartment = null;
+  let kind = null;
+  let keyInput;
+
+  const rebuildKey = () => {
+    const isProfile = compartment && compartment.value === 'profile';
+    keyInput.replaceWith(keyInput = isProfile ? profileKeySelect() : freeKeyInput());
+  };
+  const freeKeyInput = () => {
+    const input = el('input', 'short');
+    input.placeholder = 'key — what it is about';
+    return input;
+  };
+  const profileKeySelect = () => {
+    const select = el('select', 'short');
+    for (const field of LongTerm.profileFields) select.append(new Option(field, field));
+    return select;
+  };
+
+  if (layer === 'long') {
+    compartment = el('select', 'short');
+    for (const name of LongTerm.compartments) compartment.append(new Option(name, name));
+    compartment.value = 'knowledge';
+    compartment.addEventListener('change', rebuildKey);
+    first.append(compartment);
+    keyInput = freeKeyInput();
+  } else {
+    kind = el('select', 'short');
+    for (const name of Working.kinds) kind.append(new Option(name, name));
+    kind.value = 'artifact';
+    first.append(kind);
+    keyInput = freeKeyInput();
+  }
+  first.append(keyInput);
+  form.append(first);
+
+  const value = el('input');
+  value.placeholder = 'value — a few words, not a paragraph';
+  form.append(value);
+
+  const actions = el('div', 'actions');
+  const save = el('button', 'tiny primary', 'store it');
+  const submit = () => {
+    const result = agent.router.add({
+      layer,
+      compartment: compartment ? compartment.value : 'knowledge',
+      kind: kind ? kind.value : 'artifact',
+      key: keyInput.value,
+      value: value.value,
+    });
+    if (!result.written) {
+      addProblem = result.reason || 'it was not stored';
+      renderBoard();
+      return;
+    }
+    addingTo = null;
+    addProblem = '';
+    persist();
+    renderAll();
+  };
+  save.addEventListener('click', submit);
+  value.addEventListener('keydown', (event) => { if (event.key === 'Enter') submit(); });
+  actions.append(save);
+  form.append(actions);
+
+  if (addProblem) form.append(el('div', 'problem', addProblem));
+  // Put the caret where a person is about to type, so the form is usable
+  // without reaching for the mouse a second time.
+  setTimeout(() => { try { keyInput.focus(); } catch (error) { /* detached */ } }, 0);
+  return form;
 }
 
 function renderBoard() {
@@ -304,6 +421,7 @@ function renderBoard() {
     counts: `${stats.working.items} items · ${stats.working.sent} sent · ~${stats.working.tokens} tokens`,
     off: !config.useWorking,
   }));
+  if (addingTo === 'working') working.append(addForm('working'));
   const items = memory.working.all();
   if (!items.length) working.append(none('Nothing about this task yet.'));
   for (const item of items) working.append(itemNode(item, 'working'));
@@ -317,6 +435,7 @@ function renderBoard() {
     counts: `${stats.long.items} items · ${stats.long.sent} sent · ~${stats.long.tokens} tokens`,
     off: !config.useLong,
   }));
+  if (addingTo === 'long') long.append(addForm('long'));
   let anything = false;
   for (const compartment of LongTerm.compartments) {
     const list = memory.long.all(compartment);
@@ -467,6 +586,102 @@ function renderRoutes() {
       line.append(claimed);
     }
     node.append(line);
+  }
+}
+
+/* ----------------------------------------------------------- the tray */
+
+function settlePending(decision) {
+  pending = pending.filter((held) => held !== decision);
+  persist();
+  renderAll();
+}
+
+function trayActions(decision) {
+  const actions = el('div', 'actions');
+
+  const take = el('button', 'tiny primary', decision.accepted ? 'take it' : 'agreed, store nothing');
+  take.addEventListener('click', () => {
+    agent.router.commit([decision]);
+    settlePending(decision);
+  });
+  actions.append(take);
+
+  const send = (label, layer, extra) => {
+    const button = el('button', 'tiny', label);
+    button.addEventListener('click', () => {
+      agent.router.commit([agent.router.reroute(decision, { layer, ...extra })]);
+      settlePending(decision);
+    });
+    return button;
+  };
+
+  const where = decision.layer;
+  const compartment = decision.compartment;
+  if (!(where === 'long' && compartment === 'profile')) actions.append(send('→ profile', 'long', { compartment: 'profile' }));
+  if (!(where === 'long' && compartment === 'decisions')) actions.append(send('→ decisions', 'long', { compartment: 'decisions' }));
+  if (!(where === 'long' && compartment === 'knowledge')) actions.append(send('→ knowledge', 'long', { compartment: 'knowledge' }));
+  if (where !== 'working') actions.append(send('→ the task', 'working', { kind: decision.kind || 'artifact' }));
+
+  /* Only a candidate the rules accepted has anything left to refuse. For one
+   * they already refused, "agreed, store nothing" is the refusal and the four
+   * send buttons are the overrule — a fifth button that also meant "put it in
+   * the task" would be the same choice offered twice under two names. */
+  if (decision.accepted) {
+    const refuse = el('button', 'tiny', 'refuse it');
+    refuse.addEventListener('click', () => {
+      agent.router.discard(decision);
+      settlePending(decision);
+    });
+    actions.append(refuse);
+  }
+
+  return actions;
+}
+
+function renderTray() {
+  const section = $('traySection');
+  const node = $('tray');
+  node.innerHTML = '';
+  section.hidden = !pending.length;
+
+  // The tab says how many are waiting, because a tray nobody opens is a tray
+  // that quietly turns review mode back into automatic mode.
+  const tab = document.querySelector('.tab[data-tab="routing"]');
+  if (tab) tab.textContent = pending.length ? `routing · ${pending.length}` : 'routing';
+  if (!pending.length) return;
+
+  for (const decision of pending) {
+    const candidate = decision.candidate;
+    const box = el('div', `held${decision.accepted ? '' : ' nowhere'}`);
+
+    const line = el('div', 'line');
+    line.append(el('span', 'key', decision.key || candidate.key), el('span', 'value', `"${candidate.value}"`));
+    box.append(line);
+
+    const says = el('div', 'says');
+    says.append(document.createTextNode('the rules say '));
+    const answer = el('strong', null, decision.accepted
+      ? decision.layer + (decision.compartment ? `.${decision.compartment}` : '')
+      : 'store nothing');
+    says.append(answer);
+    says.append(document.createTextNode(` — rule ${decision.rule.n}, ${decision.rule.name}`));
+    box.append(says);
+
+    const why = el('div', 'why');
+    const parts = [decision.rule.why];
+    if (decision.reason) parts.push(decision.reason);
+    if (decision.note) parts.push(decision.note);
+    if (candidate.proposed) {
+      parts.push(candidate.proposed === decision.layer
+        ? `the model agreed: ${candidate.proposed}`
+        : `the model wanted ${candidate.proposed}`);
+    }
+    why.textContent = parts.join(' · ');
+    box.append(why);
+
+    box.append(trayActions(decision));
+    node.append(box);
   }
 }
 
@@ -869,6 +1084,7 @@ function renderAll() {
   renderSurvives();
   renderRetracted();
   renderPromotion();
+  renderTray();
   renderRoutes();
   renderTask();
   renderArchive();
@@ -888,9 +1104,9 @@ async function submit(text) {
   const log = $('log');
   EMPTY.hidden = true;
   log.append(messageNode('user', text));
-  const pending = messageNode('assistant', '', { pending: true });
-  const body = pending.querySelector('.body');
-  log.append(pending);
+  const reply = messageNode('assistant', '', { pending: true });
+  const body = reply.querySelector('.body');
+  log.append(reply);
   log.scrollTop = log.scrollHeight;
 
   controller = new AbortController();
@@ -911,7 +1127,7 @@ async function submit(text) {
       },
     });
   } catch (error) {
-    pending.remove();
+    reply.remove();
     banner(error.name === 'AbortError' ? 'Stopped.' : error.message,
       error.name === 'AbortError' ? 'notice' : 'error');
     $('send').disabled = false;
@@ -922,7 +1138,7 @@ async function submit(text) {
     controller = null;
   }
 
-  pending.classList.remove('pending');
+  reply.classList.remove('pending');
   $('stop').hidden = true;
   $('status').textContent = agent.config.extract ? 'remembering…' : '';
   renderAll();
@@ -932,7 +1148,13 @@ async function submit(text) {
   // already usable; this only decides what survives it.
   const outcome = await agent.remember(turn);
   if (outcome && outcome.failed) banner(`The reply arrived; remembering it did not: ${outcome.failed}`, 'notice');
-  if (turn.entries) pending.append(storedStrip(turn.entries));
+  if (outcome && outcome.pending && outcome.pending.length) {
+    pending = pending.concat(outcome.pending);
+    banner(`${outcome.pending.length} candidate${outcome.pending.length === 1 ? '' : 's'} `
+      + 'from that turn are waiting in the routing tab. Nothing has been stored yet.', 'notice');
+  }
+  const held = outcome && outcome.pending ? outcome.pending.length : 0;
+  if (turn.entries || held) reply.append(storedStrip(turn.entries || [], held));
 
   $('send').disabled = false;
   $('status').textContent = '';
@@ -964,6 +1186,8 @@ function wire() {
 
   $('reset').addEventListener('click', () => {
     agent.resetDialogue();
+    // The tray holds decisions about messages that are about to stop existing.
+    pending = [];
     dialogue = store.createDialogue({ short: memory.short.snapshot() });
     agent.dialogueId = dialogue.id;
     persist();
@@ -991,6 +1215,19 @@ function wire() {
       renderAll();
     });
   }
+
+  $('trayAcceptAll').addEventListener('click', () => {
+    agent.router.commit(pending);
+    pending = [];
+    persist();
+    renderAll();
+  });
+  $('trayDiscardAll').addEventListener('click', () => {
+    for (const decision of pending) agent.router.discard(decision);
+    pending = [];
+    persist();
+    renderAll();
+  });
 
   $('ablationRun').addEventListener('click', runAblation);
   $('ablationStop').addEventListener('click', () => { if (ablationController) ablationController.abort(); });
