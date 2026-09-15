@@ -256,6 +256,33 @@ group('promotion happens at the close, and not before', () => {
     memory.long.get('decisions', 'db').promotedFrom.goal === 'the migration');
 });
 
+group('nothing in long-term is deleted for being old', () => {
+  const m = new Memory({ staleDays: 60 });
+  m.long.put({ compartment: 'knowledge', key: 'db', value: 'Postgres' });
+  const item = m.long.get('knowledge', 'db');
+  item.lastConfirmed = Date.now() - 1000 * 86400 * 200;
+
+  ok('it is flagged', m.long.stale(m.long.get('knowledge', 'db')));
+  ok('and still sent', m.long.block().text.includes('Postgres'));
+  ok('and still answerable', m.long.get('knowledge', 'db').value === 'Postgres');
+
+  m.long.put({ compartment: 'knowledge', key: 'db', value: 'Postgres' });
+  ok('confirming it clears the flag', !m.long.stale(m.long.get('knowledge', 'db')));
+  ok('and does not count as a revision', m.long.get('knowledge', 'db').history.length === 0);
+});
+
+group('the long-term ceiling drops the least-confirmed, loudly', () => {
+  const m = new Memory({ maxLongTerm: 3 });
+  for (const key of ['a', 'b', 'c']) m.long.put({ compartment: 'knowledge', key, value: `value ${key}` });
+  m.long.get('knowledge', 'a').lastConfirmed = 1;
+  m.long.put({ compartment: 'knowledge', key: 'd', value: 'value d' });
+
+  ok('the oldest confirmation went', m.long.get('knowledge', 'a') === null);
+  ok('the newest arrived', m.long.get('knowledge', 'd') !== null);
+  ok('and it went into the retracted list rather than into nothing',
+    m.long.retracted.some((entry) => entry.key === 'a' && /ceiling/.test(entry.reason)));
+});
+
 /* ---------------------------------------------------------- the assembly */
 
 /* A transport that answers from a script. It is not a stand-in for a model —

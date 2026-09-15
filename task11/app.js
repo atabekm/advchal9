@@ -201,6 +201,24 @@ function itemActions(item, layer) {
     actions.append(move('long', 'decisions', '→ decisions'));
     actions.append(move('long', 'knowledge', '→ knowledge'));
   } else {
+    /* "Still true" is the other half of the stale flag. An agent that could
+     * only delete an out-of-date fact would make forgetting the cheapest
+     * option, and the whole argument for a long-term layer is that forgetting
+     * should be the expensive one. */
+    const confirm = el('button', 'tiny', 'still true');
+    confirm.addEventListener('click', () => {
+      memory.long.put({
+        compartment: item.compartment,
+        key: item.key,
+        value: item.value,
+        from: item.from,
+        source: item.source,
+        rule: item.rule,
+      });
+      persist();
+      renderAll();
+    });
+    actions.append(confirm);
     if (item.compartment !== 'knowledge') actions.append(move('long', 'knowledge', '→ knowledge'));
     actions.append(move('working', null, '→ task'));
   }
@@ -333,6 +351,17 @@ function renderStorage() {
   node.append(row('backend', usage.backend.label));
   if (!usage.persistent) {
     node.append(el('p', 'hint', 'This browser refused localStorage, so nothing here survives the tab.'));
+  }
+}
+
+/* Built from the layer objects rather than written out here. A table of
+ * lifetimes typed into the HTML would be a promise; this one changes when the
+ * code does, which is the difference between documentation and a caption. */
+function renderSurvives() {
+  const node = $('survives');
+  node.innerHTML = '';
+  for (const layer of memory.layers) {
+    node.append(row(`${layer.label} — ${layer.scope}`, layer.lifetime));
   }
 }
 
@@ -476,11 +505,76 @@ function renderTask() {
   node.append(tools);
 }
 
+/* Closing a task is two things that are easy to conflate: archiving the record,
+ * and deciding what outlives it. The first happens here. The second is put on
+ * screen and left there until somebody answers it — which is the only moment in
+ * this app where the boundary between two layers is a judgement rather than a
+ * rule that already fired. */
+let pendingPromotion = null;
+
 function closeTask() {
   const task = memory.working.task;
-  const { record } = agent.closeTask();
+  const { record, promotable } = agent.closeTask();
   store.saveTask({ ...record, dialogueId: dialogue.id, closed: Date.now(), id: task.id });
+  pendingPromotion = promotable.length ? { record, promotable } : null;
   persist();
+  if (!pendingPromotion) {
+    banner(`Closed "${record.goal || 'the unfiled task'}". Nothing in it was a decision, so nothing outlives it.`, 'notice');
+  }
+}
+
+function renderPromotion() {
+  const section = $('promoteSection');
+  const node = $('promote');
+  node.innerHTML = '';
+  section.hidden = !pendingPromotion;
+  if (!pendingPromotion) return;
+
+  const { record, promotable } = pendingPromotion;
+  node.append(el('p', 'hint', `"${record.goal || 'the unfiled task'}" is closed. `
+    + `${promotable.length} decision${promotable.length === 1 ? ' was' : 's were'} made inside it. `
+    + 'Promote the ones that are still true when this task is forgotten.'));
+
+  for (const item of promotable) {
+    const line = el('div', 'cand');
+    line.append(el('span', 'key', item.key));
+    line.append(el('span', 'value', item.value));
+    /* Both handlers read `pendingPromotion.promotable` rather than the
+     * `promotable` this render closed over. They are the same array until the
+     * first click, and after it they are not — a handler that filtered the
+     * captured one would put a decision back on screen that had just been
+     * dealt with. */
+    const settle = () => {
+      pendingPromotion.promotable = pendingPromotion.promotable.filter((other) => other !== item);
+      if (!pendingPromotion.promotable.length) pendingPromotion = null;
+      renderAll();
+    };
+    const keep = el('button', 'tiny primary', 'promote');
+    keep.addEventListener('click', () => {
+      agent.router.promote(item, { taskId: record.id, goal: record.goal });
+      settle();
+      persist();
+    });
+    const drop = el('button', 'tiny', 'leave it with the task');
+    drop.addEventListener('click', settle);
+    line.append(keep, drop);
+    node.append(line);
+  }
+
+  const all = el('div', 'tools');
+  const every = el('button', null, 'promote them all');
+  every.addEventListener('click', () => {
+    for (const item of pendingPromotion.promotable) {
+      agent.router.promote(item, { taskId: record.id, goal: record.goal });
+    }
+    pendingPromotion = null;
+    persist();
+    renderAll();
+  });
+  const nothing = el('button', null, 'archive them all with the task');
+  nothing.addEventListener('click', () => { pendingPromotion = null; renderAll(); });
+  all.append(every, nothing);
+  node.append(all);
 }
 
 function renderArchive() {
@@ -646,7 +740,9 @@ function renderStats() {
 function renderAll() {
   renderBoard();
   renderStorage();
+  renderSurvives();
   renderRetracted();
+  renderPromotion();
   renderRoutes();
   renderTask();
   renderArchive();
@@ -824,4 +920,19 @@ renderChat();
  * only ever runs after a turn. */
 persist();
 renderAll();
-banner(agent.ready(), 'notice');
+
+/* The demonstration, on the one screen where it cannot be missed.
+ *
+ * Long-term memory that is only visible in a panel is a panel. Long-term
+ * memory that greets you before you have said anything is the claim the brief
+ * is actually asking about, and this line is the whole of it. */
+const carried = memory.long.all();
+const problem = agent.ready();
+if (carried.length && !memory.short.length) {
+  const name = memory.long.get('profile', 'name');
+  banner(`${carried.length} thing${carried.length === 1 ? '' : 's'} came back from earlier conversations`
+    + `${name ? `, including that you are called ${name.value}` : ''}. `
+    + `This conversation is empty; that store is not.${problem ? ` — ${problem}` : ''}`, 'notice');
+} else {
+  banner(problem, 'notice');
+}
