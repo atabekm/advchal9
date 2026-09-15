@@ -68,6 +68,15 @@ function now() {
   return Date.now();
 }
 
+/* Every working layer has an id, including the unfiled one.
+ *
+ * It would be tidier to leave the id null until a task is named, and it would
+ * also mean the first few minutes of every session have a layer with nowhere
+ * to be written — so the id comes first and the goal arrives later. */
+function taskId() {
+  return `t${Math.random().toString(36).slice(2, 9)}`;
+}
+
 function trim(raw, ceiling) {
   const value = String(raw == null ? '' : raw).replace(/\s+/g, ' ').trim();
   if (value.length <= ceiling) return value;
@@ -253,7 +262,7 @@ const WORKING_LABELS = {
 class Working {
   constructor(config = {}) {
     this._config = { ...LAYER_DEFAULTS, ...config };
-    this._task = { id: null, goal: null, opened: now(), closed: null };
+    this._task = { id: taskId(), goal: null, opened: now(), closed: null };
     this._items = new Map();
   }
 
@@ -283,7 +292,7 @@ class Working {
    * be the app punishing them for naming the task second. */
   open(goal, { id = null } = {}) {
     this._task = {
-      id: id || `t${Math.random().toString(36).slice(2, 9)}`,
+      id: id || this._task.id || taskId(),
       goal: trim(goal, 160) || null,
       opened: now(),
       closed: null,
@@ -313,7 +322,7 @@ class Working {
       items: this.all(),
     };
     const promotable = record.items.filter((item) => item.promotable);
-    this._task = { id: null, goal: null, opened: now(), closed: null };
+    this._task = { id: taskId(), goal: null, opened: now(), closed: null };
     this._items = new Map();
     return { record, promotable };
   }
@@ -424,7 +433,7 @@ class Working {
   restore(state = {}) {
     const task = state.task || {};
     this._task = {
-      id: task.id || null,
+      id: task.id || taskId(),
       goal: task.goal || null,
       opened: Number(task.opened) || now(),
       closed: task.closed || null,
@@ -449,7 +458,7 @@ class Working {
   }
 
   clear() {
-    this._task = { id: null, goal: null, opened: now(), closed: null };
+    this._task = { id: taskId(), goal: null, opened: now(), closed: null };
     this._items = new Map();
   }
 }

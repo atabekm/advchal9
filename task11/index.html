@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The agent that knows where it put things</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="masthead">
+  <div class="brand">
+    <h1>The agent that knows where it put things</h1>
+    <p>Three memory layers with three lifetimes — this dialogue, this task, this person — and
+    seven rules that decide which one each thing goes into, in public.</p>
+  </div>
+  <label class="key">
+    <span class="hint">DeepSeek API key</span>
+    <input id="key" type="password" placeholder="sk-…" autocomplete="off" spellcheck="false">
+  </label>
+  <label class="pick">
+    <span class="hint">model</span>
+    <select id="model"></select>
+  </label>
+</header>
+
+<main class="workspace">
+
+  <section class="chat">
+    <div class="sessionbar">
+      <input id="title" class="session-title" spellcheck="false" aria-label="conversation title">
+      <span class="hint" id="sessionMeta"></span>
+    </div>
+    <div class="banner" id="banner" hidden></div>
+    <div class="log" id="log">
+      <div class="empty" id="empty">
+        <p>Say something with a fact in it — your name, a deadline, a constraint — and watch the
+        memory tab. Every candidate the model proposes is checked against the words that were
+        actually said, then routed by a numbered rule into one of three stores that are deleted
+        at three different times.</p>
+        <p>Open a task first if you want the middle layer to have a name. Then close the
+        conversation and start another one: the person survives, the dialogue does not.</p>
+      </div>
+    </div>
+    <form class="composer" id="composer">
+      <textarea id="input" rows="2" placeholder="Message the agent…" spellcheck="false"></textarea>
+      <div class="composer-actions">
+        <button type="submit" id="send" class="primary">Send</button>
+        <button type="button" id="stop" hidden>Stop</button>
+        <button type="button" id="reset">New conversation</button>
+        <label class="inline"><input type="checkbox" id="extract" checked> remember this turn</label>
+        <span class="hint" id="status"></span>
+      </div>
+    </form>
+  </section>
+
+  <aside class="side">
+    <div class="tabs">
+      <button type="button" class="tab active" data-tab="memory">memory</button>
+      <button type="button" class="tab" data-tab="routing">routing</button>
+      <button type="button" class="tab" data-tab="task">task</button>
+      <button type="button" class="tab" data-tab="wire">wire</button>
+      <button type="button" class="tab" data-tab="config">config</button>
+    </div>
+
+    <div class="tabpanel" id="memoryPanel">
+      <div class="scroll">
+        <section class="tsection">
+          <h2>the three layers</h2>
+          <p class="hint">Each one is a separate object with a separate lifetime, written to a
+          separate key. Move anything by hand and the log records that a person did it.</p>
+          <div class="board" id="board"></div>
+        </section>
+
+        <section class="tsection">
+          <h2>stored separately, and here is the proof</h2>
+          <p class="hint">Three namespaces in localStorage. Delete one and watch what the agent
+          stops being able to answer — the other two are untouched, because they were never in
+          the same record.</p>
+          <div class="readonly" id="storage"></div>
+          <div class="tools">
+            <button type="button" data-wipe="short">forget the dialogues</button>
+            <button type="button" data-wipe="working">forget the tasks</button>
+            <button type="button" data-wipe="long">forget the person</button>
+            <button type="button" data-wipe="all" class="danger">forget everything</button>
+          </div>
+        </section>
+
+        <section class="tsection">
+          <h2>what was retracted</h2>
+          <p class="hint">A retraction is a write. Nothing is deleted silently, so something that
+          was dropped on purpose can be told apart from something that was lost.</p>
+          <div class="readonly" id="retracted"></div>
+        </section>
+      </div>
+    </div>
+
+    <div class="tabpanel" id="routingPanel" hidden>
+      <div class="tools">
+        <select id="routeFilter">
+          <option value="">everything</option>
+          <option value="written">stored only</option>
+          <option value="dropped">dropped by a rule</option>
+          <option value="rejected">refused by the gate</option>
+          <option value="overruled">where the rules overruled the model</option>
+          <option value="manual">moved by hand</option>
+        </select>
+        <button type="button" id="clearLog">Clear</button>
+      </div>
+      <div class="scroll">
+        <section class="tsection">
+          <h2>the rules</h2>
+          <p class="hint">In order. First match wins, and the number travels with the write.</p>
+          <div class="rules" id="rules"></div>
+        </section>
+        <section class="tsection">
+          <h2>every decision, newest first</h2>
+          <p class="hint" id="routeSummary"></p>
+          <div class="routes" id="routes"></div>
+        </section>
+      </div>
+    </div>
+
+    <div class="tabpanel" id="taskPanel" hidden>
+      <div class="scroll">
+        <section class="tsection">
+          <h2>the task at hand</h2>
+          <p class="hint">Working memory is bound to this. Close it and everything in it is
+          archived — except what you choose to promote, which is the only moment the boundary
+          between two layers is a decision instead of a rule.</p>
+          <div class="taskbox" id="taskBox"></div>
+        </section>
+        <section class="tsection" id="promoteSection" hidden>
+          <h2>what might outlive it</h2>
+          <p class="hint">Decisions made inside the task. Promote the ones that are still true
+          next month; the rest are archived with it and stay readable.</p>
+          <div class="promote" id="promote"></div>
+        </section>
+        <section class="tsection">
+          <h2>archive</h2>
+          <div class="readonly" id="archive"></div>
+        </section>
+      </div>
+    </div>
+
+    <div class="tabpanel" id="wirePanel" hidden>
+      <div class="scroll">
+        <section class="tsection">
+          <h2>what would go up the wire now</h2>
+          <p class="hint">Assembled without sending: the persona, then the person, then the task,
+          then what was actually said — each layer its own system message.</p>
+          <div class="wire" id="wire"></div>
+        </section>
+        <section class="tsection">
+          <h2>the last turn cost two requests</h2>
+          <p class="hint">The reply, and then the extraction that decided what to remember about
+          it. Both are billed. The second one is what an explicit memory costs.</p>
+          <div class="readonly" id="callRows"></div>
+        </section>
+      </div>
+    </div>
+
+    <div class="tabpanel" id="configPanel" hidden>
+      <div class="scroll">
+        <div class="fields" id="fields"></div>
+        <div class="readonly" id="readonly"></div>
+      </div>
+    </div>
+
+    <p class="stats hint" id="stats">no turns yet</p>
+  </aside>
+
+</main>
+
+<script src="markdown.js"></script>
+<script src="layers.js"></script>
+<script src="extract.js"></script>
+<script src="router.js"></script>
+<script src="api.js"></script>
+<script src="store.js"></script>
+<script src="agent.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
