@@ -733,6 +733,10 @@ class Memory {
 
   static get defaults() { return { ...LAYER_DEFAULTS }; }
   static estimate(text) { return estimate(text); }
+  // The key rule, exposed so router.js can ask whether a candidate names
+  // anything before it decides where to put it. One implementation, because
+  // two would eventually disagree about what a pronoun is.
+  static key(raw) { return normaliseKey(raw); }
 
   get config() { return Object.freeze({ ...this._config }); }
 
