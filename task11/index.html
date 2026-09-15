@@ -60,6 +60,7 @@
       <button type="button" class="tab" data-tab="routing">routing</button>
       <button type="button" class="tab" data-tab="task">task</button>
       <button type="button" class="tab" data-tab="wire">wire</button>
+      <button type="button" class="tab" data-tab="ablation">ablation</button>
       <button type="button" class="tab" data-tab="config">config</button>
     </div>
 
@@ -167,6 +168,26 @@
       </div>
     </div>
 
+    <div class="tabpanel" id="ablationPanel" hidden>
+      <div class="scroll">
+        <section class="tsection">
+          <h2>the ablation</h2>
+          <p class="hint">One memory, built once from a seven-turn conversation. Then the same
+          five questions asked four times, in a new conversation each time, with different layers
+          unplugged. The answers cannot differ because of what was remembered — only because of
+          what was sent.</p>
+          <p class="hint">It is live, it costs money, and it leaves your own layers untouched.</p>
+          <div class="tools">
+            <button type="button" id="ablationRun" class="primary">run all four</button>
+            <button type="button" id="ablationStop" hidden>Stop</button>
+            <button type="button" id="ablationClear">Clear</button>
+          </div>
+          <p class="hint" id="ablationStatus"></p>
+          <div class="ablation" id="ablation"></div>
+        </section>
+      </div>
+    </div>
+
     <div class="tabpanel" id="configPanel" hidden>
       <div class="scroll">
         <div class="fields" id="fields"></div>
@@ -186,6 +207,7 @@
 <script src="api.js"></script>
 <script src="store.js"></script>
 <script src="agent.js"></script>
+<script src="ablation.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

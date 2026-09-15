@@ -643,6 +643,132 @@ function renderCalls() {
   node.append(row('the turn cost', money(both)));
 }
 
+/* ------------------------------------------------------------ the ablation */
+
+let ablationController = null;
+
+function ablationStatus(message) {
+  $('ablationStatus').textContent = message || '';
+}
+
+function verdictCell(answer) {
+  const cell = el('td');
+  const mark = { hit: '✓', miss: '✗', stale: '✗ stale', error: '!' }[answer.verdict] || '?';
+  const span = el('span', `verdict ${answer.verdict === 'hit' ? 'hit' : 'miss'}`, mark);
+  span.title = answer.detail || answer.answer || '';
+  cell.append(span);
+  return cell;
+}
+
+function renderAblation() {
+  const node = $('ablation');
+  node.innerHTML = '';
+  const result = Ablation.load();
+  if (!result) {
+    node.append(none('Not run yet. It is about 34 requests — seven turns to build the memory, '
+      + 'then five questions under each of four configurations.'));
+    return;
+  }
+
+  const head = el('div', 'readonly');
+  head.append(row('run', `${ago(result.at)} · ${result.model} · ${result.elapsed.toFixed(0)}s`));
+  head.append(row('what it cost', money(result.cost)));
+  head.append(row('the memory it built',
+    `${result.setup.stats.long.items} long-term · ${result.setup.stats.working.items} working`));
+  node.append(head);
+
+  // What landed where, which is the brief's first question answered by a
+  // transcript rather than by a diagram.
+  node.append(el('h2', null, 'what the setup stored, and where'));
+  const stored = el('div', 'readonly');
+  for (const item of result.setup.stored) {
+    const detail = [`${item.layer} · rule ${item.rule}`];
+    if (item.agreed === false) detail.push(`model said ${item.proposed}`);
+    if (item.previous) detail.push(`replaced "${item.previous}"`);
+    stored.append(row(`${item.key}: "${item.value}"`, detail.join(' · ')));
+  }
+  if (!result.setup.stored.length) stored.append(none('Nothing was stored.'));
+  node.append(stored);
+
+  if (result.setup.refused.length) {
+    node.append(el('h2', null, 'and what it refused'));
+    const refused = el('div', 'readonly');
+    for (const item of result.setup.refused) {
+      refused.append(row(`${item.key}: "${item.value}"`, `${item.outcome} — ${item.reason || ''}`));
+    }
+    node.append(refused);
+  }
+
+  // The table.
+  node.append(el('h2', null, 'the same five questions, four times'));
+  const table = el('table');
+  const header = el('tr');
+  header.append(el('th', null, 'question'));
+  for (const run of result.runs) header.append(el('th', null, run.name));
+  table.append(header);
+
+  ABLATION_PROBES.forEach((probe, index) => {
+    const line = el('tr');
+    const question = el('td', 'q');
+    question.append(el('div', null, probe.ask));
+    question.append(el('div', 'hint', `${probe.layer} · ${probe.why}`));
+    line.append(question);
+    for (const run of result.runs) line.append(verdictCell(run.answers[index]));
+    table.append(line);
+  });
+
+  const totals = el('tr');
+  totals.append(el('th', null, 'answered'));
+  for (const run of result.runs) {
+    totals.append(el('th', null, `${run.score}/${ABLATION_PROBES.length}`));
+  }
+  table.append(totals);
+  node.append(table);
+
+  // The answers themselves. A score with no transcript under it is a number
+  // asking to be trusted.
+  for (const run of result.runs) {
+    const runHead = el('div', 'runhead');
+    runHead.append(el('span', 'name', run.name));
+    runHead.append(el('span', 'hint', Object.entries(run.config)
+      .filter(([, on]) => !on).map(([key]) => `${key.replace('use', '').toLowerCase()} off`).join(', ') || 'nothing switched off'));
+    node.append(runHead);
+    for (const answer of run.answers) {
+      const line = el('div', 'answer');
+      line.append(el('span', `verdict ${answer.verdict === 'hit' ? 'hit' : 'miss'}`,
+        answer.verdict === 'hit' ? '✓ ' : '✗ '));
+      line.append(document.createTextNode(answer.answer
+        ? answer.answer.replace(/\s+/g, ' ').slice(0, 220)
+        : `(${answer.detail || 'nothing'})`));
+      node.append(line);
+    }
+  }
+}
+
+async function runAblation() {
+  const problem = agent.ready();
+  if (problem) { ablationStatus(problem); return; }
+
+  ablationController = new AbortController();
+  $('ablationRun').disabled = true;
+  $('ablationStop').hidden = false;
+  try {
+    const ablation = new Ablation({
+      transport: deepseekTransport,
+      config: { model: agent.config.model, systemPrompt: agent.config.systemPrompt, thinking: 'off' },
+    });
+    await ablation.run({ report: ablationStatus, signal: ablationController.signal });
+    ablationStatus('done.');
+  } catch (error) {
+    ablationStatus(error.name === 'AbortError' ? 'stopped — nothing was saved.' : `failed: ${error.message}`);
+  } finally {
+    ablationController = null;
+    $('ablationRun').disabled = false;
+    $('ablationStop').hidden = true;
+    renderAblation();
+  }
+}
+
 /* -------------------------------------------------------------- the config */
 
 function renderConfig() {
@@ -748,6 +874,7 @@ function renderAll() {
   renderArchive();
   renderWire();
   renderCalls();
+  renderAblation();
   renderStats();
 }
 
@@ -864,6 +991,10 @@ function wire() {
       renderAll();
     });
   }
+
+  $('ablationRun').addEventListener('click', runAblation);
+  $('ablationStop').addEventListener('click', () => { if (ablationController) ablationController.abort(); });
+  $('ablationClear').addEventListener('click', () => { Ablation.clear(); ablationStatus(''); renderAblation(); });
 
   $('routeFilter').addEventListener('change', renderRoutes);
   $('clearLog').addEventListener('click', () => { agent.router.clearLog(); persist(); renderRoutes(); });

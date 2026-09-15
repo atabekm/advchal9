@@ -18,7 +18,7 @@ const fs = require('fs');
 const vm = require('vm');
 const path = require('path');
 
-for (const file of ['layers.js', 'extract.js', 'router.js', 'api.js', 'agent.js']) {
+for (const file of ['layers.js', 'extract.js', 'router.js', 'api.js', 'agent.js', 'ablation.js']) {
   vm.runInThisContext(fs.readFileSync(path.join(__dirname, file), 'utf8'), { filename: file });
 }
 
@@ -403,6 +403,73 @@ group('a new conversation keeps the person and the task', async () => {
   ok('and the next request still carries both',
     agent.assemble('who am I?').blocks.some((b) => b.layer === 'long')
     && agent.assemble('who am I?').blocks.some((b) => b.layer === 'working'));
+});
+
+/* ---------------------------------------------------------- the ablation */
+
+/* The ablation's mechanics, without a model.
+ *
+ * This transport does not imitate one. It answers by reading back the memory
+ * blocks it was handed, which is precisely what the ablation measures: not how
+ * clever the model is, but what reached it. If a layer was sent, its contents
+ * are in the answer; if it was not, they are not. Any other scoring pattern
+ * here would be a bug in the assembly rather than a fact about a model.
+ */
+group('the ablation measures what was sent, not what was remembered', async () => {
+  const CANDIDATES = {
+    'Call me Atabek': [
+      { key: 'name', value: 'Atabek', kind: 'profile', layer: 'long', from: 'user' },
+      { key: 'role', value: 'backend engineer', kind: 'profile', layer: 'long', from: 'user' },
+    ],
+    'migrating the billing': [{ key: 'goal', value: 'migrating the billing service to Postgres', kind: 'goal', from: 'user' }],
+    'no downtime': [{ key: 'downtime', value: 'no downtime', kind: 'constraint', from: 'user' }],
+    'cutover on 4 March': [{ key: 'cutover', value: '4 March', kind: 'decision', from: 'user' }],
+    'make that 11 March': [{ key: 'cutover', value: '11 March', kind: 'decision', from: 'user' }],
+    'Postgres 16': [{ key: 'pg_version', value: 'Postgres 16', kind: 'decision', from: 'user' }],
+    'Sounds good': [{ key: 'mood', value: 'Sounds good to me', kind: 'other', from: 'user' }],
+  };
+  const transport = {
+    ready: () => '',
+    async send({ messages }) {
+      const asked = messages[messages.length - 1].content;
+      const given = messages.filter((m) => m.role === 'system').slice(1).map((m) => m.content).join(' | ');
+      return {
+        text: `Going only on ${given || 'nothing at all'} — about "${asked}".`,
+        usage: { promptTokens: 40, completionTokens: 20 }, cost: 0, elapsed: 0,
+      };
+    },
+    async json({ messages }) {
+      const source = messages[messages.length - 1].content;
+      const said = (source.split('\n').find((line) => line.startsWith('user: ')) || '').slice(6);
+      const key = Object.keys(CANDIDATES).find((needle) => said.includes(needle));
+      return {
+        text: JSON.stringify({ candidates: key ? CANDIDATES[key] : [] }),
+        usage: { promptTokens: 30, completionTokens: 10 }, cost: 0, elapsed: 0,
+      };
+    },
+  };
+
+  const result = await new Ablation({ transport }).run();
+  const score = (id) => result.runs.find((run) => run.id === id).score;
+
+  ok('with everything, every question is answered', score('all') === 5, `got ${score('all')}/5`);
+  ok('without long-term, the person is lost and the task is not', score('nolong') === 3, `got ${score('nolong')}/5`);
+  ok('without working, the task is lost and the person is not', score('noworking') === 2, `got ${score('noworking')}/5`);
+  ok('with the dialogue alone, a new conversation knows nothing', score('neither') === 0, `got ${score('neither')}/5`);
+
+  const stored = result.setup.stored;
+  ok('the name reached the profile',
+    stored.some((item) => item.key === 'name' && item.layer === 'long.profile'));
+  ok('the constraint reached working',
+    stored.some((item) => item.key === 'downtime' && item.layer === 'working'));
+  ok('the small talk reached nothing',
+    result.setup.refused.some((item) => item.key === 'mood' && item.outcome === 'dropped'));
+
+  const cutover = result.runs.find((run) => run.id === 'all').answers[3];
+  ok('a revised decision is answered with the current value only', cutover.verdict === 'hit',
+    `${cutover.verdict}: ${cutover.answer}`);
+  ok('and the superseded write is still on the record',
+    stored.some((item) => item.key === 'cutover' && item.previous === '4 March'));
 });
 
 /* --------------------------------------------------------------- the end */
