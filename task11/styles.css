@@ -164,19 +164,56 @@ button:disabled { opacity: 0.5; cursor: default; border-color: var(--line); }
 .empty { color: var(--dim); font-size: 13px; max-width: 58ch; }
 .empty p { margin: 0 0 10px; }
 
-.msg { margin-bottom: 15px; }
+/* Two speakers, two edges.
+ *
+ * The transcript is the one part of this app that is not an argument about
+ * memory, and it was the one part you had to read carefully to tell who was
+ * talking. A column and a colour do that work before anybody reads a word.
+ *
+ * The asymmetric corner — square on the side the bubble leans towards — is
+ * doing the job a tail would do, without a pseudo-element that has to be kept
+ * in sync with two themes and a border. */
+.msg {
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+}
+.msg.user { align-items: flex-end; }
+.msg.assistant { align-items: flex-start; }
+
 .msg .who {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--dim);
-  margin-bottom: 3px;
+  margin: 0 3px 3px;
 }
 .msg.user .who { color: var(--accent); }
+
+.msg .body {
+  max-width: 84%;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: var(--bg);
+}
+/* color-mix against the panel rather than a second hard-coded pair, so the
+ * tint follows the accent in both themes and stays a tint in neither. */
+.msg.user .body {
+  background: color-mix(in srgb, var(--accent) 11%, var(--panel));
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--line));
+  border-bottom-right-radius: 4px;
+}
+.msg.assistant .body { border-bottom-left-radius: 4px; }
+/* A bubble with nothing in it yet is just the caret, so it should not also be
+ * a visible empty box until the first token lands. */
+.msg.pending .body:empty { border-color: transparent; background: none; padding-left: 3px; }
+
 .msg .body > *:first-child { margin-top: 0; }
 .msg .body > *:last-child { margin-bottom: 0; }
 .msg .body pre {
-  background: var(--bg);
+  /* The panel colour, because the bubbles are the ones wearing --bg now. */
+  background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 6px;
   padding: 9px 11px;
@@ -185,6 +222,12 @@ button:disabled { opacity: 0.5; cursor: default; border-color: var(--line); }
   font-size: 12.5px;
 }
 .msg .body code { font-family: var(--mono); font-size: 12.5px; }
+.msg .body :not(pre) > code {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0 4px;
+}
 .msg .body blockquote {
   margin: 0 0 10px;
   padding-left: 11px;
@@ -196,12 +239,13 @@ button:disabled { opacity: 0.5; cursor: default; border-color: var(--line); }
  * reply is the cheapest possible way to keep the memory model in view without
  * making anybody open a panel. */
 .msg .stored {
-  margin-top: 5px;
+  margin: 5px 3px 0;
   font-size: 11px;
   color: var(--dim);
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
+  max-width: 84%;
 }
 
 .composer { flex: none; border-top: 1px solid var(--line); padding: 10px 16px 12px; }
