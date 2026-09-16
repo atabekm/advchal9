@@ -196,7 +196,11 @@ function checkReply({ profile, reply, question = {} }) {
       results.push({ field, label: `${spec.label}: ${profile[field]}`, verdict: 'unchecked', why: 'nothing to count' });
       continue;
     }
-    if (cannot.has(field)) {
+    // Applicability is declared per field *and value*, not per field. `shape:
+    // bullets` can be produced for any question; `shape: code-first` cannot be
+    // produced for a question whose answer has no code. Excusing the whole
+    // field would hand a free n/a to the two people it does apply to.
+    if (cannot.has(field) || cannot.has(`${field}:${profile[field]}`)) {
       results.push({
         field,
         label: `${spec.label}: ${profile[field]}`,

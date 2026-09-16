@@ -18,7 +18,7 @@ const fs = require('fs');
 const vm = require('vm');
 const path = require('path');
 
-for (const file of ['profile.js', 'check.js']) {
+for (const file of ['profile.js', 'check.js', 'grid.js']) {
   vm.runInThisContext(fs.readFileSync(path.join(__dirname, file), 'utf8'), { filename: file });
 }
 
@@ -285,13 +285,27 @@ group('applicability comes from the question, and is a denylist', () => {
   const declared = Check.checkReply({
     profile,
     reply: EN,
-    question: { cannotApply: ['shape'], why: 'no code is possible here' },
+    question: { cannotApply: ['shape:code-first'], why: 'no code is possible here' },
   });
   const shape = declared.find((r) => r.field === 'shape');
   ok('a question that cannot exercise a field says so', shape.verdict === 'na');
   ok('and says why', shape.why === 'no code is possible here');
   ok('nothing else is affected',
     declared.filter((r) => r.field !== 'shape').every((r) => r.verdict !== 'na'));
+
+  // The same declaration must not excuse a value it does not apply to: a
+  // bullet list is producible for any question, so priya is still graded.
+  const bulleted = Check.checkReply({
+    profile: Profile.PEOPLE.priya,
+    reply: EN,
+    question: { cannotApply: ['shape:code-first'], why: 'no code is possible here' },
+  });
+  ok('n/a is per field AND value, so bullets are still graded',
+    bulleted.find((r) => r.field === 'shape').verdict === 'fail',
+    JSON.stringify(bulleted.find((r) => r.field === 'shape')));
+  ok('a bare field name still excuses the whole field',
+    Check.checkReply({ profile, reply: EN, question: { cannotApply: ['shape'] } })
+      .find((r) => r.field === 'shape').verdict === 'na');
 });
 
 group('an unstated field is absent, not passing', () => {
@@ -311,6 +325,91 @@ group('the unchecked fields are reported, not scored', () => {
   ok('the score divides by what it graded, not by what was asked',
     s.graded === s.pass + s.fail && s.graded < results.length);
   ok('unchecked is counted separately', s.unchecked === 4);
+});
+
+/* ------------------------------------------------------------------ the grid */
+
+group('the grid varies the person and holds the question fixed', () => {
+  ok('four questions', Grid.QUESTIONS.length === 4);
+  ok('five rows', Grid.ROWS.length === 5);
+  ok('twenty requests', Grid.ROWS.length * Grid.QUESTIONS.length === 20);
+  ok('exactly one baseline, and it sends no block',
+    Grid.ROWS.filter((r) => r.baseline).length === 1
+    && Profile.compile(Grid.ROWS.find((r) => r.baseline).profile()).empty === true);
+  const repeats = Grid.ROWS.filter((r) => r.repeatOf);
+  ok('exactly one repeat row', repeats.length === 1);
+  ok('and it is the same profile as the row it repeats',
+    JSON.stringify(repeats[0].profile())
+    === JSON.stringify(Grid.ROWS.find((r) => r.id === repeats[0].repeatOf).profile()));
+});
+
+group('no question fights a constraint it cannot avoid', () => {
+  // A jargon ban the question itself forces the model to break is not a
+  // measurement, it is a trap: Priya would fail that cell every run and the
+  // column would be about the question rather than about her.
+  for (const question of Grid.QUESTIONS) {
+    const hit = Profile.JARGON.filter((term) => new RegExp(`\\b${term}\\b`, 'i').test(question.text));
+    ok(`"${question.text.slice(0, 34)}…" names no banned term`, hit.length === 0, hit.join(', '));
+  }
+  ok('every declared n/a names a value, not just a field',
+    Grid.QUESTIONS.flatMap((q) => q.cannotApply || []).every((entry) => entry.includes(':')));
+  ok('a question that declares an n/a also says why',
+    Grid.QUESTIONS.filter((q) => q.cannotApply).every((q) => typeof q.why === 'string' && q.why));
+  ok('only one question declares one at all',
+    Grid.QUESTIONS.filter((q) => q.cannotApply).length === 1);
+});
+
+/* Synthetic cells: the noise floor and the scoring are pure functions over
+ * verdicts, so they can be exercised without a model. Everything here is what
+ * the table does with results, not what a model produced. */
+function cell(rowId, questionId, verdicts) {
+  return {
+    rowId,
+    questionId,
+    results: Object.entries(verdicts).map(([label, verdict]) => ({ label, verdict, why: '' })),
+  };
+}
+
+group('the repeat row sets the bar', () => {
+  const cells = [
+    cell('sam', 'ratelimit', { 'length: terse': 'pass', 'shape: code-first': 'pass' }),
+    cell('sam2', 'ratelimit', { 'length: terse': 'pass', 'shape: code-first': 'fail' }),
+  ];
+  const noise = Grid.noiseFloor(cells);
+  ok('it compared both verdicts', noise.compared === 2);
+  ok('and flagged the one that disagreed', noise.unstable.length === 1);
+  ok('by name', noise.unstable[0].label === 'shape: code-first');
+  ok('isUnstable finds it', Grid.isUnstable(noise, 'ratelimit', 'shape: code-first'));
+  ok('and does not find the stable one', !Grid.isUnstable(noise, 'ratelimit', 'length: terse'));
+  ok('a different question is a different cell',
+    !Grid.isUnstable(noise, 'database', 'shape: code-first'));
+});
+
+group('an unstable verdict is dropped from the score, not counted', () => {
+  const cells = [
+    cell('sam', 'ratelimit', { 'length: terse': 'pass', 'shape: code-first': 'pass' }),
+    cell('sam2', 'ratelimit', { 'length: terse': 'pass', 'shape: code-first': 'fail' }),
+    cell('priya', 'ratelimit', { 'length: normal': 'pass', 'shape: code-first': 'fail' }),
+  ];
+  const noise = Grid.noiseFloor(cells);
+  const priya = Grid.rowScore(cells, noise, 'priya');
+  ok('the coin-flip field is dropped', priya.dropped === 1);
+  ok('and the denominator shrinks with it', priya.graded === 1);
+  ok('the surviving verdict is still counted', priya.pass === 1 && priya.fail === 0);
+
+  const unchecked = [cell('x', 'q', { a: 'unchecked', b: 'na', c: 'pass' })];
+  const score = Grid.rowScore(unchecked, { unstable: [] }, 'x');
+  ok('neither unchecked nor n/a reaches the denominator', score.graded === 1);
+});
+
+group('an errored cell is not a verdict', () => {
+  const cells = [
+    { rowId: 'sam', questionId: 'q', error: 'HTTP 429', results: [] },
+    cell('sam2', 'q', { 'length: terse': 'pass' }),
+  ];
+  const noise = Grid.noiseFloor(cells);
+  ok('a failed request compares nothing', noise.compared === 0);
+  ok('and scores nothing', Grid.rowScore(cells, noise, 'sam').graded === 0);
 });
 
 /* ---------------------------------------------------------------- the page */

@@ -362,6 +362,161 @@ async function ask(question) {
   }
 }
 
+/* ------------------------------------------------------------------ grid */
+
+const MARK = { pass: '✓', fail: '✗', na: '–', unchecked: '·' };
+
+function answerDetails(cell, label) {
+  const details = document.createElement('details');
+  details.className = 'answer';
+  const summary = document.createElement('summary');
+  summary.textContent = label;
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.innerHTML = renderMarkdown(cell.text || '');
+  details.append(summary, bubble);
+  return details;
+}
+
+function marksFor(cell, noise) {
+  const marks = document.createElement('div');
+  marks.className = 'marks';
+  if (cell.error) {
+    const mark = document.createElement('span');
+    mark.className = 'mark fail';
+    mark.textContent = cell.error.slice(0, 60);
+    marks.append(mark);
+    return marks;
+  }
+  const graded = cell.results.filter((r) => r.verdict !== 'unchecked');
+  if (!graded.length) {
+    const mark = document.createElement('span');
+    mark.className = 'mark na';
+    mark.textContent = 'nothing asked for';
+    marks.append(mark);
+    return marks;
+  }
+  for (const result of graded) {
+    const unstable = Grid.isUnstable(noise, cell.questionId, result.label);
+    const mark = document.createElement('span');
+    mark.className = `mark ${unstable ? 'unstable' : result.verdict}`;
+    mark.textContent = `${unstable ? '?' : MARK[result.verdict]} ${result.label}`;
+    mark.title = unstable
+      ? `the repeat run disagreed with itself here — ${result.why}`
+      : result.why;
+    marks.append(mark);
+  }
+  return marks;
+}
+
+function renderGrid(run) {
+  const out = el('gridOut');
+  const table = document.createElement('table');
+  table.className = 'grid';
+
+  const head = document.createElement('tr');
+  head.append(document.createElement('th'));
+  for (const question of run.questions) {
+    const th = document.createElement('th');
+    th.append(question.text);
+    const note = document.createElement('div');
+    note.className = 'dim';
+    note.style.fontWeight = '400';
+    note.textContent = question.note;
+    th.append(note);
+    head.append(th);
+  }
+  table.append(head);
+
+  for (const row of run.rows) {
+    const tr = document.createElement('tr');
+    const name = document.createElement('td');
+    name.className = 'row';
+    name.style.color = `var(--${row.colour})`;
+    const score = run.scores[row.id];
+    name.append(row.label);
+    const sub = document.createElement('div');
+    sub.className = 'dim';
+    sub.textContent = score.graded
+      ? `${score.pass}/${score.graded} kept${score.dropped ? `, ${score.dropped} unstable` : ''}`
+      : 'nothing to grade';
+    name.append(sub);
+    tr.append(name);
+
+    for (const question of run.questions) {
+      const td = document.createElement('td');
+      const cell = run.cells.find((c) => c.rowId === row.id && c.questionId === question.id);
+      if (!cell) { td.append('—'); tr.append(td); continue; }
+      td.append(marksFor(cell, run.noise));
+      if (!cell.error) {
+        const count = Check.words(Check.withoutCode(cell.text));
+        td.append(answerDetails(cell, `the answer — ${count} words`));
+      }
+      tr.append(td);
+    }
+    table.append(tr);
+  }
+
+  const summary = document.createElement('div');
+  summary.className = 'scoreline';
+  const { noise } = run;
+  summary.append(
+    noteSpan(`${run.cells.length} requests`),
+    noteSpan(`$${run.cost.toFixed(4)}`),
+    noteSpan(noise.compared
+      ? `the model disagreed with itself on ${noise.unstable.length} of ${noise.compared} repeated verdicts`
+      : 'no repeat row ran, so there is no noise floor'),
+  );
+
+  const caveat = document.createElement('p');
+  caveat.className = 'dim';
+  caveat.textContent = 'Every ? is a verdict the repeat row could not reproduce. Those cells are '
+    + 'excluded from the scores on the left: a denominator that quietly includes the coin-flips '
+    + 'is a denominator that makes every profile look about the same.';
+
+  out.replaceChildren(summary, table, caveat);
+}
+
+function noteSpan(text) {
+  const span = document.createElement('span');
+  span.className = 'dim';
+  span.textContent = text;
+  return span;
+}
+
+let gridAbort = null;
+
+async function startGrid() {
+  const button = el('runGrid');
+  const stop = el('stopGrid');
+  gridAbort = new AbortController();
+  button.disabled = true;
+  stop.hidden = false;
+  el('gridOut').replaceChildren();
+
+  try {
+    const run = await Grid.runGrid({
+      model: el('model').value,
+      temperature: Number(el('temperature').value),
+      signal: gridAbort.signal,
+      onProgress: ({ done, total, row, question }) => {
+        el('gridStatus').textContent = `${done}/${total} — asking ${row}: “${question}”`;
+      },
+    });
+    el('gridStatus').textContent = `${run.cells.length} requests, `
+      + `${run.cells.filter((c) => c.error).length} of them failed.`;
+    renderGrid(run);
+  } catch (error) {
+    el('gridStatus').textContent = error.name === 'AbortError'
+      ? 'Stopped. A partial grid is a partial answer, so nothing is shown.'
+      : `The run stopped: ${error.message}`;
+  } finally {
+    button.disabled = false;
+    stop.hidden = true;
+    gridAbort = null;
+  }
+}
+
 /* ------------------------------------------------------------------ boot */
 
 function boot() {
@@ -393,6 +548,9 @@ function boot() {
       el('composer').requestSubmit();
     }
   });
+
+  el('runGrid').addEventListener('click', startGrid);
+  el('stopGrid').addEventListener('click', () => gridAbort && gridAbort.abort());
 
   el('customBan').addEventListener('submit', (event) => {
     event.preventDefault();
