@@ -504,6 +504,97 @@ group('the ablation cannot be run against a reply it did not grade', () => {
     Check.checkReply({ profile: sam, reply }).find((r) => r.field === 'length').verdict === 'fail');
 });
 
+/* ------------------------------------------------------- the loop, end to end */
+
+/* A fake transport, and the one place in this repo where that is allowed.
+ *
+ * It is not a stub of a model. It returns a canned string per request and its
+ * only job is to prove that the loop wires up: that twenty cells are asked in
+ * the right order with the right profiles, that a failure in one does not take
+ * the run down, that the repeat row is compared against the row it repeats.
+ * None of that is a claim about obedience — the moment a fake started trying
+ * to obey the preferences, the grid would be measuring the fake.
+ */
+function fakeTransport(reply) {
+  const seen = [];
+  globalThis.Api = {
+    models: ['fake'],
+    async send({ messages }) {
+      seen.push(messages);
+      const text = typeof reply === 'function' ? reply(messages, seen.length) : reply;
+      if (text instanceof Error) throw text;
+      return { text, usage: { promptTokens: 10, completionTokens: 5 }, cost: 0.0001 };
+    },
+  };
+  return seen;
+}
+
+group('the grid asks twenty questions as five people', async () => {
+  const seen = fakeTransport('- one\n- two\n- three');
+  const run = await Grid.runGrid({ model: 'fake', temperature: 0 });
+  ok('twenty requests went out', seen.length === 20);
+  ok('twenty cells came back', run.cells.length === 20);
+
+  const baseline = seen.filter((m) => m.length === 2);
+  ok('four of them carried no profile block at all', baseline.length === 4,
+    `${baseline.length} two-message requests`);
+  ok('the other sixteen carried one', seen.filter((m) => m.length === 3).length === 16);
+  ok('the persona is first in every request', seen.every((m) => m[0].content === Profile.PERSONA));
+  ok('the block is a system message, never a user turn',
+    seen.filter((m) => m.length === 3).every((m) => m[1].role === 'system'));
+  ok('the question is last in every request', seen.every((m) => m[m.length - 1].role === 'user'));
+
+  const asRussian = seen.filter((m) => m.length === 3 && m[1].content.includes('Answer in Russian.'));
+  ok('four requests asked for Russian — one person, four questions', asRussian.length === 4);
+
+  ok('the baseline row is graded on nothing', run.scores.none.graded === 0);
+  ok('and every profile row is graded on something', run.scores.sam.graded > 0);
+  ok('the run prices itself', run.cost > 0);
+});
+
+group('one dead request does not take the run with it', async () => {
+  fakeTransport((messages, n) => (n === 3 ? new Error('HTTP 429') : 'some prose answer here'));
+  const run = await Grid.runGrid({ model: 'fake', temperature: 0 });
+  ok('all twenty cells are present', run.cells.length === 20);
+  ok('one of them carries the error', run.cells.filter((c) => c.error).length === 1);
+  ok('and it says which', run.cells.find((c) => c.error).error.includes('429'));
+  ok('the errored cell contributes no verdicts',
+    run.cells.find((c) => c.error).results.length === 0);
+});
+
+group('the ablation drops one field at a time', async () => {
+  const seen = fakeTransport('```js\nconst x = 1;\n```\n\nshort.');
+  const run = await Grid.runAblation({ who: 'sam', model: 'fake', temperature: 0 });
+  ok('twelve requests', seen.length === 12, String(seen.length));
+  ok('the first four are the whole profile, asked twice',
+    seen.slice(0, 4).every((m) => m[1].content.includes('at most 120 words')));
+  ok('one run has no language line',
+    seen.some((m) => m[1] && !m[1].content.includes('Answer in English.')));
+  ok('and exactly two, because there are two questions',
+    seen.filter((m) => m[1] && !m[1].content.includes('Answer in English.')).length === 2);
+  ok('every dropped field is reported', run.rows.length === 4);
+  ok('the ban list produces one row per ban',
+    run.rows.find((r) => r.field === 'forbid').labels.length === 2);
+  ok('nothing descriptive was dropped',
+    run.rows.every((r) => Profile.FIELDS[r.field].kind !== 'identity'));
+  ok('and the unchecked fields are named rather than omitted',
+    run.unchecked.length === 4, run.unchecked.join(', '));
+});
+
+group('a reply that obeys nothing makes every field look load-bearing', async () => {
+  // The fake answers in long English prose. Sam asked for terse, code-first
+  // English — so dropping a field cannot break what was already broken, and
+  // the run must say "ignored" rather than inventing a finding.
+  fakeTransport(Array(400).fill('word').join(' '));
+  const run = await Grid.runAblation({ who: 'sam', model: 'fake', temperature: 0 });
+  const length = run.rows.find((r) => r.field === 'length').labels[0];
+  ok('a preference never obeyed is reported as ignored', length.outcome === 'ignored',
+    JSON.stringify(length.conclusions));
+  const language = run.rows.find((r) => r.field === 'language').labels[0];
+  ok('a preference always obeyed and unchanged by removal is free',
+    language.outcome === 'free', JSON.stringify(language.conclusions));
+});
+
 /* ---------------------------------------------------------------- the page */
 
 /* There is no DOM here and no browser in CI, so the one thing that can go
@@ -526,6 +617,41 @@ group('every handle the app reaches for exists in the page', () => {
   }
   ok('profile.js is loaded before app.js',
     scripts.indexOf('profile.js') < scripts.indexOf('app.js'));
+});
+
+/* ------------------------------------------------------- the README's numbers */
+
+/* Every number in the README that is not labelled as coming from a live run
+ * comes from here. A README that quotes a token count nobody recomputes is a
+ * README that is right on the day it is written. */
+
+group('the README quotes what the code produces', () => {
+  const expected = { dina: 116, sam: 127, priya: 143 };
+  for (const [who, tokens] of Object.entries(expected)) {
+    ok(`${who}'s block is ${tokens} tokens`,
+      Profile.compile(Profile.PEOPLE[who]).tokens === tokens,
+      String(Profile.compile(Profile.PEOPLE[who]).tokens));
+  }
+
+  const samCosts = { language: 5, length: 14, shape: 20, forbid: 25 };
+  for (const [field, tokens] of Object.entries(samCosts)) {
+    ok(`dropping sam's ${field} saves ${tokens} tokens`,
+      Grid.fieldCost(Profile.PEOPLE.sam, field) === tokens,
+      String(Grid.fieldCost(Profile.PEOPLE.sam, field)));
+  }
+
+  ok('the grid is twenty requests', Grid.ROWS.length * Grid.QUESTIONS.length === 20);
+  ok('an ablation of sam is twelve',
+    (2 + Grid.ablationFields(Profile.PEOPLE.sam).length) * Grid.ABLATION_QUESTIONS.length === 12);
+
+  const readme = fs.readFileSync(path.join(__dirname, 'README.md'), 'utf8');
+  ok("sam's block is quoted verbatim, line for line",
+    Profile.compile(Profile.PEOPLE.sam).text.split('\n')
+      .filter((line) => line.length < 72 && line.trim())
+      .every((line) => readme.includes(line)));
+  ok('every ablation outcome the README names is one the code can produce',
+    ['load-bearing', 'free', 'ignored', 'unstable']
+      .every((outcome) => Grid.OUTCOME_ORDER.includes(outcome) && readme.includes(outcome)));
 });
 
 /* ------------------------------------------------------------------- run it */
