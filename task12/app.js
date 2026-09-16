@@ -246,7 +246,62 @@ function bubbleFor(turn) {
   else bubble.textContent = turn.content;
 
   wrap.append(byline, bubble);
+  if (turn.role === 'assistant' && turn.done && !turn.error) wrap.append(verdictStrip(turn));
   return { wrap, bubble };
+}
+
+/* The compliance strip.
+ *
+ * A violated constraint is shown beside the reply with the rule it broke, and
+ * the turn is not asked again. The checker stays a measuring instrument rather
+ * than becoming a control loop: a score achieved on the second attempt is a
+ * fact about the retry, and failures on screen are worth more than a clean
+ * number that had to be negotiated.
+ *
+ * Fields that cannot be checked are collapsed into one grey chip. They are
+ * still on screen — a panel that showed only the graded fields would quietly
+ * imply the profile was fully accounted for.
+ */
+function verdictStrip(turn) {
+  const strip = document.createElement('div');
+  strip.className = 'verdicts';
+
+  // No question metadata in free chat: nobody declared what this question
+  // cannot exercise, so nothing is excused. See check.js for why that is the
+  // safe direction to be wrong in.
+  const results = Check.checkReply({ profile: turn.profile, reply: turn.content });
+  const graded = results.filter((r) => r.verdict !== 'unchecked');
+  const unchecked = results.filter((r) => r.verdict === 'unchecked');
+
+  for (const result of graded) {
+    const chip = document.createElement('span');
+    chip.className = `verdict ${result.verdict}`;
+    const mark = { pass: '✓', fail: '✗', na: '–' }[result.verdict] || '·';
+    const label = document.createElement('b');
+    label.textContent = `${mark} ${result.label}`;
+    const why = document.createElement('span');
+    why.className = 'why';
+    why.textContent = result.why;
+    chip.append(label, why);
+    strip.append(chip);
+  }
+
+  if (unchecked.length) {
+    const chip = document.createElement('span');
+    chip.className = 'verdict unchecked';
+    chip.textContent = `${unchecked.length} asked for, none of it checkable: `
+      + unchecked.map((r) => r.field).join(', ');
+    strip.append(chip);
+  }
+
+  if (!results.length) {
+    const chip = document.createElement('span');
+    chip.className = 'verdict unchecked';
+    chip.textContent = 'nothing was asked for, so nothing can be checked';
+    strip.append(chip);
+  }
+
+  return strip;
 }
 
 function redrawLog() {
@@ -268,7 +323,7 @@ async function ask(question) {
   });
 
   state.history.push({ role: 'user', content: question, who: state.who, asked: currentName() });
-  const answer = { role: 'assistant', content: '', profile, meta: '' };
+  const answer = { role: 'assistant', content: '', profile, meta: '', done: false };
   state.history.push(answer);
   redrawLog();
 
@@ -300,6 +355,7 @@ async function ask(question) {
     answer.error = true;
     answer.content = error.message || String(error);
   } finally {
+    answer.done = !answer.error;
     state.busy = false;
     el('send').disabled = false;
     redrawLog();

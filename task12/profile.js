@@ -161,9 +161,9 @@ const FIELDS = {
     values: ['terse', 'normal', 'thorough'],
     checkable: true,
     line: (v) => ({
-      terse: `Keep it short: at most ${LIMITS.terse} words.`,
-      normal: `Keep it under ${LIMITS.normal} words.`,
-      thorough: `Be thorough: at least ${LIMITS.thorough} words, and do not skip steps.`,
+      terse: `Keep it short: at most ${LIMITS.terse} words, not counting code.`,
+      normal: `Keep it under ${LIMITS.normal} words, not counting code.`,
+      thorough: `Be thorough: at least ${LIMITS.thorough} words of prose, not counting code, and do not skip steps.`,
     })[v] || null,
   },
   shape: {

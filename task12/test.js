@@ -18,7 +18,7 @@ const fs = require('fs');
 const vm = require('vm');
 const path = require('path');
 
-for (const file of ['profile.js']) {
+for (const file of ['profile.js', 'check.js']) {
   vm.runInThisContext(fs.readFileSync(path.join(__dirname, file), 'utf8'), { filename: file });
 }
 
@@ -187,6 +187,130 @@ group('the token estimate takes script seriously', () => {
   ok('Cyrillic costs more per character than Latin',
     Profile.estimate('абвгдеёжзи') > Profile.estimate('abcdefghij'));
   ok('nothing costs nothing', Profile.estimate('') === 0);
+});
+
+/* ------------------------------------------------------------- the checkers */
+
+const RU = 'Ограничение скорости защищает сервис от одного шумного клиента. '
+  + 'Сначала измерьте нагрузку, затем выберите окно и порог для каждого ключа.';
+const EN = 'Rate limiting protects the service from a single noisy client. '
+  + 'Measure the load first, then pick a window and a threshold per key.';
+
+group('language is decided on prose, not on code', () => {
+  ok('Russian prose passes a Russian preference',
+    Check.CHECKS.language(RU, 'Russian').verdict === 'pass');
+  ok('English prose fails it',
+    Check.CHECKS.language(EN, 'Russian').verdict === 'fail');
+  ok('a Russian answer carrying a JavaScript snippet is still Russian',
+    Check.CHECKS.language(`${RU}\n\n\`\`\`js\nconst limiter = new TokenBucket(rate, burst);\n\`\`\``, 'Russian').verdict === 'pass',
+    JSON.stringify(Check.CHECKS.language(`${RU}\n\n\`\`\`js\nconst limiter = new TokenBucket(rate, burst);\n\`\`\``, 'Russian')));
+  ok('two words decide nothing', Check.CHECKS.language('Да.', 'Russian').verdict === 'na');
+});
+
+group('length counts what the prompt said it would count', () => {
+  const short = 'Use a token bucket per API key.';
+  ok('a short answer is terse', Check.CHECKS.length(short, 'terse').verdict === 'pass');
+  const long = Array(200).fill('word').join(' ');
+  ok('two hundred words is not', Check.CHECKS.length(long, 'terse').verdict === 'fail');
+  ok('the failure says both numbers',
+    /200 words, asked for ≤ 120/.test(Check.CHECKS.length(long, 'terse').why),
+    Check.CHECKS.length(long, 'terse').why);
+
+  // The block promises "not counting code". If the checker counted it, a
+  // code-first answer would be punished for the preference that asked for it.
+  const code = `${short}\n\n\`\`\`js\n${Array(300).fill('token').join(' ')}\n\`\`\``;
+  ok('a large code block does not blow the word budget',
+    Check.CHECKS.length(code, 'terse').verdict === 'pass', Check.CHECKS.length(code, 'terse').why);
+  const longer = Array(300).fill('word').join(' ');
+  ok('thorough is a floor, not a ceiling',
+    Check.CHECKS.length(longer, 'thorough').verdict === 'pass'
+    && Check.CHECKS.length(short, 'thorough').verdict === 'fail');
+  ok('and 200 words is short of it', Check.CHECKS.length(long, 'thorough').verdict === 'fail');
+});
+
+group('shape reads the structure', () => {
+  const bullets = '- measure first\n- pick a window\n- pick a threshold';
+  ok('three bullets are bullets', Check.CHECKS.shape(bullets, 'bullets').verdict === 'pass');
+  ok('and they are not prose', Check.CHECKS.shape(bullets, 'prose').verdict === 'fail');
+  ok('prose is prose', Check.CHECKS.shape(EN, 'prose').verdict === 'pass');
+  const many = Array(9).fill('- a point').join('\n');
+  ok('nine bullets break a five-item limit',
+    Check.CHECKS.shape(many, 'bullets').verdict === 'fail'
+    && /9 items/.test(Check.CHECKS.shape(many, 'bullets').why));
+  const loose = '- one\n- two\nthis is a paragraph\nand another\nand a third';
+  ok('a list buried in prose is not a list', Check.CHECKS.shape(loose, 'bullets').verdict === 'fail');
+
+  ok('code first passes when the code is first',
+    Check.CHECKS.shape('\`\`\`js\nx\n\`\`\`\n\nthen an explanation', 'code-first').verdict === 'pass');
+  ok('a paragraph before the fence fails',
+    Check.CHECKS.shape(`${EN}\n\n\`\`\`js\nx\n\`\`\``, 'code-first').verdict === 'fail');
+  ok('no code at all is a failure, never an excuse',
+    Check.CHECKS.shape(EN, 'code-first').verdict === 'fail',
+    'a reply with no code must not score n/a — that is the hole the check exists to close');
+  ok('a dash inside a code block is not a bullet',
+    Check.CHECKS.shape('\`\`\`diff\n- removed\n+ added\n\`\`\`\n\nprose after', 'prose').verdict === 'pass');
+});
+
+group('examples are looked for in two languages', () => {
+  ok('a fence counts as an example',
+    Check.CHECKS.examples('try this:\n\`\`\`js\nx\n\`\`\`', 'required').verdict === 'pass');
+  ok('so does "for example"',
+    Check.CHECKS.examples('for example, a bucket of 100.', 'required').verdict === 'pass');
+  ok('and "например"',
+    Check.CHECKS.examples('например, ведро на 100 запросов.', 'required').verdict === 'pass');
+  ok('a bare assertion does not', Check.CHECKS.examples(EN, 'required').verdict === 'fail');
+  ok('never is the same test read the other way',
+    Check.CHECKS.examples(EN, 'never').verdict === 'pass'
+    && Check.CHECKS.examples('for example, this', 'never').verdict === 'fail');
+});
+
+group('a verdict is per ban, not per constraint list', () => {
+  const results = Check.checkBans('Sure 🎉 here is some `code`', ['emoji', 'pleasantries']);
+  ok('two entries, two verdicts', results.length === 2);
+  ok('the emoji one fails', results[0].verdict === 'fail');
+  ok('the pleasantry one passes', results[1].verdict === 'pass');
+  ok('each says which ban it is', results.every((r) => /^never /.test(r.label)));
+  const custom = Check.checkBans('anything', ['recommend paid tools']);
+  ok('a ban with no predicate is unchecked, not passed', custom[0].verdict === 'unchecked');
+});
+
+group('applicability comes from the question, and is a denylist', () => {
+  const profile = Profile.PEOPLE.sam;
+  const open = Check.checkReply({ profile, reply: EN, question: {} });
+  ok('with no declaration every stated field is graded or unchecked',
+    open.every((r) => r.verdict !== 'na'), JSON.stringify(open.filter((r) => r.verdict === 'na')));
+  ok('and code-first fails on a reply with no code',
+    open.find((r) => r.field === 'shape').verdict === 'fail');
+
+  const declared = Check.checkReply({
+    profile,
+    reply: EN,
+    question: { cannotApply: ['shape'], why: 'no code is possible here' },
+  });
+  const shape = declared.find((r) => r.field === 'shape');
+  ok('a question that cannot exercise a field says so', shape.verdict === 'na');
+  ok('and says why', shape.why === 'no code is possible here');
+  ok('nothing else is affected',
+    declared.filter((r) => r.field !== 'shape').every((r) => r.verdict !== 'na'));
+});
+
+group('an unstated field is absent, not passing', () => {
+  const bare = Check.checkReply({ profile: { ...Profile.EMPTY, length: 'terse' }, reply: 'Short.' });
+  ok('one stated field, one verdict', bare.length === 1 && bare[0].field === 'length');
+  ok('it passed', bare[0].verdict === 'pass');
+  ok('an empty profile earns no passes at all',
+    Check.checkReply({ profile: Profile.EMPTY, reply: EN }).length === 0);
+});
+
+group('the unchecked fields are reported, not scored', () => {
+  const results = Check.checkReply({ profile: Profile.PEOPLE.dina, reply: RU });
+  const unchecked = results.filter((r) => r.verdict === 'unchecked');
+  ok('name, role, expertise and tone come back unchecked',
+    unchecked.length === 4, unchecked.map((r) => r.field).join(', '));
+  const s = Check.score(results);
+  ok('the score divides by what it graded, not by what was asked',
+    s.graded === s.pass + s.fail && s.graded < results.length);
+  ok('unchecked is counted separately', s.unchecked === 4);
 });
 
 /* ---------------------------------------------------------------- the page */
