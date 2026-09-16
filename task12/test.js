@@ -412,6 +412,98 @@ group('an errored cell is not a verdict', () => {
   ok('and scores nothing', Grid.rowScore(cells, noise, 'sam').graded === 0);
 });
 
+/* -------------------------------------------------------------- the ablation */
+
+group('only what can be checked is ablated', () => {
+  const sam = Profile.PEOPLE.sam;
+  const fields = Grid.ablationFields(sam);
+  ok('sam has four ablatable fields', fields.length === 4, fields.join(', '));
+  ok('none of them is descriptive',
+    fields.every((f) => Profile.FIELDS[f].kind !== 'identity'), fields.join(', '));
+  ok('tone is stated but not ablated',
+    Profile.statedFields(sam).includes('tone') && !fields.includes('tone'));
+  ok('the run is twelve requests',
+    (2 + fields.length) * Grid.ABLATION_QUESTIONS.length === 12);
+});
+
+group('a field costs what its line costs', () => {
+  const sam = Profile.PEOPLE.sam;
+  for (const field of Grid.ablationFields(sam)) {
+    ok(`dropping ${field} saves tokens`, Grid.fieldCost(sam, field) > 0,
+      String(Grid.fieldCost(sam, field)));
+  }
+  ok('the ban list costs more than the language line',
+    Grid.fieldCost(sam, 'forbid') > Grid.fieldCost(sam, 'language'));
+});
+
+/* The conclusion is a pure function of three verdicts, so the whole decision
+ * table can be exercised with no model at all. */
+function cellWith(label, verdict) {
+  return { results: [{ label, verdict, why: '' }] };
+}
+
+group('the ablation grades the new reply against the OLD profile', () => {
+  const L = 'length: terse';
+  ok('obeyed, then broken when dropped → load-bearing',
+    Grid.conclude({
+      full: cellWith(L, 'pass'), repeat: cellWith(L, 'pass'), ablated: cellWith(L, 'fail'), label: L,
+    }).outcome === 'load-bearing');
+
+  ok('obeyed, and still obeyed when dropped → free',
+    Grid.conclude({
+      full: cellWith(L, 'pass'), repeat: cellWith(L, 'pass'), ablated: cellWith(L, 'pass'), label: L,
+    }).outcome === 'free');
+
+  ok('never obeyed → ignored, and the ablation says nothing about it',
+    Grid.conclude({
+      full: cellWith(L, 'fail'), repeat: cellWith(L, 'fail'), ablated: cellWith(L, 'fail'), label: L,
+    }).outcome === 'ignored');
+
+  ok('two whole-profile runs that disagree conclude nothing',
+    Grid.conclude({
+      full: cellWith(L, 'pass'), repeat: cellWith(L, 'fail'), ablated: cellWith(L, 'fail'), label: L,
+    }).outcome === 'unstable');
+
+  ok('and the instability outranks the load-bearing reading',
+    Grid.conclude({
+      full: cellWith(L, 'pass'), repeat: cellWith(L, 'fail'), ablated: cellWith(L, 'fail'), label: L,
+    }).detail.includes('pass then fail'));
+
+  ok('an n/a question decides nothing',
+    Grid.conclude({
+      full: cellWith(L, 'na'), repeat: cellWith(L, 'na'), ablated: cellWith(L, 'na'), label: L,
+    }).outcome === 'n/a');
+
+  ok('a failed request is no data, not a free ride',
+    Grid.conclude({
+      full: { results: [] }, repeat: { results: [] }, ablated: cellWith(L, 'pass'), label: L,
+    }).outcome === 'no data');
+});
+
+group('load-bearing on one question is load-bearing', () => {
+  ok('one of each rolls up to load-bearing',
+    Grid.rollUp([{ outcome: 'free' }, { outcome: 'load-bearing' }]) === 'load-bearing');
+  ok('free only when it is free everywhere',
+    Grid.rollUp([{ outcome: 'free' }, { outcome: 'free' }]) === 'free');
+  ok('an n/a alongside a free reading does not hide it',
+    Grid.rollUp([{ outcome: 'n/a' }, { outcome: 'free' }]) === 'free');
+  ok('the order is the one the table renders',
+    Grid.OUTCOME_ORDER[0] === 'load-bearing');
+});
+
+group('the ablation cannot be run against a reply it did not grade', () => {
+  // The distinction the whole design turns on: grading an ablated reply
+  // against the ablated profile produces no verdict for the removed field,
+  // because nothing was asked. The run must grade against the full profile.
+  const sam = Profile.PEOPLE.sam;
+  const stripped = Profile.without(sam, 'length');
+  const reply = Array(400).fill('word').join(' ');
+  ok('graded against the stripped profile, length is not even mentioned',
+    !Check.checkReply({ profile: stripped, reply }).some((r) => r.field === 'length'));
+  ok('graded against the whole profile, it fails',
+    Check.checkReply({ profile: sam, reply }).find((r) => r.field === 'length').verdict === 'fail');
+});
+
 /* ---------------------------------------------------------------- the page */
 
 /* There is no DOM here and no browser in CI, so the one thing that can go

@@ -29,6 +29,7 @@
 <nav class="tabs">
   <button class="tab" data-tab="chat" aria-selected="true">chat</button>
   <button class="tab" data-tab="grid" aria-selected="false">the grid</button>
+  <button class="tab" data-tab="ablation" aria-selected="false">the ablation</button>
   <span id="keyNote" class="keynote"></span>
 </nav>
 
@@ -91,6 +92,32 @@
       </div>
       <div id="gridStatus" class="status"></div>
       <div id="gridOut" class="out"></div>
+    </div>
+  </section>
+
+  <!-- -------------------------------------------------------- ablation -->
+  <section class="pane" data-pane="ablation" hidden>
+    <div class="runner">
+      <div class="runnerhead">
+        <div>
+          <strong>Which fields is it actually taking into account?</strong>
+          <p class="dim">
+            One profile, one field removed at a time, the same questions re-asked. A
+            field whose removal changes nothing about the answer was never being taken
+            into account — and it is paying for its tokens in the system block of every
+            request, forever.
+          </p>
+        </div>
+        <div class="runnerbuttons">
+          <label class="dim">on
+            <select id="ablationWho"></select>
+          </label>
+          <button id="runAblation" type="button">run the ablation</button>
+          <button id="stopAblation" type="button" hidden>stop</button>
+        </div>
+      </div>
+      <div id="ablationStatus" class="status"></div>
+      <div id="ablationOut" class="out"></div>
     </div>
   </section>
 

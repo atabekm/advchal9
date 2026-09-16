@@ -168,6 +168,180 @@ async function runGrid({ model, temperature, signal, onCell, onProgress }) {
   };
 }
 
-const Grid = { QUESTIONS, ROWS, runGrid, noiseFloor, rowScore, isUnstable, askCell };
+/* -------------------------------------------------------------- the ablation */
+
+/* The brief's second question: what does the assistant take into account
+ * automatically?
+ *
+ * The grid shows that profiles produce different answers. It does not show
+ * which *parts* of a profile did the producing, and a profile is a standing
+ * cost — every line of it is in the system block of every request, forever. A
+ * field that changes nothing is not neutral. It is rent.
+ *
+ * So: take one profile, drop one field, ask the same questions again, and grade
+ * the new reply against the ORIGINAL profile. That last part is the whole
+ * trick. Grading the ablated reply against the ablated profile would produce no
+ * verdict at all for the field that was removed — nothing was asked, so nothing
+ * can be judged. The question is not "did it obey an instruction it wasn't
+ * given", it is "would it have done this anyway".
+ *
+ *   asked, obeyed → dropped, still obeyed    the field is free-riding
+ *   asked, obeyed → dropped, stopped         the field is doing the work
+ *   asked, ignored                           the field is not being obeyed at all
+ *
+ * Only checkable fields are ablated. Spending two requests to remove `tone:
+ * dry` would buy a pair of answers nobody can adjudicate, and a comparison with
+ * no verdict is a comparison that will be settled by whoever reads it last.
+ */
+const ABLATION_QUESTIONS = QUESTIONS.slice(0, 2);
+
+function ablationFields(profile) {
+  return Profile.statedFields(profile).filter((field) => Profile.FIELDS[field].checkable);
+}
+
+function fieldCost(profile, field) {
+  return Profile.compile(profile).tokens - Profile.compile(Profile.without(profile, field)).tokens;
+}
+
+async function askAblationCell({ profile, gradeAs, question, model, temperature, signal }) {
+  const { messages } = Profile.assemble({ profile, question: question.text });
+  try {
+    const result = await Api.send({
+      model, messages, temperature, stream: false, signal, maxTokens: 1600,
+    });
+    return {
+      text: result.text,
+      cost: result.cost,
+      // Graded against the full profile, never against the ablated one.
+      results: Check.checkReply({ profile: gradeAs, reply: result.text, question }),
+    };
+  } catch (error) {
+    if (error.name === 'AbortError') throw error;
+    return { error: error.message || String(error), results: [] };
+  }
+}
+
+function verdictFor(cell, label) {
+  const found = (cell && cell.results || []).find((r) => r.label === label);
+  return found ? found.verdict : null;
+}
+
+/* One conclusion per (label, question), and it refuses to draw one whenever
+ * the two full-profile runs disagreed about that label. An ablation compared
+ * against a coin-flip is a coin-flip with a narrative. */
+function conclude({ full, repeat, ablated, label }) {
+  const a = verdictFor(full, label);
+  const b = verdictFor(repeat, label);
+  const c = verdictFor(ablated, label);
+
+  if (a === null || c === null) return { outcome: 'no data', detail: 'a request failed' };
+  if (a === 'na' || c === 'na') return { outcome: 'n/a', detail: 'the question cannot exercise it' };
+  if (b !== null && a !== b) {
+    return { outcome: 'unstable', detail: `asked twice, got ${a} then ${b}` };
+  }
+  if (a === 'fail') return { outcome: 'ignored', detail: 'not obeyed even when asked for' };
+  if (c === 'fail') return { outcome: 'load-bearing', detail: 'removing it broke the reply' };
+  return { outcome: 'free', detail: 'the reply did it anyway' };
+}
+
+const OUTCOME_ORDER = ['load-bearing', 'free', 'ignored', 'unstable', 'n/a', 'no data'];
+
+/* A field's verdict across the questions. Load-bearing anywhere is
+ * load-bearing: a preference that matters on one question in two is still
+ * buying something, and averaging that away would rank it beside a field that
+ * never mattered at all. */
+function rollUp(conclusions) {
+  const outcomes = conclusions.map((c) => c.outcome);
+  for (const outcome of OUTCOME_ORDER) {
+    if (outcomes.includes(outcome)) return outcome;
+  }
+  return 'no data';
+}
+
+async function runAblation({ who = 'sam', model, temperature, signal, onProgress }) {
+  const profile = { ...Profile.PEOPLE[who] };
+  const fields = ablationFields(profile);
+  const questions = ABLATION_QUESTIONS;
+  const total = (2 + fields.length) * questions.length;
+  let done = 0;
+
+  const step = async (label, run) => {
+    if (signal && signal.aborted) throw new DOMException('stopped', 'AbortError');
+    if (onProgress) onProgress({ done, total, label });
+    const cell = await run();
+    done += 1;
+    return cell;
+  };
+
+  const full = {};
+  const repeat = {};
+  for (const question of questions) {
+    full[question.id] = await step(`${profile.name}, whole`, () => askAblationCell({
+      profile, gradeAs: profile, question, model, temperature, signal,
+    }));
+  }
+  for (const question of questions) {
+    repeat[question.id] = await step(`${profile.name}, whole, again`, () => askAblationCell({
+      profile, gradeAs: profile, question, model, temperature, signal,
+    }));
+  }
+
+  const rows = [];
+  for (const field of fields) {
+    const stripped = Profile.without(profile, field);
+    const cells = {};
+    for (const question of questions) {
+      cells[question.id] = await step(`without ${field}`, () => askAblationCell({
+        profile: stripped, gradeAs: profile, question, model, temperature, signal,
+      }));
+    }
+
+    // The labels this field is responsible for. `forbid` owns one per ban,
+    // because "the constraints held" is not a finding and which one broke is.
+    const labels = [...new Set(
+      questions.flatMap((q) => (full[q.id].results || [])
+        .filter((r) => r.field === field && r.verdict !== 'unchecked')
+        .map((r) => r.label)),
+    )];
+
+    const perLabel = labels.map((label) => {
+      const conclusions = questions.map((question) => ({
+        questionId: question.id,
+        ...conclude({
+          full: full[question.id],
+          repeat: repeat[question.id],
+          ablated: cells[question.id],
+          label,
+        }),
+      }));
+      return { label, conclusions, outcome: rollUp(conclusions) };
+    });
+
+    rows.push({ field, cost: fieldCost(profile, field), cells, labels: perLabel });
+  }
+
+  const spent = [
+    ...Object.values(full), ...Object.values(repeat),
+    ...rows.flatMap((r) => Object.values(r.cells)),
+  ];
+
+  return {
+    who,
+    profile,
+    questions,
+    full,
+    repeat,
+    rows,
+    unchecked: Profile.statedFields(profile).filter((f) => !Profile.FIELDS[f].checkable),
+    requests: spent.length,
+    cost: spent.reduce((sum, c) => sum + (c.cost || 0), 0),
+  };
+}
+
+const Grid = {
+  QUESTIONS, ROWS, runGrid, noiseFloor, rowScore, isUnstable, askCell,
+  ABLATION_QUESTIONS, ablationFields, fieldCost, conclude, rollUp, runAblation, verdictFor,
+  OUTCOME_ORDER,
+};
 
 if (typeof module !== 'undefined' && module.exports) module.exports = Grid;

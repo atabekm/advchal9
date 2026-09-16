@@ -517,6 +517,141 @@ async function startGrid() {
   }
 }
 
+/* -------------------------------------------------------------- ablation */
+
+const OUTCOME_CLASS = {
+  'load-bearing': 'pass',
+  free: 'fail',
+  ignored: 'na',
+  unstable: 'unstable',
+  'n/a': 'na',
+  'no data': 'na',
+};
+
+const OUTCOME_SAYS = {
+  'load-bearing': 'removing it broke the reply — it is being taken into account',
+  free: 'the reply did it anyway — this line is paying rent',
+  ignored: 'not obeyed even when asked for',
+  unstable: 'the two whole-profile runs disagreed, so nothing can be concluded',
+  'n/a': 'the questions cannot exercise it',
+  'no data': 'a request failed',
+};
+
+function renderAblation(run) {
+  const out = el('ablationOut');
+  const table = document.createElement('table');
+  table.className = 'grid';
+
+  const head = document.createElement('tr');
+  for (const label of ['dropped from the profile', 'costs', 'verdict', 'per question']) {
+    const th = document.createElement('th');
+    th.textContent = label;
+    head.append(th);
+  }
+  table.append(head);
+
+  for (const row of run.rows) {
+    for (const entry of row.labels) {
+      const tr = document.createElement('tr');
+
+      const name = document.createElement('td');
+      name.className = 'row';
+      name.textContent = entry.label;
+      tr.append(name);
+
+      const cost = document.createElement('td');
+      cost.className = 'row';
+      // The cost is per field, so a ban list with two entries shows the same
+      // number twice — removing either one does not remove the line.
+      cost.innerHTML = '';
+      cost.append(`${row.cost} tokens`);
+      const per = document.createElement('div');
+      per.className = 'dim';
+      per.textContent = `for all of "${row.field}"`;
+      cost.append(per);
+      tr.append(cost);
+
+      const outcome = document.createElement('td');
+      const mark = document.createElement('span');
+      mark.className = `mark ${OUTCOME_CLASS[entry.outcome] || 'na'}`;
+      mark.textContent = entry.outcome;
+      outcome.append(mark);
+      const says = document.createElement('div');
+      says.className = 'dim';
+      says.textContent = OUTCOME_SAYS[entry.outcome] || '';
+      outcome.append(says);
+      tr.append(outcome);
+
+      const detail = document.createElement('td');
+      for (const conclusion of entry.conclusions) {
+        const line = document.createElement('div');
+        line.textContent = `${conclusion.questionId}: ${conclusion.outcome} — ${conclusion.detail}`;
+        detail.append(line);
+      }
+      const answers = document.createElement('div');
+      for (const question of run.questions) {
+        const cell = row.cells[question.id];
+        if (!cell || cell.error) continue;
+        answers.append(answerDetails(cell, `the reply without ${row.field} — ${question.id}`));
+      }
+      detail.append(answers);
+      tr.append(detail);
+
+      table.append(tr);
+    }
+  }
+
+  const summary = document.createElement('div');
+  summary.className = 'scoreline';
+  summary.append(
+    noteSpan(`${run.profile.name}, ${run.rows.length} fields dropped one at a time`),
+    noteSpan(`${run.requests} requests`),
+    noteSpan(`$${run.cost.toFixed(4)}`),
+  );
+
+  const caveat = document.createElement('p');
+  caveat.className = 'dim';
+  caveat.textContent = `Only checkable fields are dropped. ${run.unchecked.join(', ')} `
+    + `${run.unchecked.length === 1 ? 'is' : 'are'} in ${run.profile.name}'s block too, and `
+    + 'removing them would buy a pair of answers nobody can adjudicate — so they are not '
+    + 'ablated, and nothing here says whether they are worth their tokens.';
+
+  out.replaceChildren(summary, table, caveat);
+}
+
+let ablationAbort = null;
+
+async function startAblation() {
+  const button = el('runAblation');
+  const stop = el('stopAblation');
+  ablationAbort = new AbortController();
+  button.disabled = true;
+  stop.hidden = false;
+  el('ablationOut').replaceChildren();
+
+  try {
+    const run = await Grid.runAblation({
+      who: el('ablationWho').value,
+      model: el('model').value,
+      temperature: Number(el('temperature').value),
+      signal: ablationAbort.signal,
+      onProgress: ({ done, total, label }) => {
+        el('ablationStatus').textContent = `${done}/${total} — asking ${label}`;
+      },
+    });
+    el('ablationStatus').textContent = `${run.requests} requests.`;
+    renderAblation(run);
+  } catch (error) {
+    el('ablationStatus').textContent = error.name === 'AbortError'
+      ? 'Stopped. A partial ablation concludes nothing, so nothing is shown.'
+      : `The run stopped: ${error.message}`;
+  } finally {
+    button.disabled = false;
+    stop.hidden = true;
+    ablationAbort = null;
+  }
+}
+
 /* ------------------------------------------------------------------ boot */
 
 function boot() {
@@ -549,7 +684,17 @@ function boot() {
     }
   });
 
+  for (const id of Object.keys(Profile.PEOPLE)) {
+    const option = document.createElement('option');
+    option.value = id;
+    option.textContent = Profile.PEOPLE[id].name;
+    el('ablationWho').append(option);
+  }
+  el('ablationWho').value = 'sam';
+
   el('runGrid').addEventListener('click', startGrid);
+  el('runAblation').addEventListener('click', startAblation);
+  el('stopAblation').addEventListener('click', () => ablationAbort && ablationAbort.abort());
   el('stopGrid').addEventListener('click', () => gridAbort && gridAbort.abort());
 
   el('customBan').addEventListener('submit', (event) => {
