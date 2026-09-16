@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Task 12 · Personalizing the assistant</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="title">
+    <strong>Personalizing the assistant</strong>
+    <span class="dim">a profile is a claim about the next answer</span>
+  </div>
+  <div class="settings">
+    <label>model
+      <select id="model"></select>
+    </label>
+    <label>temperature
+      <input id="temperature" type="number" min="0" max="2" step="0.1" value="0.7">
+    </label>
+    <label class="key">key
+      <input id="key" type="password" placeholder="sk-… stays in this browser" autocomplete="off">
+    </label>
+  </div>
+</header>
+
+<nav class="tabs">
+  <button class="tab" data-tab="chat" aria-selected="true">chat</button>
+  <span id="keyNote" class="keynote"></span>
+</nav>
+
+<main>
+
+  <!-- ------------------------------------------------------------ chat -->
+  <section class="pane" data-pane="chat">
+    <div class="chat">
+      <div id="log" class="log"></div>
+      <form id="composer" class="composer">
+        <textarea id="input" rows="2" placeholder="Ask something. The profile on the right goes up with it."></textarea>
+        <button id="send" type="submit">send</button>
+      </form>
+      <div class="blockstrip">
+        <div class="blockhead">
+          <span>what goes up with every request</span>
+          <span id="blockTokens" class="dim"></span>
+        </div>
+        <pre id="blockText" class="block"></pre>
+      </div>
+    </div>
+
+    <aside class="editor">
+      <div class="who">
+        <div class="wholabel">whose profile</div>
+        <div id="people" class="people"></div>
+      </div>
+      <div id="fields" class="fields"></div>
+      <div class="bans">
+        <div class="wholabel">never <span class="dim">— a sentence and a predicate, or it is not a constraint</span></div>
+        <div id="banList" class="banlist"></div>
+        <form id="customBan" class="customban">
+          <input id="customBanText" placeholder="add one of your own — it will be unchecked">
+          <button type="submit">add</button>
+        </form>
+      </div>
+      <div class="editornote dim" id="editorNote"></div>
+    </aside>
+  </section>
+
+</main>
+
+<script src="markdown.js"></script>
+<script src="profile.js"></script>
+<script src="api.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

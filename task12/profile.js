@@ -361,9 +361,42 @@ function statedFields(profile) {
   });
 }
 
+/* ---------------------------------------------------------------- the request */
+
+/* The persona is the same for everyone, and it is deliberately empty of
+ * anything a preference could contradict.
+ *
+ * A persona that said "be concise and use examples" would be a profile with no
+ * owner: the baseline row would already be personalised, every profile would
+ * be arguing with it, and a difference between two rows could always be blamed
+ * on which one happened to agree with the persona. So it says what the
+ * assistant is for and nothing about how it writes.
+ */
+const PERSONA = 'You are an assistant answering questions about software.';
+
+/* The profile block is message zero of every request — after the persona,
+ * before anything anybody said.
+ *
+ * Unconditionally. A profile consulted only when the agent judges it relevant
+ * is a profile that will be missing from exactly the turn you remember, and
+ * "it usually uses your name" is not a property, it is a mood.
+ *
+ * It is a system message rather than a fabricated user turn. Nobody said it.
+ * Giving it a speaker would put words in the user's mouth that the user could
+ * then be told they had used.
+ */
+function assemble({ profile, history = [], question }) {
+  const messages = [{ role: 'system', content: PERSONA }];
+  const block = compile(profile);
+  if (!block.empty) messages.push({ role: 'system', content: block.text });
+  for (const turn of history) messages.push({ role: turn.role, content: turn.content });
+  messages.push({ role: 'user', content: question });
+  return { messages, block };
+}
+
 const Profile = {
-  FIELDS, FIELD_ORDER, IDENTITY, PREFERENCES, EMPTY, PEOPLE, LIMITS, BANS, JARGON,
-  compile, without, statedFields, estimate,
+  FIELDS, FIELD_ORDER, IDENTITY, PREFERENCES, EMPTY, PEOPLE, LIMITS, BANS, JARGON, PERSONA,
+  compile, without, statedFields, estimate, assemble,
 };
 
 if (typeof module !== 'undefined' && module.exports) module.exports = Profile;

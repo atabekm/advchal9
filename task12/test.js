@@ -189,6 +189,30 @@ group('the token estimate takes script seriously', () => {
   ok('nothing costs nothing', Profile.estimate('') === 0);
 });
 
+/* ---------------------------------------------------------------- the page */
+
+/* There is no DOM here and no browser in CI, so the one thing that can go
+ * wrong silently is a handle in app.js that no element answers to. `el('x')`
+ * returning null fails at the first render with a stack trace nobody sees
+ * until they open the page. Reading both files and comparing is cheap and
+ * catches exactly that. */
+
+group('every handle the app reaches for exists in the page', () => {
+  const html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
+  const ids = new Set([...html.matchAll(/id="([^"]+)"/g)].map((m) => m[1]));
+  const app = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
+  const wanted = [...new Set([...app.matchAll(/\bel\('([^']+)'\)/g)].map((m) => m[1]))];
+  ok('app.js asks for at least a dozen of them', wanted.length >= 12, String(wanted.length));
+  for (const id of wanted) ok(`#${id} is in index.html`, ids.has(id));
+
+  const scripts = [...html.matchAll(/<script src="([^"]+)"/g)].map((m) => m[1]);
+  for (const file of scripts) {
+    ok(`${file} is loaded and exists`, fs.existsSync(path.join(__dirname, file)));
+  }
+  ok('profile.js is loaded before app.js',
+    scripts.indexOf('profile.js') < scripts.indexOf('app.js'));
+});
+
 /* ------------------------------------------------------------------- run it */
 
 (async () => {
