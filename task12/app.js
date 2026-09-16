@@ -364,7 +364,10 @@ async function ask(question) {
 
 /* ------------------------------------------------------------------ grid */
 
-const MARK = { pass: '✓', fail: '✗', na: '–', unchecked: '·' };
+// Not MARK: markdown.js declares one at top level and these scripts share a
+// single global lexical scope, so the collision is a parse error that kills
+// the whole file. See the collision check in test.js.
+const VERDICT_MARK = { pass: '✓', fail: '✗', na: '–', unchecked: '·' };
 
 function answerDetails(cell, label) {
   const details = document.createElement('details');
@@ -400,7 +403,7 @@ function marksFor(cell, noise) {
     const unstable = Grid.isUnstable(noise, cell.questionId, result.label);
     const mark = document.createElement('span');
     mark.className = `mark ${unstable ? 'unstable' : result.verdict}`;
-    mark.textContent = `${unstable ? '?' : MARK[result.verdict]} ${result.label}`;
+    mark.textContent = `${unstable ? '?' : VERDICT_MARK[result.verdict]} ${result.label}`;
     mark.title = unstable
       ? `the repeat run disagreed with itself here — ${result.why}`
       : result.why;

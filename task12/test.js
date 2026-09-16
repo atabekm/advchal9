@@ -603,6 +603,39 @@ group('a reply that obeys nothing makes every field look load-bearing', async ()
  * until they open the page. Reading both files and comparing is cheap and
  * catches exactly that. */
 
+/* The page loads these files as plain <script> tags, which share ONE global
+ * lexical scope. Two files declaring `const MARK` at top level is not shadowing
+ * and not a warning — it is a SyntaxError that kills the second file outright,
+ * and the page renders nothing with one line in a console nobody opened.
+ *
+ * This is exactly what happened: markdown.js (carried from task 5) has a
+ * top-level BULLET and MARK, check.js and app.js each added one of their own,
+ * and app.js stopped parsing. The suite missed it because it loads only the
+ * three files it tests, never markdown.js and app.js alongside them — so the
+ * check has to be over the files the PAGE loads, not the ones the tests use.
+ */
+group('no two scripts declare the same name at top level', () => {
+  const html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
+  const scripts = [...html.matchAll(/<script src="([^"]+)"/g)].map((m) => m[1]);
+  ok('the page loads six scripts', scripts.length === 6, scripts.join(', '));
+
+  const owner = new Map();
+  let declared = 0;
+  for (const file of scripts) {
+    const source = fs.readFileSync(path.join(__dirname, file), 'utf8');
+    // Column zero only: a declaration anywhere else is inside a scope.
+    for (const match of source.matchAll(/^(?:const|let|var|class|function)\s+([A-Za-z_$][\w$]*)/gm)) {
+      const name = match[1];
+      declared += 1;
+      ok(`${name} is declared once, and ${file} is where`,
+        !owner.has(name), `also declared in ${owner.get(name)}`);
+      owner.set(name, file);
+    }
+  }
+  ok('there are enough top-level names for this to be worth checking',
+    declared > 60, String(declared));
+});
+
 group('every handle the app reaches for exists in the page', () => {
   const html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
   const ids = new Set([...html.matchAll(/id="([^"]+)"/g)].map((m) => m[1]));
@@ -617,6 +650,218 @@ group('every handle the app reaches for exists in the page', () => {
   }
   ok('profile.js is loaded before app.js',
     scripts.indexOf('profile.js') < scripts.indexOf('app.js'));
+});
+
+/* ----------------------------------------------------------- the page runs */
+
+/* A DOM small enough to boot the page against, and no smaller.
+ *
+ * There is no browser here, and the collision check above only proves the
+ * files parse. Parsing is not running: a handler that reads a property off
+ * null, a render that assumes an element has children, an event wired to a
+ * function that was never defined — all of those load fine and kill the page
+ * on the first click.
+ *
+ * This is a stub of the BROWSER, which is a different thing from a stub of the
+ * model. Faking a model would make the grid a measurement of the fake. Faking
+ * `document.createElement` measures nothing and asserts nothing about
+ * obedience; it only asks whether the code runs.
+ *
+ * It loads in its own vm context, so the scripts can be evaluated a second
+ * time without colliding with the copies this file already loaded.
+ */
+function bootPage({ reply = '- one\n- two\n- three', key = 'sk-test' } = {}) {
+  class El {
+    constructor(tag) {
+      this.tagName = String(tag || '').toUpperCase();
+      this.children = [];
+      this.attributes = {};
+      this.dataset = {};
+      this.style = {};
+      this.listeners = {};
+      this._text = '';
+      this.innerHTML = '';
+      this.hidden = false;
+      this.value = '';
+      this.checked = false;
+      this.disabled = false;
+      this.className = '';
+      const classes = new Set();
+      this.classList = {
+        add: (c) => classes.add(c),
+        remove: (c) => classes.delete(c),
+        contains: (c) => classes.has(c),
+      };
+    }
+    get textContent() {
+      return this._text
+        || this.children.map((c) => (typeof c === 'string' ? c : c.textContent)).join('');
+    }
+    set textContent(v) { this._text = String(v); this.children = []; }
+    append(...nodes) { this.children.push(...nodes); this._text = ''; }
+    replaceChildren(...nodes) { this.children = []; this._text = ''; this.append(...nodes); }
+    setAttribute(k, v) { this.attributes[k] = String(v); }
+    getAttribute(k) { return this.attributes[k]; }
+    addEventListener(type, fn) { (this.listeners[type] = this.listeners[type] || []).push(fn); }
+    fire(type, event = {}) {
+      for (const fn of this.listeners[type] || []) fn({ preventDefault() {}, ...event });
+    }
+    requestSubmit() { this.fire('submit'); }
+    querySelector() { return null; }
+    querySelectorAll() { return []; }
+    get lastElementChild() {
+      const kids = this.children.filter((c) => c && c.tagName);
+      return kids[kids.length - 1] || null;
+    }
+  }
+
+  const html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
+  // The handles come out of index.html itself, so the shim cannot invent an
+  // element the real page does not have.
+  const byId = new Map([...html.matchAll(/id="([^"]+)"/g)].map((m) => [m[1], new El('div')]));
+  const names = ['chat', 'grid', 'ablation'];
+  const tabs = names.map((name) => Object.assign(new El('button'), { dataset: { tab: name } }));
+  const panes = names.map((name) => Object.assign(new El('section'), { dataset: { pane: name } }));
+
+  const store = {};
+  const sandbox = {
+    console,
+    Date,
+    Math,
+    JSON,
+    DOMException: class extends Error {},
+    AbortController: class { constructor() { this.signal = { aborted: false }; } abort() { this.signal.aborted = true; } },
+    performance: { now: () => Date.now() },
+    document: {
+      getElementById: (id) => byId.get(id) || null,
+      createElement: (tag) => new El(tag),
+      querySelectorAll: (sel) => (sel === '.tab' ? tabs : sel === '.pane' ? panes : []),
+    },
+    localStorage: {
+      getItem: (k) => (k in store ? store[k] : null),
+      setItem: (k, v) => { store[k] = String(v); },
+      removeItem: (k) => { delete store[k]; },
+    },
+    fetch: async () => ({
+      ok: true,
+      async json() {
+        return {
+          choices: [{ message: { content: reply }, finish_reason: 'stop' }],
+          usage: { prompt_tokens: 120, completion_tokens: 40 },
+        };
+      },
+    }),
+  };
+  if (key) store['task12.deepseek.key'] = key;
+
+  const context = vm.createContext(sandbox);
+  for (const file of [...html.matchAll(/<script src="([^"]+)"/g)].map((m) => m[1])) {
+    vm.runInContext(fs.readFileSync(path.join(__dirname, file), 'utf8'), context, { filename: file });
+  }
+  // Top-level `const` and `class` live in the context's lexical scope, which is
+  // not reflected on the sandbox object — the same rule that made two scripts
+  // sharing a `const MARK` a parse error. Evaluating an expression inside the
+  // context is the way to reach them.
+  const read = (expression) => vm.runInContext(expression, context);
+  return { byId, tabs, panes, sandbox, context, read, El };
+}
+
+group('the page boots and renders', () => {
+  const page = bootPage();
+  ok('the profile block is on screen',
+    page.byId.get('blockText').textContent.startsWith('Who you are talking to'));
+  ok('with its token count', page.byId.get('blockTokens').textContent === '127 tokens, on every request');
+  ok('three people and a baseline are offered', page.byId.get('people').children.length === 4);
+  ok('eight fields are drawn from the schema, not written by hand',
+    page.byId.get('fields').children.length === Profile.FIELD_ORDER.length - 1);
+  ok('every ban in the catalogue has a row',
+    page.byId.get('banList').children.length === Object.keys(Profile.BANS).length);
+  ok('the ablation picker offers the three people',
+    page.byId.get('ablationWho').children.length === Object.keys(Profile.PEOPLE).length);
+  ok('and the note says what can and cannot be checked',
+    /4 of those can be checked/.test(page.byId.get('editorNote').textContent),
+    page.byId.get('editorNote').textContent);
+});
+
+group('switching a person redraws the block', () => {
+  const page = bootPage();
+  const before = page.byId.get('blockTokens').textContent;
+  page.byId.get('people').children[0].fire('click');
+  ok('the block changed', page.byId.get('blockTokens').textContent !== before);
+  ok('to Дина\'s size', page.byId.get('blockTokens').textContent.startsWith('116'),
+    page.byId.get('blockTokens').textContent);
+});
+
+group('editing a field forks a profile instead of overwriting a fixture', () => {
+  const page = bootPage();
+  const select = page.byId.get('fields').children
+    .flatMap((row) => row.children).find((node) => node.id === 'f-length');
+  select.value = 'terse';
+  select.fire('change');
+  const labels = page.byId.get('people').children.map((b) => b.textContent);
+  ok('a fifth option appears', labels.length === 5, labels.join(', '));
+  ok('and it is marked as edited', labels[4].includes('edited'), labels[4]);
+  ok('Sam himself is untouched',
+    Profile.compile(Profile.PEOPLE.sam).tokens === 127);
+});
+
+group('a finished turn carries its verdicts', () => {
+  const page = bootPage();
+  page.read('state').history.push(
+    { role: 'user', content: 'q', who: 'sam', asked: 'Sam' },
+    {
+      role: 'assistant',
+      content: 'Short answer with no code at all.',
+      profile: Profile.PEOPLE.sam,
+      done: true,
+      meta: '',
+    },
+  );
+  page.read('redrawLog')();
+  const strip = page.byId.get('log').children[1].children[2];
+  const text = strip.children.map((c) => c.textContent).join(' | ');
+  ok('the language check passed', /language: English/.test(text) && /100% Latin/.test(text));
+  ok('code-first failed on a reply with no code', /shape: code-first/.test(text) && /no code at all/.test(text));
+  ok('both bans are reported separately', /never emoji/.test(text) && /never pleasantries/.test(text));
+  ok('and the four unscorable fields are named, not hidden',
+    /name, role, expertise, tone/.test(text), text);
+});
+
+group('the grid and the ablation render end to end', async () => {
+  const page = bootPage();
+  await page.read('startGrid')();
+  ok('twenty requests, none failed',
+    page.byId.get('gridStatus').textContent === '20 requests, 0 of them failed.',
+    page.byId.get('gridStatus').textContent);
+  const table = page.byId.get('gridOut').children[1];
+  ok('a header row and five rows', table.children.length === 6);
+  ok('the baseline is graded on nothing',
+    table.children[1].children[0].textContent.includes('nothing to grade'));
+  ok('the person who asked for bullets scores best on a bullet-list reply',
+    table.children[5].children[0].textContent.includes('20/20'),
+    table.children[5].children[0].textContent);
+
+  await page.read('startAblation')();
+  ok('twelve requests', page.byId.get('ablationStatus').textContent === '12 requests.');
+  const rows = page.byId.get('ablationOut').children[1].children.slice(1);
+  ok('five rows — four fields, one of which holds two bans', rows.length === 5);
+  ok('every row reaches a named outcome',
+    rows.every((row) => Grid.OUTCOME_ORDER.some((o) => row.children[2].textContent.startsWith(o))),
+    rows.map((row) => row.children[2].textContent.slice(0, 20)).join(' | '));
+});
+
+group('a page with no key still works, it just cannot ask', async () => {
+  const page = bootPage({ key: '' });
+  ok('the block still compiles',
+    page.byId.get('blockText').textContent.startsWith('Who you are talking to'));
+  ok('and the page says why nothing can be asked',
+    /No API key/.test(page.byId.get('keyNote').textContent),
+    page.byId.get('keyNote').textContent);
+  await page.read('startGrid')();
+  ok('a keyless grid run fails every cell rather than throwing',
+    page.byId.get('gridStatus').textContent === '20 requests, 20 of them failed.',
+    page.byId.get('gridStatus').textContent);
+  ok('and still renders a table', page.byId.get('gridOut').children.length === 3);
 });
 
 /* ------------------------------------------------------- the README's numbers */

@@ -35,7 +35,9 @@
  */
 
 const FENCE_BLOCK = /```[\s\S]*?(?:```|$)/g;
-const BULLET = /^\s{0,3}(?:[-*•]|\d+[.)])\s+/;
+// Named BULLET_LINE, not BULLET: markdown.js already has a top-level BULLET,
+// and classic scripts share one global lexical scope — see test.js.
+const BULLET_LINE = /^\s{0,3}(?:[-*•]|\d+[.)])\s+/;
 
 const EXAMPLE_MARKERS = [
   'for example', 'for instance', 'e.g.', 'such as', 'say you', 'imagine',
@@ -59,11 +61,11 @@ function lines(reply) {
 }
 
 function bulletCount(reply) {
-  return lines(reply).filter((l) => BULLET.test(l)).length;
+  return lines(reply).filter((l) => BULLET_LINE.test(l)).length;
 }
 
 function proseLineCount(reply) {
-  return lines(reply).filter((l) => !BULLET.test(l) && !/^#{1,6}\s/.test(l)).length;
+  return lines(reply).filter((l) => !BULLET_LINE.test(l) && !/^#{1,6}\s/.test(l)).length;
 }
 
 function scripts(reply) {

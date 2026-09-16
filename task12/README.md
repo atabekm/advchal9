@@ -20,7 +20,9 @@ checker that reads what came back.
 Open `index.html`. No server, no build, no dependencies — the same as task 4
 through task 11. Storage keys are namespaced `task12.*`.
 
-`node test.js` runs 235 checks with no network and no key.
+`node test.js` runs 367 checks with no network and no key — including booting
+the page itself against a shimmed DOM, which is the only thing standing between
+this repo and a blank screen. See *The page, and how it broke* below.
 
 There is **no offline stub**, for the reason task 11 had none: the subject is
 whether a model obeys an instruction, and a stub written to obey the checkers
@@ -358,7 +360,7 @@ counts come from `node test.js`; the grid and ablation shapes come from the
 harness; the outcomes come from nowhere, because **this repo has never been run
 against a key.**
 
-That is the same position task 11 was in, and the compensation is the same: 235
+That is the same position task 11 was in, and the compensation is the same: 367
 checks that run with no network, covering the schema, the block, all four
 checkers, the applicability rules, the noise-floor arithmetic and the run loop
 end to end against a fake transport.
@@ -372,6 +374,41 @@ preferences, the grid would be measuring the fake.
 
 So: run it with a key, and the numbers in the panel are yours. The numbers in
 this file are the ones that hold without one.
+
+## The page, and how it broke
+
+The page loads six files as plain `<script>` tags. They share **one global
+lexical scope**, and two of them declaring `const MARK` at top level is not
+shadowing and not a warning — it is a `SyntaxError` that kills the second file
+outright. The page then renders nothing, with one line in a console nobody
+opened.
+
+That is exactly what happened here. `markdown.js`, carried over from task 5,
+has a top-level `BULLET` and a top-level `MARK`; `check.js` and `app.js` each
+added one of their own. `app.js` stopped parsing and the app was dead on
+arrival.
+
+The suite did not catch it because it loaded only the three files it was
+testing. The files it never loaded together were the two that collided. So
+there are now two checks that work over **the files the page loads**, taken
+from the `<script>` tags in `index.html` rather than from a list in the test:
+
+- **No two scripts declare the same top-level name.** Every `const`, `let`,
+  `class` and `function` at column zero, across all six files, has to be unique.
+- **The page boots.** A DOM small enough to run `app.js` against — about ninety
+  lines — loaded in its own `vm` context. It renders the editor, switches
+  people, edits a field, checks that the fixtures survive it, pushes a finished
+  turn through the compliance strip, and runs a whole grid and a whole ablation
+  against a stubbed `fetch`.
+
+The second one is a stub of the **browser**, which is a different animal from a
+stub of the model. Faking a model would make the grid a measurement of the
+fake. Faking `document.createElement` asserts nothing about obedience; it only
+asks whether the code runs, which is the question that had been going
+unanswered.
+
+Parsing is not running, and neither of these would have been caught by reading
+the diff.
 
 ## What it costs
 
@@ -429,4 +466,5 @@ This is 3,181, and the difference is not compression.
 - `api.js` — the DeepSeek transport, slimmed from task 11 to one entry point
 - `app.js` — the chat, the editor, the two tables; not one line of what-a-profile-is
 - `markdown.js` — the reply renderer, carried from task 5
-- `test.js` — 235 checks, no network, no key, no dependencies
+- `test.js` — 367 checks, no network, no key, no dependencies, and a DOM small
+  enough to boot the page against
