@@ -246,7 +246,12 @@ function bubbleFor(turn) {
   else bubble.textContent = turn.content;
 
   wrap.append(byline, bubble);
-  if (turn.role === 'assistant' && turn.done && !turn.error) wrap.append(verdictStrip(turn));
+  if (turn.role === 'assistant' && turn.done && !turn.error) {
+    // Free chat has no question metadata: nobody declared what this question
+    // cannot exercise, so nothing is excused. See check.js for why that is the
+    // safe direction to be wrong in.
+    wrap.append(verdictStrip(Check.checkReply({ profile: turn.profile, reply: turn.content })));
+  }
   return { wrap, bubble };
 }
 
@@ -261,15 +266,17 @@ function bubbleFor(turn) {
  * Fields that cannot be checked are collapsed into one grey chip. They are
  * still on screen — a panel that showed only the graded fields would quietly
  * imply the profile was fully accounted for.
+ *
+ * It takes verdicts, not a reply. It used to recompute them from the profile
+ * and the text, which silently threw away the question — so a column whose
+ * asker had declared "no code is possible here" was re-graded as though they
+ * had not, and the declaration only ever reached a number nobody rendered.
+ * One place decides, one place draws.
  */
-function verdictStrip(turn) {
+function verdictStrip(results) {
   const strip = document.createElement('div');
   strip.className = 'verdicts';
 
-  // No question metadata in free chat: nobody declared what this question
-  // cannot exercise, so nothing is excused. See check.js for why that is the
-  // safe direction to be wrong in.
-  const results = Check.checkReply({ profile: turn.profile, reply: turn.content });
   const graded = results.filter((r) => r.verdict !== 'unchecked');
   const unchecked = results.filter((r) => r.verdict === 'unchecked');
 
@@ -359,6 +366,112 @@ async function ask(question) {
     state.busy = false;
     el('send').disabled = false;
     redrawLog();
+  }
+}
+
+/* ------------------------------------------------- one question, four people */
+
+/* Four columns built before any answer arrives, so the layout does not jump as
+ * they fill, and each one is labelled with what its profile costs. The column
+ * that says `0 tokens` is the point of the tab: it is the same question with
+ * nobody's profile attached, and everything the other three do differently is
+ * what the profile bought. */
+function sideColumn(row, block) {
+  const column = document.createElement('div');
+  column.className = 'column';
+  column.style.borderTopColor = `var(--${row.colour})`;
+
+  const head = document.createElement('div');
+  head.className = 'columnhead';
+  const name = document.createElement('strong');
+  name.style.color = `var(--${row.colour})`;
+  name.textContent = row.label;
+  const cost = document.createElement('span');
+  cost.className = 'dim';
+  cost.textContent = block.empty
+    ? 'no profile block — 0 tokens'
+    : `${block.tokens} tokens of profile`;
+  head.append(name, cost);
+
+  const body = document.createElement('div');
+  body.className = 'columnbody waiting';
+  body.textContent = 'waiting…';
+
+  column.append(head, body);
+  return { column, body };
+}
+
+let sideAbort = null;
+
+async function askFour(question) {
+  const form = el('sideForm');
+  const button = el('runSide');
+  const stop = el('stopSide');
+  const bodies = new Map();
+
+  sideAbort = new AbortController();
+  button.disabled = true;
+  stop.hidden = false;
+  el('sideOut').replaceChildren();
+
+  // Undeclared, nothing is excused: a reply with no code fails `code-first`.
+  // The checkbox is how the person asking declares what their question cannot
+  // exercise — before any answer exists, which is the only moment at which
+  // that declaration means anything.
+  const cannotApply = el('sideNoCode').checked ? ['shape:code-first'] : [];
+  const declared = cannotApply.length
+    ? 'code-first is n/a here, because you said so.'
+    : 'Nothing is excused — this question was not declared code-free.';
+  el('sideStatus').textContent = `Four requests, streaming. ${declared}`;
+
+  try {
+    const cells = await Grid.runSideBySide({
+      question,
+      cannotApply,
+      model: el('model').value,
+      temperature: Number(el('temperature').value),
+      signal: sideAbort.signal,
+      onStart: (row, { block }) => {
+        const { column, body } = sideColumn(row, block);
+        bodies.set(row.id, { column, body, text: '' });
+        el('sideOut').append(column);
+      },
+      onChunk: (row, chunk) => {
+        const held = bodies.get(row.id);
+        if (!held) return;
+        held.text += chunk;
+        held.body.classList.remove('waiting');
+        held.body.innerHTML = renderMarkdown(held.text);
+      },
+      onDone: (row, cell) => {
+        const held = bodies.get(row.id);
+        if (!held) return;
+        held.body.classList.remove('waiting');
+        if (cell.error) {
+          held.body.classList.add('failed');
+          held.body.textContent = cell.error;
+          return;
+        }
+        held.body.innerHTML = renderMarkdown(cell.text);
+        // cell.results, not a fresh check: the runner graded it against the
+        // question, including whatever the asker declared about it.
+        held.column.append(verdictStrip(cell.results));
+      },
+    });
+
+    const spent = cells.reduce((sum, c) => sum + (c.cost || 0), 0);
+    const failed = cells.filter((c) => c.error).length;
+    el('sideStatus').textContent = `Four answers, ${failed ? `${failed} of them failed, ` : ''}`
+      + `$${spent.toFixed(5)}. The differences between the columns are the profile, `
+      + `and nothing else — the question was identical. ${declared}`;
+  } catch (error) {
+    el('sideStatus').textContent = error.name === 'AbortError'
+      ? 'Stopped.'
+      : `The run stopped: ${error.message}`;
+  } finally {
+    button.disabled = false;
+    stop.hidden = true;
+    sideAbort = null;
   }
 }
 
@@ -694,6 +807,19 @@ function boot() {
     el('ablationWho').append(option);
   }
   el('ablationWho').value = 'sam';
+
+  el('sideForm').addEventListener('submit', (event) => {
+    event.preventDefault();
+    const question = el('sideQuestion').value.trim();
+    if (question) askFour(question);
+  });
+  el('stopSide').addEventListener('click', () => sideAbort && sideAbort.abort());
+  el('sideQuestion').addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      el('sideForm').requestSubmit();
+    }
+  });
 
   el('runGrid').addEventListener('click', startGrid);
   el('runAblation').addEventListener('click', startAblation);

@@ -728,7 +728,9 @@ function bootPage({ reply = '- one\n- two\n- three', key = 'sk-test' } = {}) {
   // The handles come out of index.html itself, so the shim cannot invent an
   // element the real page does not have.
   const byId = new Map([...html.matchAll(/id="([^"]+)"/g)].map((m) => [m[1], new El('div')]));
-  const names = ['chat', 'grid', 'ablation'];
+  // Taken from the page, not from a list here — a shim that hard-codes the tabs
+  // stops modelling the page the moment a tab is added.
+  const names = [...html.matchAll(/data-tab="([^"]+)"/g)].map((m) => m[1]);
   const tabs = names.map((name) => Object.assign(new El('button'), { dataset: { tab: name } }));
   const panes = names.map((name) => Object.assign(new El('section'), { dataset: { pane: name } }));
 
@@ -751,15 +753,45 @@ function bootPage({ reply = '- one\n- two\n- three', key = 'sk-test' } = {}) {
       setItem: (k, v) => { store[k] = String(v); },
       removeItem: (k) => { delete store[k]; },
     },
-    fetch: async () => ({
-      ok: true,
-      async json() {
+    TextDecoder,
+    /* Answers both shapes the transport asks for. The grid and the ablation
+     * send `stream: false` and read JSON; the four-column tab streams, so the
+     * fake has to speak server-sent events too — otherwise the harness would
+     * pass while the tab that actually matters on video threw on its first
+     * chunk. */
+    fetch: async (url, init) => {
+      const streamed = JSON.parse(init.body).stream;
+      if (!streamed) {
         return {
-          choices: [{ message: { content: reply }, finish_reason: 'stop' }],
-          usage: { prompt_tokens: 120, completion_tokens: 40 },
+          ok: true,
+          async json() {
+            return {
+              choices: [{ message: { content: reply }, finish_reason: 'stop' }],
+              usage: { prompt_tokens: 120, completion_tokens: 40 },
+            };
+          },
         };
-      },
-    }),
+      }
+      const half = Math.ceil(reply.length / 2);
+      const frames = [
+        `data: ${JSON.stringify({ choices: [{ delta: { content: reply.slice(0, half) } }] })}\n`,
+        `data: ${JSON.stringify({ choices: [{ delta: { content: reply.slice(half) } }] })}\n`,
+        `data: ${JSON.stringify({ choices: [{ delta: {}, finish_reason: 'stop' }], usage: { prompt_tokens: 120, completion_tokens: 40 } })}\n`,
+        'data: [DONE]\n',
+      ].map((frame) => Buffer.from(frame));
+      let sent = 0;
+      return {
+        ok: true,
+        body: {
+          getReader: () => ({
+            async read() {
+              if (sent >= frames.length) return { done: true, value: undefined };
+              return { done: false, value: frames[sent++] };
+            },
+          }),
+        },
+      };
+    },
   };
   if (key) store['task12.deepseek.key'] = key;
 
@@ -777,6 +809,9 @@ function bootPage({ reply = '- one\n- two\n- three', key = 'sk-test' } = {}) {
 
 group('the page boots and renders', () => {
   const page = bootPage();
+  ok('every tab has a pane and every pane a tab',
+    page.tabs.length === page.panes.length && page.tabs.length === 4,
+    `${page.tabs.length} tabs, ${page.panes.length} panes`);
   ok('the profile block is on screen',
     page.byId.get('blockText').textContent.startsWith('Who you are talking to'));
   ok('with its token count', page.byId.get('blockTokens').textContent === '127 tokens, on every request');
@@ -857,6 +892,58 @@ group('the grid and the ablation render end to end', async () => {
   ok('every row reaches a named outcome',
     rows.every((row) => Grid.OUTCOME_ORDER.some((o) => row.children[2].textContent.startsWith(o))),
     rows.map((row) => row.children[2].textContent.slice(0, 20)).join(' | '));
+});
+
+group('one question goes to four people at once', async () => {
+  const page = bootPage({ reply: '- one\n- two\n- three' });
+  page.byId.get('sideQuestion').value = 'How do I rate limit an API?';
+  await page.read('askFour')('How do I rate limit an API?');
+
+  const columns = page.byId.get('sideOut').children;
+  ok('four columns, not five — the repeat row belongs to a measurement',
+    columns.length === 4, String(columns.length));
+  ok('and four is what the runner offers', Grid.SIDE_ROWS.length === 4);
+  ok('none of them is the repeat row', Grid.SIDE_ROWS.every((row) => !row.repeatOf));
+
+  const heads = columns.map((c) => c.children[0].textContent);
+  ok('the baseline column says it carries no profile',
+    heads[0].includes('no profile block — 0 tokens'), heads[0]);
+  ok('and each of the others prices its own block',
+    heads.slice(1).every((h) => /\d+ tokens of profile/.test(h)), heads.join(' | '));
+  ok('Дина\'s column is 119 tokens', heads[1].includes('119 tokens'), heads[1]);
+
+  ok('every column streamed its answer in',
+    columns.every((c) => c.children[1].innerHTML.includes('one')),
+    columns.map((c) => c.children[1].innerHTML.slice(0, 20)).join(' | '));
+  ok('the baseline gets no compliance strip, because nothing was asked of it',
+    columns[0].children[2].children[0].textContent.includes('nothing was asked for'));
+  ok('the three profiles do',
+    columns.slice(1).every((c) => c.children[2].children.length > 0));
+  ok('the status says what the differences mean',
+    /differences between the columns are the profile/.test(page.byId.get('sideStatus').textContent),
+    page.byId.get('sideStatus').textContent);
+});
+
+group('the asker declares what the question cannot exercise', async () => {
+  const page = bootPage({ reply: 'A short paragraph of prose with no code in it whatsoever, truly.' });
+  await page.read('askFour')('How do I tell the team the date slipped?');
+  const samUndeclared = page.byId.get('sideOut').children[2].children[2].textContent;
+  ok('undeclared, a reply with no code fails code-first',
+    /shape: code-first/.test(samUndeclared) && /no code at all/.test(samUndeclared), samUndeclared);
+  ok('and the status says nothing was excused',
+    /Nothing is excused/.test(page.byId.get('sideStatus').textContent));
+
+  page.byId.get('sideNoCode').checked = true;
+  await page.read('askFour')('How do I tell the team the date slipped?');
+  const samDeclared = page.byId.get('sideOut').children[2].children[2].textContent;
+  ok('declared, the same reply scores n/a instead',
+    /shape: code-first/.test(samDeclared) && /can contain no code/.test(samDeclared), samDeclared);
+  ok('and the status says so', /because you said so/.test(page.byId.get('sideStatus').textContent));
+
+  // The declaration must not leak to a value it does not apply to.
+  const priyaDeclared = page.byId.get('sideOut').children[3].children[2].textContent;
+  ok('Priya is still graded on bullets, which any question can exercise',
+    /shape: bullets/.test(priyaDeclared) && !/can contain no code/.test(priyaDeclared), priyaDeclared);
 });
 
 group('a page with no key still works, it just cannot ask', async () => {

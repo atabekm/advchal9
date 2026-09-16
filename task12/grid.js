@@ -168,6 +168,78 @@ async function runGrid({ model, temperature, signal, onCell, onProgress }) {
   };
 }
 
+/* ---------------------------------------------------------- one question, live */
+
+/* The grid with its question supplied by whoever is watching.
+ *
+ * Four columns, not five: the repeat row belongs to a measurement, and this is
+ * not one. It is the definition of personalization made visible in a single
+ * screen — same question, four people, and the differences are the whole of
+ * what the profile bought. Nothing here is scored across runs, so there is
+ * nothing for a noise floor to protect.
+ *
+ * The four go out concurrently and stream. A reader watching four columns fill
+ * at once sees which preference is being obeyed while it is being obeyed; four
+ * sequential requests would be the same evidence delivered as four separate
+ * events, and by the fourth nobody remembers the first.
+ */
+const SIDE_ROWS = ROWS.filter((row) => !row.repeatOf);
+
+/* An ad-hoc question declares its own applicability, because the person asking
+ * it is the only one who knows. Left undeclared, nothing is excused — a reply
+ * with no code fails `code-first`, which is the direction check.js argues is
+ * the safe one to be wrong in. */
+async function runSideBySide({
+  question, cannotApply = [], model, temperature, signal, onStart, onChunk, onDone,
+}) {
+  const asked = {
+    id: 'live',
+    text: question,
+    cannotApply,
+    why: 'the person asking said this answer can contain no code',
+  };
+
+  return Promise.all(SIDE_ROWS.map(async (row) => {
+    const profile = row.profile();
+    const { messages, block } = Profile.assemble({ profile, question });
+    if (onStart) onStart(row, { block, profile });
+
+    try {
+      const result = await Api.send({
+        model,
+        messages,
+        temperature,
+        stream: true,
+        signal,
+        maxTokens: 1600,
+        onChunk: (chunk) => onChunk && onChunk(row, chunk),
+      });
+      const cell = {
+        rowId: row.id,
+        profile,
+        blockTokens: block.tokens,
+        text: result.text,
+        usage: result.usage,
+        cost: result.cost,
+        results: Check.checkReply({ profile, reply: result.text, question: asked }),
+      };
+      if (onDone) onDone(row, cell);
+      return cell;
+    } catch (error) {
+      if (error.name === 'AbortError') throw error;
+      const cell = {
+        rowId: row.id,
+        profile,
+        blockTokens: block.tokens,
+        error: error.message || String(error),
+        results: [],
+      };
+      if (onDone) onDone(row, cell);
+      return cell;
+    }
+  }));
+}
+
 /* -------------------------------------------------------------- the ablation */
 
 /* The brief's second question: what does the assistant take into account
@@ -340,6 +412,7 @@ async function runAblation({ who = 'sam', model, temperature, signal, onProgress
 
 const Grid = {
   QUESTIONS, ROWS, runGrid, noiseFloor, rowScore, isUnstable, askCell,
+  SIDE_ROWS, runSideBySide,
   ABLATION_QUESTIONS, ablationFields, fieldCost, conclude, rollUp, runAblation, verdictFor,
   OUTCOME_ORDER,
 };

@@ -28,6 +28,7 @@
 
 <nav class="tabs">
   <button class="tab" data-tab="chat" aria-selected="true">chat</button>
+  <button class="tab" data-tab="side" aria-selected="false">one question, four people</button>
   <button class="tab" data-tab="grid" aria-selected="false">the grid</button>
   <button class="tab" data-tab="ablation" aria-selected="false">the ablation</button>
   <span id="keyNote" class="keynote"></span>
@@ -68,6 +69,41 @@
       </div>
       <div class="editornote dim" id="editorNote"></div>
     </aside>
+  </section>
+
+
+  <!-- --------------------------------------------------- one question, four -->
+  <section class="pane" data-pane="side" hidden>
+    <div class="runner">
+      <div class="runnerhead">
+        <div>
+          <strong>One question, four people, at the same time.</strong>
+          <p class="dim">
+            The grid with its question supplied by you, and one column of it that is
+            not a person: <em>no profile</em> sends no block at all, so you can see
+            what the same question gets when nobody has said who is asking. The four
+            go out together and stream side by side — what differs between the columns
+            is the entire contribution of the profile.
+          </p>
+        </div>
+      </div>
+
+      <form id="sideForm" class="sideask">
+        <textarea id="sideQuestion" rows="2"
+          placeholder="Ask one question. It goes to all four at once."></textarea>
+        <div class="sideopts">
+          <label class="dim" title="Applicability is declared by whoever asks, before any answer exists — never inferred from the reply.">
+            <input type="checkbox" id="sideNoCode">
+            no code is possible in this answer
+          </label>
+          <button id="runSide" type="submit">ask all four</button>
+          <button id="stopSide" type="button" hidden>stop</button>
+        </div>
+      </form>
+
+      <div id="sideStatus" class="status"></div>
+      <div id="sideOut" class="columns"></div>
+    </div>
   </section>
 
   <!-- ------------------------------------------------------------ grid -->

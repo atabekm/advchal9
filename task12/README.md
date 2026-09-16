@@ -20,7 +20,7 @@ checker that reads what came back.
 Open `index.html`. No server, no build, no dependencies — the same as task 4
 through task 11. Storage keys are namespaced `task12.*`.
 
-`node test.js` runs 367 checks with no network and no key — including booting
+`node test.js` runs 395 checks with no network and no key — including booting
 the page itself against a shimmed DOM, which is the only thing standing between
 this repo and a blank screen. See *The page, and how it broke* below.
 
@@ -260,6 +260,49 @@ Violations are shown beside the reply with the rule they broke, and the turn is
 **not asked again**. The checker stays a measuring instrument rather than a
 control loop: a score achieved on the second attempt is a fact about the retry.
 
+## One question, four people
+
+The tab the definition is easiest to see in. Type a question, and it goes to
+all four at once — no profile, Дина, Sam, Priya — streaming into four columns
+side by side. Same question, four people, and **everything that differs between
+the columns is what the profile bought.**
+
+```
+  no profile          Дина                Sam                 Priya
+  0 tokens            119 tokens          127 tokens          143 tokens
+  ┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+  │ streaming…  │     │ streaming…  │     │ streaming…  │     │ streaming…  │
+  └─────────────┘     └─────────────┘     └─────────────┘     └─────────────┘
+  nothing asked       ✓ Russian           ✓ 94 words          ✓ 5 items
+  nothing checked     ✓ 380 words         ✗ code-first        ✓ no code
+                      ✓ no list           ✓ no emoji          ✓ no jargon
+```
+
+Four columns, not five: the repeat row belongs to a measurement and this is not
+one. Nothing here is scored across runs, so there is nothing for a noise floor
+to protect.
+
+They go out **concurrently and stream**. Four sequential requests would be the
+same evidence delivered as four separate events, and by the fourth nobody
+remembers the first.
+
+The baseline column earns its place here more than anywhere else. It carries no
+block, so it gets no compliance strip — it says *nothing was asked for, so
+nothing can be checked*, and it is the only column showing what this question
+gets when nobody has said who is asking.
+
+### The checkbox is the applicability rule, made interactive
+
+An ad-hoc question has no declaration attached, so **nothing is excused** — a
+reply with no code fails `code-first`, exactly as check.js argues it must.
+Ticking *no code is possible in this answer* is how the person asking declares
+what their question cannot exercise, before any answer exists, which is the
+only moment at which such a declaration means anything.
+
+Tick it and Sam's `code-first` becomes `n/a`. Priya's `bullets` stays graded,
+because a list is producible for any question and the declaration is per field
+**and value**.
+
 ## The grid
 
 ```
@@ -368,7 +411,7 @@ counts come from `node test.js`; the grid and ablation shapes come from the
 harness; the outcomes come from nowhere, because **this repo has never been run
 against a key.**
 
-That is the same position task 11 was in, and the compensation is the same: 367
+That is the same position task 11 was in, and the compensation is the same: 395
 checks that run with no network, covering the schema, the block, all four
 checkers, the applicability rules, the noise-floor arithmetic and the run loop
 end to end against a fake transport.
@@ -406,8 +449,9 @@ from the `<script>` tags in `index.html` rather than from a list in the test:
 - **The page boots.** A DOM small enough to run `app.js` against — about ninety
   lines — loaded in its own `vm` context. It renders the editor, switches
   people, edits a field, checks that the fixtures survive it, pushes a finished
-  turn through the compliance strip, and runs a whole grid and a whole ablation
-  against a stubbed `fetch`.
+  turn through the compliance strip, asks all four columns a question, and runs
+  a whole grid and a whole ablation against a stubbed `fetch` that speaks both
+  JSON and server-sent events.
 
 The second one is a stub of the **browser**, which is a different animal from a
 stub of the model. Faking a model would make the grid a measurement of the
@@ -422,7 +466,7 @@ the diff.
 
 One request per turn. The profile block is the only thing this task adds to it:
 119–143 tokens, on every request, in the position that caches best. A grid run
-is 20 requests and an ablation 12.
+is 20 requests, an ablation 12, and a four-column question 4.
 
 There is no cost tab, because there is no second call to account for. Task 11
 needed one — a turn there was a reply plus an extraction. A turn here is a
@@ -457,7 +501,7 @@ reply.
 
 Task 11 was 6,000 lines because three stores with three different policies, a
 seven-rule router and an extraction contract are three subjects in one app.
-This is 3,466, and the difference is not compression.
+This is 3,874, and the difference is not compression.
 
 - **No memory layers.** The profile persists; the conversation does not. That
   is the entire link to task 11's model and it is one `localStorage` key.
@@ -470,9 +514,11 @@ This is 3,466, and the difference is not compression.
 - `index.html`, `styles.css` — the page; one colour per person, used in all three tabs
 - `profile.js` — the schema, the three people, `compile()`, and the assembly
 - `check.js` — one predicate per checkable field; three-valued verdicts
-- `grid.js` — the questions, the five rows, the noise floor, the ablation
+- `grid.js` — the questions, the five rows, the four live columns, the noise
+  floor, the ablation
 - `api.js` — the DeepSeek transport, slimmed from task 11 to one entry point
-- `app.js` — the chat, the editor, the two tables; not one line of what-a-profile-is
+- `app.js` — the chat, the editor, the four columns, the two tables; not one
+  line of what-a-profile-is
 - `markdown.js` — the reply renderer, carried from task 5
-- `test.js` — 367 checks, no network, no key, no dependencies, and a DOM small
+- `test.js` — 395 checks, no network, no key, no dependencies, and a DOM small
   enough to boot the page against
