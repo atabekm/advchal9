@@ -449,7 +449,7 @@ reply.
 
 Task 11 was 6,000 lines because three stores with three different policies, a
 seven-rule router and an extraction contract are three subjects in one app.
-This is 3,181, and the difference is not compression.
+This is 3,466, and the difference is not compression.
 
 - **No memory layers.** The profile persists; the conversation does not. That
   is the entire link to task 11's model and it is one `localStorage` key.
