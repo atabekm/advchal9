@@ -126,6 +126,15 @@ group('the three people differ on every countable axis', () => {
     sam.language === priya.language);
   ok('dina is the only one answered in another language',
     dina.language === 'Russian' && sam.language === 'English');
+  // Three people, three lines of work. Two developers would make `role` a
+  // field that varies in wording and not in substance, and the question the
+  // grid asks about it — does knowing someone's job change the answer — would
+  // have been asked of two people with the same job.
+  ok('no two of them do the same kind of work',
+    new Set([dina.role, sam.role, priya.role]).size === 3);
+  ok('and only one of the three is an engineer',
+    [dina.role, sam.role, priya.role].filter((r) => /engineer|developer/i.test(r)).length === 1,
+    [dina.role, sam.role, priya.role].join(' | '));
   ok('sam and priya forbid different things',
     JSON.stringify(sam.forbid) !== JSON.stringify(priya.forbid));
   ok('their blocks are not the same size',
@@ -788,7 +797,7 @@ group('switching a person redraws the block', () => {
   const before = page.byId.get('blockTokens').textContent;
   page.byId.get('people').children[0].fire('click');
   ok('the block changed', page.byId.get('blockTokens').textContent !== before);
-  ok('to Дина\'s size', page.byId.get('blockTokens').textContent.startsWith('116'),
+  ok('to Дина\'s size', page.byId.get('blockTokens').textContent.startsWith('119'),
     page.byId.get('blockTokens').textContent);
 });
 
@@ -871,7 +880,7 @@ group('a page with no key still works, it just cannot ask', async () => {
  * README that is right on the day it is written. */
 
 group('the README quotes what the code produces', () => {
-  const expected = { dina: 116, sam: 127, priya: 143 };
+  const expected = { dina: 119, sam: 127, priya: 143 };
   for (const [who, tokens] of Object.entries(expected)) {
     ok(`${who}'s block is ${tokens} tokens`,
       Profile.compile(Profile.PEOPLE[who]).tokens === tokens,

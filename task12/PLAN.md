@@ -137,6 +137,11 @@ B and C are near-opposites on every axis that can be counted, which is what
 makes a difference between them attributable. A exists because a second
 language is the one preference whose violation is impossible to miss on video.
 
+*Дина shipped as a junior marketing specialist rather than a junior developer.
+Two of the three being developers made `role` a field that varied in wording
+and not in substance, which is the one thing a field in this schema is not
+allowed to do. The README carries the table as built.*
+
 ## Applicability is a property of the question
 
 The trap, written down before the checker is built:

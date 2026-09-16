@@ -173,7 +173,7 @@ people that has two possible explanations has none.
 
 | | **A · Дина** | **B · Sam** | **C · Priya** |
 | --- | --- | --- | --- |
-| role | junior developer | staff backend engineer | product manager |
+| role | junior marketing specialist | staff backend engineer | product manager |
 | expertise | novice | expert | novice |
 | language | Russian | English | English |
 | length | thorough | terse | normal |
@@ -181,7 +181,7 @@ people that has two possible explanations has none.
 | examples | required | *unset* | never |
 | tone | warm | dry | *unset* |
 | forbid | — | emoji, pleasantries | code, jargon |
-| **block** | **116 tokens** | **127 tokens** | **143 tokens** |
+| **block** | **119 tokens** | **127 tokens** | **143 tokens** |
 
 Language is held constant between Sam and Priya on purpose. If it varied too,
 every difference between their answers would have a second explanation and
@@ -301,9 +301,17 @@ The four questions:
 | Q3 | Why is it a bad idea to keep user sessions in server memory? | where `expertise` should show, and nothing can check it |
 | Q4 | How should I tell the team that the launch date has slipped? | `shape: code-first` is `n/a` here, by declaration |
 
-Q3 is the interesting one to read rather than to score. Дина and Priya are both
-`novice` and Sam is `expert`; the answers should differ in what they assume,
-and no checker in this repo can tell you whether they did.
+Three different lines of work, on purpose. Two developers would make `role` a
+field that varies in wording rather than in substance, and the grid would be
+asking whether knowing someone's job changes the answer while holding the job
+almost constant.
+
+Q3 is the interesting one to read rather than to score. Дина sells the product
+and Priya plans it, both `novice`; Sam builds it and is `expert`. The three
+answers should differ in what they assume the reader already knows, and **no
+checker in this repo can tell you whether they did** — `role` and `expertise`
+are on the descriptive side of the schema, which is the half nothing can
+grade.
 
 There is a test that no question may contain a word Priya's jargon ban
 forbids. The first draft of Q3 was "what is a connection pool?" — which is on
@@ -413,7 +421,7 @@ the diff.
 ## What it costs
 
 One request per turn. The profile block is the only thing this task adds to it:
-116–143 tokens, on every request, in the position that caches best. A grid run
+119–143 tokens, on every request, in the position that caches best. A grid run
 is 20 requests and an ablation 12.
 
 There is no cost tab, because there is no second call to account for. Task 11

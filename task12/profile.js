@@ -247,7 +247,7 @@ const PEOPLE = {
   dina: {
     id: 'dina',
     name: 'Дина',
-    role: 'junior developer',
+    role: 'junior marketing specialist',
     expertise: 'novice',
     language: 'Russian',
     length: 'thorough',
