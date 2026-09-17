@@ -2,7 +2,14 @@ const fs = require('fs');
 const vm = require('vm');
 const path = require('path');
 
-for (const file of ['machine.js', 'protocol.js']) {
+const html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
+
+/* The script list comes from index.html rather than from a list written here,
+ * so a file added to the page without being wired up is caught by the tests
+ * instead of by a blank screen. */
+const SCRIPTS = [...html.matchAll(/<script src="([^"]+)"><\/script>/g)].map((m) => m[1]);
+
+for (const file of SCRIPTS.filter((name) => name !== 'app.js')) {
   vm.runInThisContext(fs.readFileSync(path.join(__dirname, file), 'utf8'), { filename: file });
 }
 
@@ -738,6 +745,407 @@ group('what the state costs', () => {
   const withArtifacts = drive([...closeStep('s1'), ...closeStep('s2')], executing());
   ok('the state grows with the work, because later steps need it',
     Protocol.compile(withArtifacts).stateTokens > Protocol.compile(executing()).stateTokens);
+});
+
+
+// ------------------------------------------------------------- the page
+
+/* Booting the page against a shimmed DOM. Task 12 shipped a blank screen once
+ * because two files declared the same name, and no test could have caught it —
+ * this is that test. It also runs a whole task end to end through the actual
+ * buttons, with the transport replaced and nothing else. */
+
+const IDS = [...html.matchAll(/id="([^"]+)"/g)].map((m) => m[1]);
+
+class El {
+  constructor(tag = 'div') {
+    this.tagName = tag;
+    this.className = '';
+    this.children = [];
+    this.dataset = {};
+    this.attrs = {};
+    this.listeners = {};
+    this.hidden = false;
+    this.value = '';
+    this.innerHTML = '';
+    this.scrollTop = 0;
+    this.scrollHeight = 0;
+    this.own = '';
+  }
+
+  get textContent() {
+    return this.own + this.children.map((child) => child.textContent).join('');
+  }
+
+  set textContent(value) {
+    this.own = String(value == null ? '' : value);
+    this.children = [];
+  }
+
+  append(...kids) { this.children.push(...kids.filter(Boolean)); }
+  replaceChildren(...kids) { this.children = kids.filter(Boolean); }
+  addEventListener(type, fn) { (this.listeners[type] = this.listeners[type] || []).push(fn); }
+  setAttribute(key, value) { this.attrs[key] = value; }
+  getAttribute(key) { return this.attrs[key]; }
+  select() { this.selected = true; }
+  fire(type, event = {}) {
+    for (const fn of this.listeners[type] || []) fn({ preventDefault() {}, ...event });
+  }
+
+  find(predicate) {
+    if (predicate(this)) return this;
+    for (const child of this.children) {
+      const hit = child.find ? child.find(predicate) : null;
+      if (hit) return hit;
+    }
+    return null;
+  }
+
+  all(predicate, into = []) {
+    if (predicate(this)) into.push(this);
+    for (const child of this.children) if (child.all) child.all(predicate, into);
+    return into;
+  }
+}
+
+function makePage(storage) {
+  const byId = new Map(IDS.map((id) => [id, new El()]));
+  const tabs = [...html.matchAll(/data-tab="([^"]+)"/g)].map((m) => {
+    const tab = new El('button');
+    tab.className = 'tab';
+    tab.dataset.tab = m[1];
+    return tab;
+  });
+  const panes = [...html.matchAll(/data-pane="([^"]+)"/g)].map((m) => {
+    const pane = new El('section');
+    pane.className = 'pane';
+    pane.dataset.pane = m[1];
+    return pane;
+  });
+
+  const document = {
+    readyState: 'complete',
+    addEventListener() {},
+    createElement: (tag) => new El(tag),
+    getElementById: (id) => byId.get(id) || null,
+    querySelectorAll: (selector) => {
+      if (selector === '.tab') return tabs;
+      if (selector === '.pane') return panes;
+      return [];
+    },
+  };
+
+  return { byId, tabs, panes, document, storage };
+}
+
+function makeStorage(initial = {}) {
+  const map = new Map(Object.entries(initial));
+  return {
+    map,
+    getItem: (key) => (map.has(key) ? map.get(key) : null),
+    setItem: (key, value) => map.set(key, String(value)),
+    removeItem: (key) => map.delete(key),
+  };
+}
+
+function bootPage(storage = makeStorage({ 'task13.deepseek.key': 'sk-test' })) {
+  const page = makePage(storage);
+  const sandbox = {
+    console, setTimeout, clearTimeout, AbortController, Date, Math, JSON, Promise, Number, String,
+    Array, Object, Set, Error, RegExp, isNaN, parseInt, parseFloat,
+    localStorage: storage,
+    document: page.document,
+  };
+  sandbox.globalThis = sandbox;
+  const context = vm.createContext(sandbox);
+  for (const file of SCRIPTS) {
+    vm.runInContext(fs.readFileSync(path.join(__dirname, file), 'utf8'), context, { filename: file });
+  }
+  return { page, context, sandbox };
+}
+
+function inside(context, expression) {
+  return vm.runInContext(expression, context);
+}
+
+function scripted(context, replies) {
+  const sent = [];
+  // `const Api = …` in a script is not a property of the sandbox object, so the
+  // transport is reached through the context and mutated in place.
+  inside(context, 'Api').send = async ({ messages, onChunk }) => {
+    sent.push(messages);
+    const text = replies.length ? replies.shift()
+      : '{"say":"nothing left to say","event":{"kind":"ask_user","question":"what now?"}}';
+    if (onChunk) onChunk(text);
+    return { text, usage: { promptTokens: 120, completionTokens: 30 }, elapsed: 0.1, cost: 0 };
+  };
+  return sent;
+}
+
+const envelope = (say, event) => JSON.stringify({ say, event });
+const delay = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
+
+async function until(condition, ms = 2000) {
+  const deadline = Date.now() + ms;
+  while (Date.now() < deadline) {
+    if (condition()) return true;
+    await delay(10);
+  }
+  return false;
+}
+
+/* The empty plan renders one paragraph, and that paragraph contains the word
+ * "done". Counting rows is the only reading of "is there a plan yet" that a
+ * sentence cannot accidentally satisfy. */
+function stepRows(page) {
+  return page.byId.get('steps').children.filter((row) => /^step /.test(row.className));
+}
+
+function control(page, label) {
+  return page.byId.get('controls').find((node) => node.tagName === 'button' && node.textContent === label);
+}
+
+function submitForm(page, box = 'controls', value = '') {
+  const form = page.byId.get(box).find((node) => node.tagName === 'form');
+  const input = form.find((node) => node.tagName === 'input' || node.tagName === 'textarea');
+  input.value = value;
+  form.fire('submit');
+  return form;
+}
+
+group('the page boots, and every id it reaches for exists', () => {
+  const asked = [...fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8').matchAll(/\bel\('([^']+)'\)/g)]
+    .map((m) => m[1]);
+  const missing = [...new Set(asked)].filter((id) => !IDS.includes(id));
+  ok('app.js reaches for no id the page does not have', missing.length === 0, missing.join(', '));
+
+  const names = SCRIPTS.map((file) => (fs.readFileSync(path.join(__dirname, file), 'utf8')
+    .match(/^(?:const|let|function|class)\s+([A-Za-z_$][\w$]*)/gm) || [])
+    .map((line) => line.split(/\s+/)[1]));
+  const clashes = [];
+  for (let i = 0; i < names.length; i += 1) {
+    for (let j = i + 1; j < names.length; j += 1) {
+      for (const name of names[i]) if (names[j].includes(name)) clashes.push(`${name} in ${SCRIPTS[i]} and ${SCRIPTS[j]}`);
+    }
+  }
+  ok('no two scripts declare the same top-level name', clashes.length === 0, clashes.join('; '));
+
+  const { page } = bootPage();
+  ok('booting draws the four stages',
+    page.byId.get('rail').children.filter((c) => c.className.includes('stagechip')).length === 4);
+  ok('with nothing lit, because nothing has been asked',
+    !page.byId.get('rail').children.some((c) => c.className.includes('here')));
+  ok('it says there is no task', page.byId.get('goalLine').textContent === 'no task');
+  ok('and offers exactly one thing to do',
+    page.byId.get('controls').find((node) => node.tagName === 'form') !== null);
+  ok('the request panel is filled in before anything happens',
+    page.byId.get('requestText').textContent.includes('nothing has been asked yet'));
+  ok('and priced', /tokens of state/.test(page.byId.get('requestMeta').textContent));
+});
+
+group('a task runs end to end through the buttons', async () => {
+  const { page, context } = bootPage();
+  const sent = scripted(context, [
+    envelope('Three steps, and here is what I will be judged on.', {
+      kind: 'propose_plan',
+      steps: [{ title: 'Fix the grammar' }, { title: 'Write parse_duration' }],
+      acceptance: [{ text: "'1h30m' returns 5400" }],
+    }),
+    // the model tries to close a step it has attached nothing to
+    envelope('Grammar settled.', { kind: 'complete_step', step: 's1' }),
+    envelope('Attaching it properly.', { kind: 'attach_artifact', step: 's1', artifact: 'grammar: [Nh][Nm]' }),
+    envelope('Closing s1.', { kind: 'complete_step', step: 's1' }),
+    envelope('The function.', { kind: 'attach_artifact', step: 's2', artifact: 'def parse_duration(t): ...' }),
+    envelope('Closing s2.', { kind: 'complete_step', step: 's2' }),
+    envelope('Judging against what was fixed at planning.', {
+      kind: 'validate',
+      verdicts: [{ id: 'a1', verdict: 'met', evidence: 'it returns 5400' }],
+    }),
+  ]);
+
+  submitForm(page, 'controls', "Write a Python function that parses '1h30m' into seconds.");
+  ok('the goal is on screen', page.byId.get('goalLine').textContent.includes('1h30m'));
+
+  ok('the model was asked for a plan', await until(() => stepRows(page).length === 2));
+  ok('and the request it got carried no dialogue',
+    sent[0].length === 2 && sent[0][0].role === 'system' && sent[0][1].role === 'user');
+  ok('the plan is on screen', page.byId.get('steps').textContent.includes('Write parse_duration'));
+  ok('so are the criteria', page.byId.get('criteria').textContent.includes('5400'));
+  ok('planning stops for a person', control(page, 'approve') !== null);
+  ok('and the machine did not continue on its own',
+    page.byId.get('rail').children.find((c) => c.className.includes('here')).textContent === 'planning');
+
+  control(page, 'approve').fire('click');
+  ok('approving starts the work', await until(() => page.byId.get('steps').textContent.includes('active')));
+
+  ok('the run reaches validation', await until(() => page.byId.get('criteria').textContent.includes('met —'), 4000));
+  ok('the premature close was refused and kept',
+    page.byId.get('logRows').children.some((row) => row.textContent.includes('missing-artifact')));
+  ok('and the retry that followed was accepted',
+    page.byId.get('steps').textContent.includes('grammar: [Nh][Nm]'));
+  ok('the rejection is visible in the run, not only in the log',
+    page.byId.get('feed').children.some((turn) => turn.className.includes('rejected')));
+  ok('the artifacts are on their steps',
+    page.byId.get('steps').textContent.includes('def parse_duration'));
+
+  ok('closing is a person’s move', control(page, 'accept') !== null);
+  control(page, 'accept').fire('click');
+  ok('and it closes the machine',
+    page.byId.get('rail').children.find((c) => c.className.includes('here')).textContent === 'done');
+  ok('the outcome is on screen', page.byId.get('controls').textContent.includes('accepted'));
+  ok('the log holds every move that was made',
+    page.byId.get('logMeta').textContent.includes('1 rejected'),
+    page.byId.get('logMeta').textContent);
+});
+
+group('a reload is a replay', async () => {
+  const storage = makeStorage({ 'task13.deepseek.key': 'sk-test' });
+  const first = bootPage(storage);
+  scripted(first.context, [
+    envelope('a plan', {
+      kind: 'propose_plan',
+      steps: [{ title: 'one' }, { title: 'two' }],
+      acceptance: [{ text: 'it works' }],
+    }),
+    envelope('the work', { kind: 'attach_artifact', step: 's1', artifact: 'the first artifact' }),
+  ]);
+
+  submitForm(first.page, 'controls', 'a task worth pausing');
+  ok('the plan arrives', await until(() => stepRows(first.page).length === 2));
+  control(first.page, 'approve').fire('click');
+  ok('and the first artifact lands',
+    await until(() => first.page.byId.get('steps').textContent.includes('the first artifact')));
+
+  control(first.page, 'pause').fire('click');
+  ok('pausing shows the flag', first.page.byId.get('pausedFlag').hidden === false);
+  ok('and leaves resume as the only move', control(first.page, 'resume') !== null);
+  const before = first.page.byId.get('requestText').textContent;
+
+  // The tab closes. Nothing is carried over but the log in storage.
+  const second = bootPage(storage);
+  ok('the second boot lands on the same stage',
+    second.page.byId.get('rail').children.find((c) => c.className.includes('here')).textContent === 'execution');
+  ok('with the same goal', second.page.byId.get('goalLine').textContent === 'a task worth pausing');
+  ok('the same plan', stepRows(second.page).length === 2);
+  ok('the same artifact', second.page.byId.get('steps').textContent.includes('the first artifact'));
+  ok('still paused', second.page.byId.get('pausedFlag').hidden === false);
+  ok('and nothing was sent while it was paused', second.page.byId.get('feed').children.length > 0);
+
+  scripted(second.context, [envelope('carrying on', { kind: 'complete_step', step: 's1' })]);
+  ok('the request waiting to go out is the one that was interrupted',
+    second.page.byId.get('requestText').textContent === before);
+
+  control(second.page, 'resume').fire('click');
+  ok('resuming carries on without asking anything',
+    await until(() => second.page.byId.get('steps').textContent.includes('two')
+      && second.page.byId.get('criteria').textContent.includes('it works')));
+  ok('and the model was never told a pause happened',
+    !second.page.byId.get('requestText').textContent.toLowerCase().includes('pause'));
+});
+
+group('a malformed reply is a rejection like any other', async () => {
+  const { page, context } = bootPage();
+  scripted(context, [
+    'Sure — I think the first thing to do is work out the grammar.',
+    envelope('sorry, here it is', {
+      kind: 'propose_plan',
+      steps: [{ title: 'one' }],
+      acceptance: [{ text: 'it works' }],
+    }),
+  ]);
+  submitForm(page, 'controls', 'a task');
+  // An empty plan renders one paragraph saying so, which is also one child —
+  // so the wait is on the step itself appearing, not on a count.
+  ok('the second attempt lands', await until(() => stepRows(page).length === 1));
+  ok('and the prose that failed is on the record',
+    page.byId.get('logRows').textContent.includes('malformed'));
+  ok('with what the model actually sent',
+    page.byId.get('logRows').textContent.includes('work out the grammar'));
+});
+
+group('two rejections in a row hand the turn back', async () => {
+  const { page, context } = bootPage();
+  scripted(context, ['not json', 'still not json', 'and again']);
+  submitForm(page, 'controls', 'a task');
+  ok('it stops after two attempts', await until(() => /goes back to you/.test(page.byId.get('note').textContent)));
+  ok('having spent exactly two requests', page.byId.get('logRows').children.length === 3,
+    String(page.byId.get('logRows').children.length));
+  ok('and nothing was planned', /Nothing planned yet/.test(page.byId.get('steps').textContent));
+});
+
+group('the leash stops a machine that would run on forever', async () => {
+  const { page, context } = bootPage();
+  scripted(context, [
+    envelope('a long plan', {
+      kind: 'propose_plan',
+      steps: [{ title: 'one' }, { title: 'two' }, { title: 'three' }, { title: 'four' }],
+      acceptance: [{ text: 'it works' }],
+    }),
+    ...['s1', 's2', 's3', 's4'].flatMap((id) => [
+      envelope('work', { kind: 'attach_artifact', step: id, artifact: `artifact for ${id}` }),
+      envelope('done', { kind: 'complete_step', step: id }),
+    ]),
+  ]);
+  submitForm(page, 'controls', 'four steps');
+  ok('the plan arrives', await until(() => stepRows(page).length === 4));
+  control(page, 'approve').fire('click');
+
+  ok('it stops itself after six model turns in a row',
+    await until(() => /the leash/.test(page.byId.get('note').textContent), 4000),
+    page.byId.get('note').textContent);
+  ok('three steps in, not four',
+    stepRows(page).filter((row) => row.className.includes('done')).length === 3,
+    stepRows(page).map((row) => row.className).join(' | '));
+  ok('and it offers to carry on', control(page, 'continue') !== null);
+
+  control(page, 'continue').fire('click');
+  ok('which it does', await until(() => stepRows(page)
+    .filter((row) => row.className.includes('done')).length === 4, 4000));
+});
+
+group('the log is the whole of what persists', async () => {
+  const { page, context } = bootPage();
+  scripted(context, [envelope('a plan', {
+    kind: 'propose_plan', steps: [{ title: 'one' }], acceptance: [{ text: 'it works' }],
+  })]);
+  submitForm(page, 'controls', 'a task to export');
+  ok('a plan exists', await until(() => stepRows(page).length === 1));
+
+  const exported = page.byId.get('logJson').value;
+  ok('the export is a log and nothing else',
+    Object.keys(JSON.parse(exported)).sort().join() === 'log,saved,task,version', exported.slice(0, 80));
+  ok('there is no state in it', !exported.includes('"expect"') && !exported.includes('"cursor"'));
+  ok('and it folds to what is on screen',
+    Machine.reduce(JSON.parse(exported).log).steps.length === 1);
+
+  const fresh = bootPage();
+  fresh.page.byId.get('logJson').value = exported;
+  fresh.page.byId.get('importLog').fire('click');
+  ok('pasting it into another page lands on the same screen',
+    fresh.page.byId.get('goalLine').textContent === 'a task to export');
+  ok('with the same plan', stepRows(fresh.page).length === 1);
+
+  fresh.page.byId.get('logJson').value = 'not json at all';
+  fresh.page.byId.get('importLog').fire('click');
+  ok('and rubbish is refused by name', /that is not JSON/.test(fresh.page.byId.get('logMeta').textContent));
+  ok('without disturbing what was there', stepRows(fresh.page).length === 1);
+
+  fresh.page.byId.get('clearLog').fire('click');
+  ok('starting over empties it', fresh.page.byId.get('goalLine').textContent === 'no task');
+  ok('and empties storage too', !inside(fresh.context, 'Store.read()').length);
+});
+
+group('with no key the machine still runs, it just cannot ask', async () => {
+  const { page, context } = bootPage(makeStorage({}));
+  ok('the page says so', /no key/.test(page.byId.get('keyNote').textContent));
+  inside(context, 'Api').send = async () => { throw new Error('the transport should not have been reached'); };
+  submitForm(page, 'controls', 'a task with no key');
+  await delay(80);
+  ok('the goal was still recorded', page.byId.get('goalLine').textContent === 'a task with no key');
+  ok('the stage still moved', page.byId.get('rail').children
+    .find((c) => c.className.includes('here')).textContent === 'planning');
+  ok('and it says what is missing', /No API key/.test(page.byId.get('note').textContent),
+    page.byId.get('note').textContent);
 });
 
 (async () => {
