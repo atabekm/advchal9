@@ -408,6 +408,145 @@ function render() {
   el('keyNote').textContent = Api.getKey() ? '' : 'no key — the machine runs, but nothing can be asked';
 }
 
+
+/* ---------------------------------------------------------- the experiment */
+
+const experiment = { cells: [], running: false, abort: null };
+
+function cellFor(fixture, arm) {
+  return experiment.cells.find((cell) => cell.fixture === fixture && cell.arm === arm) || null;
+}
+
+function paintAnatomy() {
+  const table = el('anatomyTable');
+  table.replaceChildren();
+  const head = node('tr');
+  for (const label of ['pause point', 'work', 'state', 'its scaffold', 'transcript', 'its talk', 'state ÷ transcript']) {
+    head.append(node('th', '', label));
+  }
+  table.append(head);
+  for (const fixture of Resume.FIXTURES) {
+    const measured = Resume.anatomy(fixture);
+    const row = node('tr');
+    row.append(node('td', '', fixture.id));
+    row.append(node('td', 'num', String(measured.work)));
+    row.append(node('td', 'num', String(measured.state.total)));
+    row.append(node('td', 'num dim', String(measured.state.scaffold)));
+    row.append(node('td', 'num', String(measured.transcript.total)));
+    row.append(node('td', 'num dim', String(measured.transcript.talk)));
+    row.append(node('td', 'num', `×${measured.ratio.toFixed(2)}`));
+    table.append(row);
+  }
+}
+
+function paintNoise() {
+  const table = el('noiseTable');
+  table.replaceChildren();
+  const rounds = [0, 1, 2, 4, 8];
+  const head = node('tr');
+  head.append(node('th', '', 'pause point'));
+  head.append(node('th', '', 'arm'));
+  for (const round of rounds) head.append(node('th', '', round === 1 ? '1 refusal' : `${round} refusals`));
+  head.append(node('th', '', 'per refusal'));
+  table.append(head);
+
+  for (const fixture of Resume.FIXTURES) {
+    const curve = Resume.noiseCurve(fixture, 8);
+    for (const arm of ['state', 'transcript']) {
+      const row = node('tr');
+      row.append(node('td', '', arm === 'state' ? fixture.id : ''));
+      row.append(node('td', '', arm));
+      for (const round of rounds) row.append(node('td', 'num', String(curve[round][arm])));
+      const per = (curve[8][arm] - curve[0][arm]) / 8;
+      row.append(node('td', 'num', per ? `+${per.toFixed(0)}` : 'flat'));
+      table.append(row);
+    }
+  }
+}
+
+function paintResume() {
+  const out = el('resumeOut');
+  out.replaceChildren();
+  if (!experiment.cells.length) return;
+
+  const table = node('table', 'logtable');
+  const head = node('tr');
+  head.append(node('th', '', 'pause point'));
+  for (const arm of Resume.ARMS) head.append(node('th', '', arm.label));
+  table.append(head);
+
+  for (const fixture of Resume.FIXTURES) {
+    const row = node('tr');
+    const label = node('td');
+    label.append(node('div', '', fixture.id));
+    label.append(node('div', 'dim', `slot: ${fixture.slot}`));
+    row.append(label);
+    for (const arm of Resume.ARMS) {
+      const cell = cellFor(fixture.id, arm.id);
+      const box = node('td', 'cell');
+      if (!cell) { box.append(node('span', 'dim', '·')); row.append(box); continue; }
+      if (cell.error) { box.append(node('span', 'reason', cell.error)); row.append(box); continue; }
+      box.append(node('div', 'kind', cell.kind || '(no event)'));
+      const marks = node('div', 'marks');
+      marks.append(node('span', cell.legal ? 'good' : 'bad', cell.legal ? 'legal' : 'illegal'));
+      if (cell.redo) marks.append(node('span', 'bad', 'redo'));
+      if (cell.reAsk) marks.append(node('span', 'bad', 're-ask'));
+      box.append(marks);
+      box.append(node('div', 'dim', `${cell.tokens} tok${cell.retries ? ` · ${cell.retries} retry` : ''}`));
+      if (cell.why) box.append(node('div', 'detail', cell.why));
+      if (cell.redo) box.append(node('div', 'detail', cell.redo));
+      if (cell.reAsk) box.append(node('div', 'detail', `already settled: ${cell.reAsk}`));
+      row.append(box);
+    }
+    table.append(row);
+  }
+  out.append(table);
+
+  const summary = Resume.summarise(experiment.cells);
+  const note = node('p', 'summary');
+  note.textContent = `state-only came back clean in ${summary.stateClean} of ${Resume.FIXTURES.length}`
+    + ` pause points, the transcript in ${summary.transcriptClean}, the goal alone in ${summary.goalClean}.`
+    + (summary.median != null ? ` The median state-to-transcript ratio was ×${summary.median.toFixed(2)}.` : '')
+    + (summary.unstable.length ? ` Unstable on repeat: ${summary.unstable.join(', ')}.` : '');
+  out.append(note);
+}
+
+async function runExperiment() {
+  if (experiment.running) return;
+  if (!Api.getKey()) { el('resumeStatus').textContent = Api.ready(); return; }
+  experiment.running = true;
+  experiment.cells = [];
+  experiment.abort = new AbortController();
+  el('runResume').hidden = true;
+  el('stopResume').hidden = false;
+  paintResume();
+
+  try {
+    await Resume.run({
+      send: (options) => Api.send(options),
+      model: el('model').value,
+      temperature: Number(el('temperature').value) || 0,
+      signal: experiment.abort.signal,
+      onCell: (cell, done, total) => {
+        experiment.cells.push(cell);
+        el('resumeStatus').textContent = `${done} of ${total} requests`;
+        paintResume();
+      },
+    });
+    el('resumeStatus').textContent = `${experiment.cells.length} requests, done.`;
+  } catch (error) {
+    el('resumeStatus').textContent = error.name === 'AbortError'
+      ? `stopped after ${experiment.cells.length} requests`
+      : `the run failed: ${error.message}`;
+  }
+
+  experiment.running = false;
+  experiment.abort = null;
+  el('runResume').hidden = false;
+  el('stopResume').hidden = true;
+  paintResume();
+}
+
 /* --------------------------------------------------------------------- boot */
 
 function reset() {
@@ -462,6 +601,11 @@ function boot() {
   });
 
   el('clearLog').addEventListener('click', reset);
+
+  el('runResume').addEventListener('click', runExperiment);
+  el('stopResume').addEventListener('click', () => { if (experiment.abort) experiment.abort.abort(); });
+  paintAnatomy();
+  paintNoise();
 
   app.log = Store.read();
   refold();

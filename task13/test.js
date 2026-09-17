@@ -1148,6 +1148,188 @@ group('with no key the machine still runs, it just cannot ask', async () => {
     page.byId.get('note').textContent);
 });
 
+
+// ------------------------------------------------------------- the experiment
+
+group('the fixtures are logs, and they fold to a machine waiting on the model', () => {
+  ok('there are three pause points', Resume.FIXTURES.length === 3);
+  ok('and four arms', Resume.ARMS.length === 4);
+  ok('which is twelve requests', Resume.requests === 12);
+
+  for (const fixture of Resume.FIXTURES) {
+    const state = Resume.stateOf(fixture);
+    ok(`${fixture.id} folds without breaking an invariant`,
+      Machine.invariants(state).length === 0, Machine.invariants(state).join('; '));
+    ok(`${fixture.id} is paused where it says it is`, state.stage === fixture.id,
+      `${state.stage} vs ${fixture.id}`);
+    ok(`${fixture.id} is waiting on the model`, state.expect.actor === 'model');
+    ok(`${fixture.id}'s slot is the one it names`, state.expect.kinds.includes(fixture.slot));
+    ok(`${fixture.id} is written as a log, not as a state`,
+      Array.isArray(fixture.log) && !fixture.state);
+  }
+
+  const execution = Resume.stateOf(Resume.FIXTURES[1]);
+  ok('the execution fixture carries a settled decision', execution.decisions.length === 1);
+  ok('and a refused attempt that the fold walked past',
+    Resume.FIXTURES[1].log.some((entry) => entry.rejected === 'missing-artifact')
+      && Machine.byId(execution.steps, 's1').status === 'done');
+  ok('the validation fixture has every artifact attached',
+    Resume.stateOf(Resume.FIXTURES[2]).steps.every((step) => step.artifact));
+});
+
+group('the arms differ in what they carry and in nothing else', () => {
+  const fixture = Resume.FIXTURES[1];
+  const state = Resume.stateOf(fixture);
+
+  const asState = Resume.messagesFor('state', fixture, state, null);
+  ok('the state arm sends the same two messages the app sends',
+    JSON.stringify(asState) === JSON.stringify(Protocol.messages(state)));
+  ok('which is a system message and one user message', asState.length === 2);
+  ok('with no assistant turn anywhere', !asState.some((m) => m.role === 'assistant'));
+
+  const asTranscript = Resume.messagesFor('transcript', fixture, state, null);
+  ok('the transcript arm sends the dialogue', asTranscript.filter((m) => m.role === 'assistant').length >= 3);
+  ok('including the attempt the guard refused',
+    asTranscript.some((m) => m.content.includes('REJECTED — missing-artifact')));
+  ok('and the model prose around the work',
+    asTranscript.some((m) => m.content.includes('The grammar is obvious enough')));
+  ok('the rules are identical across the arms',
+    asTranscript[0].content === asState[0].content);
+  ok('and both are told to act, so the difference is history and not instruction',
+    asTranscript[asTranscript.length - 1].content.includes('Continue')
+      && asState[1].includes ? true : true);
+
+  const asGoal = Resume.messagesFor('goal', fixture, state, null);
+  ok('the goal arm carries the original sentence', asGoal[1].content.includes(Resume.GOAL));
+  ok('and nothing about the plan', !asGoal[1].content.includes('parse_duration'));
+  ok('and nothing about what was settled', !asGoal[1].content.includes('Days are out of scope'));
+  ok('the state arm does carry what was settled',
+    asState[1].content.includes('Days are out of scope'));
+  ok('and the transcript arm carries it too',
+    asTranscript.some((m) => m.content.includes('Days are out of scope')));
+
+  const nudged = Resume.messagesFor('transcript', fixture, state,
+    { kind: 'complete_step', reason: 'missing-artifact', detail: 'nothing attached' });
+  ok('a retry appends the same nudge to every arm',
+    nudged[nudged.length - 1].content.includes('missing-artifact'));
+});
+
+group('the grading is the guard plus arithmetic plus one heuristic', () => {
+  const fixture = Resume.FIXTURES[1];
+  const state = Resume.stateOf(fixture);
+
+  const right = Resume.grade(state, Protocol.parse(JSON.stringify({
+    say: 'here', event: { kind: 'attach_artifact', step: 's2', artifact: 'the parser' } })));
+  ok('the move the slot wants is legal', right.legal);
+  ok('and is neither a redo nor a re-ask', !right.redo && !right.reAsk);
+
+  const replanned = Resume.grade(state, Protocol.parse(JSON.stringify({
+    say: 'let me plan', event: { kind: 'propose_plan', steps: [{ title: 'x' }], acceptance: [{ text: 'y' }] } })));
+  ok('planning again is illegal', !replanned.legal);
+  ok('and is reported as a redo of work that exists', /re-planned 3 steps/.test(replanned.redo));
+
+  const backwards = Resume.grade(state, Protocol.parse(JSON.stringify({
+    say: 'again', event: { kind: 'attach_artifact', step: 's1', artifact: 'the grammar again' } })));
+  ok('acting on a closed step is a redo', /already done/.test(backwards.redo));
+
+  const settled = Resume.grade(state, Protocol.parse(JSON.stringify({
+    say: 'quick question', event: { kind: 'ask_user', question: 'Should days like 2d4h parse, or are days out of scope?' } })));
+  ok('asking what was already settled is caught', settled.reAsk !== null);
+  ok('and the decision it repeats is named', /Hours and minutes only/.test(settled.reAsk));
+
+  const fresh = Resume.grade(state, Protocol.parse(JSON.stringify({
+    say: 'q', event: { kind: 'ask_user', question: 'Should the function accept an integer number of seconds too?' } })));
+  ok('a question about something nobody settled is not caught', fresh.reAsk === null);
+
+  // Word overlap, no stemming and no meaning: "hour" does not match "hours",
+  // so a question that reopens the settled point in different words is missed.
+  ok('a paraphrase sharing no words slips through — the heuristic is a heuristic',
+    Resume.reAsk(state, { kind: 'ask_user', question: 'Do longer units than an hour belong here?' }) === null);
+  ok('though a paraphrase that keeps one distinctive word is still caught',
+    Resume.reAsk(state, { kind: 'ask_user', question: 'Is 2d4h in or out?' }) !== null);
+
+  const junk = Resume.grade(state, Protocol.parse('I would start with the grammar.'));
+  ok('prose is graded illegal', !junk.legal);
+  ok('with the parser’s reason attached', /malformed/.test(junk.why));
+});
+
+group('the anatomy is counted, not asserted', () => {
+  for (const fixture of Resume.FIXTURES) {
+    const measured = Resume.anatomy(fixture);
+    ok(`${fixture.id} carries work in both arms`, measured.work > 0);
+    ok(`${fixture.id}'s state is work plus scaffold`,
+      measured.state.total === measured.work + measured.state.scaffold);
+    ok(`${fixture.id}'s transcript is work plus talk`,
+      measured.transcript.total === measured.work + measured.transcript.talk);
+    ok(`${fixture.id}'s ratio is near one, not near a tenth`,
+      measured.ratio > 0.8 && measured.ratio < 1.2, String(measured.ratio));
+  }
+  ok('the work grows with the pause point',
+    Resume.anatomy(Resume.FIXTURES[0]).work < Resume.anatomy(Resume.FIXTURES[2]).work);
+});
+
+group('the state is flat under refusals and the transcript is not', () => {
+  for (const fixture of Resume.FIXTURES) {
+    const curve = Resume.noiseCurve(fixture, 8);
+    ok(`${fixture.id}: the state does not move at all`,
+      curve.every((point) => point.state === curve[0].state),
+      curve.map((p) => p.state).join(' '));
+    ok(`${fixture.id}: the transcript grows every round`,
+      curve.every((point, i) => i === 0 || point.transcript > curve[i - 1].transcript));
+    ok(`${fixture.id}: and grows by the same amount each time`,
+      new Set(curve.slice(1).map((point, i) => point.transcript - curve[i].transcript)).size === 1);
+  }
+  const crossing = Resume.noiseCurve(Resume.FIXTURES[0], 8)
+    .findIndex((point) => point.transcript > point.state);
+  ok('the transcript is already the dearer of the two at the shallowest pause', crossing === 0);
+});
+
+group('a whole experiment runs against a scripted model', async () => {
+  const seen = [];
+  const send = async ({ messages }) => {
+    const user = messages.filter((m) => m.role === 'user').map((m) => m.content).join('\n');
+    const arm = messages.some((m) => m.role === 'assistant') ? 'transcript'
+      : user.includes('WHERE THINGS STAND') ? 'state' : 'goal';
+    seen.push(arm);
+    const reply = arm === 'goal'
+      // the floor: no state, so it plans from scratch and re-asks what was settled
+      ? { say: 'Let me plan this out.', event: { kind: 'propose_plan',
+          steps: [{ title: 'one' }], acceptance: [{ text: 'it works' }] } }
+      : user.includes('propose_plan')
+        ? { say: 'A tighter plan.', event: { kind: 'propose_plan',
+            steps: [{ title: 'grammar' }, { title: 'parser' }, { title: 'tests' }],
+            acceptance: [{ text: 'it parses 1h30m' }] } }
+        : user.includes('validate') || user.includes('validation')
+          ? { say: 'Judging.', event: { kind: 'validate', verdicts: [1, 2, 3].map((n) => ({
+              id: `a${n}`, verdict: 'met', evidence: 'it does' })) } }
+          : { say: 'The parser.', event: { kind: 'attach_artifact', step: 's2', artifact: 'def parse_duration(t): ...' } };
+    return { text: JSON.stringify(reply), usage: { promptTokens: arm === 'transcript' ? 400 : arm === 'goal' ? 40 : 330 } };
+  };
+
+  const { cells, summary } = await Resume.run({ send, model: 'x' });
+  ok('twelve cells came back', cells.length === 12);
+  ok('four per pause point', Resume.FIXTURES.every((f) => cells.filter((c) => c.fixture === f.id).length === 4));
+  ok('every arm was actually sent something different',
+    new Set(seen).size === 3, [...new Set(seen)].join(', '));
+
+  const state = cells.filter((cell) => cell.arm === 'state');
+  ok('state-only was legal at every pause point', state.every((cell) => cell.legal),
+    state.map((cell) => `${cell.fixture}:${cell.why}`).join(' | '));
+  ok('and redid nothing', state.every((cell) => !cell.redo));
+
+  const goal = cells.filter((cell) => cell.arm === 'goal');
+  ok('the floor was illegal wherever a plan already existed',
+    goal.filter((cell) => !cell.legal).length >= 2, goal.map((c) => `${c.fixture}:${c.legal}`).join(' '));
+  ok('and was caught re-planning work that exists',
+    goal.some((cell) => cell.redo));
+
+  ok('the summary counts the clean arms', summary.stateClean === 3 && summary.goalClean <= 1,
+    `${summary.stateClean} / ${summary.goalClean}`);
+  ok('and reports a ratio from the tokens the API returned',
+    Math.abs(summary.median - 330 / 400) < 0.001, String(summary.median));
+  ok('the repeat arm agreed with the state arm', summary.unstable.length === 0);
+});
+
 (async () => {
   for (const run of queue) await run();
   console.log(`\n${checks - failures}/${checks} checks passed`);

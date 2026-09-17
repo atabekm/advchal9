@@ -290,9 +290,22 @@ Every cell is graded on things that are decidable:
 | **tokens** | prompt tokens, from the API's own usage block |
 | **retries** | rejections before a legal event |
 
-The headline is one ratio: tokens(state) ÷ tokens(transcript), with `legal` and
-`no redo` holding in both. If the state is 200 tokens against 3000 and the next
-action is the same, that number *is* the result of this task.
+The headline was meant to be one ratio: tokens(state) ÷ tokens(transcript),
+with `legal` and `no redo` holding in both.
+
+*Measured, with no model asked and no key needed: the state is **not** a
+fraction of the transcript. At the three pause points it is ×0.88, ×0.91 and
+×1.02 of one. The scaffold a state pays for — the headers, the statuses, the
+standing, the slot — costs about what the talk around a tidy transcript costs,
+and both arms carry every token of the actual work because neither can drop
+any of it.*
+
+*So the compression claim is withdrawn. What replaces it is stronger, because
+it is structural rather than incidental: the state is a function of the
+machine, so anything that happens without moving the machine costs it nothing
+at all. Eight refused attempts add zero tokens to the state and about fifty
+each to the transcript. The state line is flat by construction. That, and not
+a ratio, is what a state machine buys, and the page prints the curve.*
 
 ## What is deliberately not built
 

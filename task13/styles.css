@@ -318,3 +318,19 @@ main { flex: 1; min-height: 0; display: flex; }
   main, .pane { flex-direction: column; }
   .machine { width: auto; border-right: none; border-bottom: 1px solid var(--line); }
 }
+
+/* ------------------------------------------------------- the experiment */
+
+.narrow { max-width: 68ch; font-size: 13px; }
+.logtable th.num, .logtable td.num { text-align: right; font-family: var(--mono); }
+.logtable td.cell { vertical-align: top; min-width: 150px; }
+.cell .kind { font-family: var(--mono); font-size: 11.5px; color: var(--ink); }
+.marks { display: flex; gap: 5px; margin: 3px 0; flex-wrap: wrap; }
+.marks span {
+  padding: 1px 6px; border-radius: 999px; font-size: 11px;
+  border: 1px solid var(--line);
+}
+.marks .good { color: var(--good); border-color: color-mix(in srgb, var(--good) 45%, var(--line)); }
+.marks .bad { color: var(--panel); background: var(--bad); border-color: var(--bad); }
+.cell .detail { font-size: 11.5px; }
+.summary { margin-top: 14px; font-size: 13.5px; max-width: 68ch; }
