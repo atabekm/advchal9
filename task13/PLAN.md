@@ -317,9 +317,12 @@ action is the same, that number *is* the result of this task.
 - **The transcript arm is reconstructed.** A real dialogue would be longer and
   messier, so the token ratio understates the saving — biased against the claim,
   which is the direction to be wrong in.
-- **The ratio is not a constant.** State size is roughly flat in step count;
-  a transcript grows. The number is a property of the pause point, and deep
-  pauses will flatter it.
+- **The ratio is not a constant, and the state is not flat.** Artifacts are
+  quoted in full, because step 3 usually needs step 2's output and validation
+  needs all of it, so the state grows with the work. What it does not carry is
+  the *talking* — the prose around each artifact, the superseded attempts, the
+  rejected events, and a settled question reduced to one line. The saving is
+  the talking, not the work, and the number is a property of the pause point.
 - **Nothing executes.** "Execution" is the model writing text, and validation is
   the same model reading it back. The frozen standard is the only thing making
   that better than a vibe, and it is not independence.

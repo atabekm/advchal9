@@ -2,7 +2,7 @@ const fs = require('fs');
 const vm = require('vm');
 const path = require('path');
 
-for (const file of ['machine.js']) {
+for (const file of ['machine.js', 'protocol.js']) {
   vm.runInThisContext(fs.readFileSync(path.join(__dirname, file), 'utf8'), { filename: file });
 }
 
@@ -45,6 +45,16 @@ function drive(events, from = Machine.empty()) {
     state = moved.state;
   }
   return state;
+}
+
+function probePayload(state, kind) {
+  const active = Machine.activeStep(state);
+  return {
+    goal: 'g', note: 'n', question: 'q', text: 't', reason: 'r', artifact: 'a',
+    step: active ? active.id : 's1',
+    steps: [{ title: 'one' }], acceptance: [{ text: 'c' }],
+    verdicts: state.acceptance.map((a) => ({ id: a.id, verdict: 'met', evidence: 'e' })),
+  };
 }
 
 const PLAN = {
@@ -535,6 +545,199 @@ group('the closed set has nothing dead in it', () => {
     Machine.REJECTION_REASONS.every((reason) => Machine.REJECTIONS[reason].length > 20));
   ok('and nothing is rejected for a reason outside it',
     [...provoked].every((reason) => Machine.REJECTION_REASONS.includes(reason)));
+});
+
+
+// ---------------------------------------------------------------- protocol
+
+group('the request is the state, and there is no second version of it', () => {
+  const run = executing();
+  const block = Protocol.compile(run);
+
+  ok('the compiled request carries the goal', block.user.includes(GOAL));
+  ok('and the plan, step by step',
+    run.steps.every((step) => block.user.includes(step.title)));
+  ok('and what would count as done',
+    run.acceptance.every((criterion) => block.user.includes(criterion.text)));
+  ok('and which step is active', /s1\s+ACTIVE/.test(block.user), block.user);
+  ok('and what the machine is waiting for', block.user.includes('WHAT IS EXPECTED OF YOU NOW'));
+  ok('and which kinds it would accept right now',
+    block.user.includes('attach_artifact, complete_step, skip_step, ask_user'), block.user);
+
+  ok('there is no dialogue anywhere in it',
+    !/assistant|user said|earlier you|previously/i.test(block.user), block.user);
+  ok('the static half is the same for every state',
+    Protocol.compile(planned()).system === Protocol.compile(validating()).system);
+  ok('and it is the larger half, which is what a cache is for',
+    block.rulesTokens > block.stateTokens, `${block.rulesTokens} vs ${block.stateTokens}`);
+
+  ok('compiling is deterministic',
+    Protocol.compile(run).text === Protocol.compile(run).text);
+  ok('and depends on nothing but the state',
+    Protocol.compile(Machine.reduce([START, PLAN, { kind: 'approve_plan' }])).text === block.text);
+
+  ok('there is exactly one function that builds a request',
+    (fs.readFileSync(path.join(__dirname, 'protocol.js'), 'utf8').match(/^function compile/gm) || []).length === 1);
+  ok('and nothing in the code knows the word resume in a prompt sense',
+    !/resumePrompt|compileResume|summar(y|ise|ize)/i.test(
+      fs.readFileSync(path.join(__dirname, 'protocol.js'), 'utf8')));
+});
+
+group('the request a pause interrupts is the request a resume sends', () => {
+  for (const [name, state] of [['planning', planned()], ['execution', executing()], ['validation', validating()]]) {
+    const before = Protocol.compile(state);
+    const through = drive([{ kind: 'pause' }, { kind: 'resume' }], state);
+    const after = Protocol.compile(through);
+    ok(`paused and resumed in ${name}, the request is byte for byte the same`,
+      before.text === after.text);
+    ok(`and so is its fingerprint in ${name}`,
+      Protocol.fingerprint(before.text) === Protocol.fingerprint(after.text));
+  }
+
+  const log = [START, PLAN, { kind: 'approve_plan' },
+    { kind: 'attach_artifact', step: 's1', artifact: 'the grammar' },
+    { kind: 'complete_step', step: 's1' }, { kind: 'pause' }];
+  const reloaded = Machine.reduce(JSON.parse(JSON.stringify(log)));
+  const straight = drive(log.slice(0, -1));
+  ok('a machine folded back from storage compiles what it compiled before the tab closed',
+    Protocol.compile(drive([{ kind: 'resume' }], reloaded)).text === Protocol.compile(straight).text);
+});
+
+group('the state carries the work, and not the talking', () => {
+  const withWork = drive([
+    { kind: 'attach_artifact', step: 's1', artifact: 'def parse_duration(text):\n    ...' },
+    { kind: 'complete_step', step: 's1' },
+  ], executing());
+  ok('an attached artifact is quoted in full — later steps need it',
+    Protocol.compile(withWork).user.includes('def parse_duration(text):'));
+
+  const asked = drive([{ kind: 'ask_user', question: 'days?' }, { kind: 'answer', text: 'no days' }], executing());
+  const block = Protocol.compile(asked);
+  ok('a settled question appears once, as a decision', block.user.includes('ALREADY SETTLED'));
+  ok('with the question and the answer on one line', /days\? — no days/.test(block.user), block.user);
+  ok('and the model is told not to reopen it', /do not ask about any of this again/.test(block.user));
+  ok('nothing the model said around it survives', !block.user.includes('say'));
+
+  const skipped = drive([{ kind: 'skip_step', step: 's1', reason: 'the goal already fixed the grammar' }], executing());
+  ok('a skipped step keeps its reason in the request',
+    Protocol.compile(skipped).user.includes('the goal already fixed the grammar'));
+});
+
+group('the slot the request prints is the slot the guard enforces', () => {
+  for (const state of [planned(), executing(), validating(), drive([{ kind: 'ask_user', question: 'q' }], executing())]) {
+    const printed = (Protocol.compile(state).user.match(/Emit exactly one event, of kind: (.+)\./) || [])[1];
+    const enforced = Machine.legalKinds(state).filter((kind) => Machine.EVENTS[kind].actor === 'model');
+    if (state.expect.actor === 'model') {
+      ok(`in ${state.stage}, the printed kinds are the enforced kinds`,
+        printed === enforced.join(', '), `${printed} vs ${enforced.join(', ')}`);
+      // A printed kind is one the slot allows. It can still be turned away on
+      // its payload — complete_step is offered during execution and refused
+      // for missing-artifact — and that refusal is the more useful one.
+      const SLOT = ['wrong-kind', 'wrong-actor', 'wrong-stage', 'paused', 'terminal'];
+      ok(`in ${state.stage}, no printed kind is turned away by the slot`,
+        enforced.every((kind) => !SLOT.includes(
+          Machine.legal(state, { kind, ...probePayload(state, kind) }).reason)));
+      ok(`in ${state.stage}, nothing legal is left unprinted`,
+        Machine.EVENT_KINDS.filter((kind) => Machine.EVENTS[kind].actor === 'model'
+          && !SLOT.includes(Machine.legal(state, { kind, ...probePayload(state, kind) }).reason))
+          .every((kind) => enforced.includes(kind)));
+    } else {
+      ok(`in ${state.stage}, a model-less slot says so`,
+        /waiting on the person/.test(Protocol.compile(state).user));
+    }
+  }
+
+  const done = drive([
+    { kind: 'validate', verdicts: [
+      { id: 'a1', verdict: 'met', evidence: 'e' }, { id: 'a2', verdict: 'met', evidence: 'e' }] },
+    { kind: 'accept' }], validating());
+  ok('a closed machine expects nothing of anyone',
+    /Nothing\. The machine is closed\./.test(Protocol.compile(done).user));
+});
+
+group('every payload shape the prompt promises is one the guard accepts', () => {
+  const shapes = Object.keys(Protocol.SHAPES);
+  ok('every shape names a real event', shapes.every((kind) => Machine.EVENTS[kind]));
+  ok('every model event has a shape',
+    Machine.EVENT_KINDS.filter((kind) => Machine.EVENTS[kind].actor === 'model')
+      .every((kind) => Protocol.SHAPES[kind]), shapes.join(', '));
+  ok('no user-only event is offered to the model',
+    !shapes.some((kind) => Machine.EVENTS[kind].actor === 'user'));
+  ok('the rules name every stage', Machine.STAGES.every((stage) => Protocol.RULES.includes(stage)));
+  ok('and tell the model it cannot ask for one', /cannot ask for a stage/.test(Protocol.RULES));
+});
+
+group('the rejection the model is shown is the rejection the guard issued', () => {
+  const run = executing();
+  const rejected = Machine.step(run, { kind: 'complete_step', step: 's1' }).rejection;
+  const block = Protocol.compile(run, { rejection: rejected });
+  ok('the retry carries the kind that failed', block.user.includes('complete_step'));
+  ok('and the reason, by name', block.user.includes('missing-artifact'));
+  ok('and the detail that says what to do', block.user.includes('attach one before completing it'));
+  ok('and says how many attempts are left', /second and last attempt/.test(block.user));
+  ok('the state is still there underneath it', block.user.includes(GOAL));
+  ok('a request with no rejection carries no nudge',
+    !Protocol.compile(run).user.includes('REJECTED'));
+  ok('the nudge is the only difference between the two',
+    block.user.startsWith(Protocol.compile(run).user));
+});
+
+group('the envelope is carved out of whatever the model actually sent', () => {
+  const good = '{"say": "here you go", "event": {"kind": "complete_step", "step": "s1"}}';
+  ok('a bare object parses', Protocol.parse(good).ok);
+  ok('and keeps what was said', Protocol.parse(good).say === 'here you go');
+  ok('and the event', Protocol.parse(good).event.kind === 'complete_step');
+
+  ok('a fenced object parses', Protocol.parse('```json\n' + good + '\n```').ok);
+  ok('an unlabelled fence parses', Protocol.parse('```\n' + good + '\n```').ok);
+  ok('prose before it parses', Protocol.parse('Sure! Here is the event:\n' + good).ok);
+  ok('prose after it parses', Protocol.parse(good + '\n\nLet me know if that works.').ok);
+  ok('nested braces do not end it early',
+    Protocol.parse('{"say":"a","event":{"kind":"propose_plan","steps":[{"title":"t"}],"acceptance":[{"text":"c"}]}}')
+      .event.steps.length === 1);
+  ok('a brace inside a string does not end it early',
+    Protocol.parse('{"say":"} not the end {","event":{"kind":"complete_step","step":"s1"}}').ok);
+  ok('an escaped quote does not end the string',
+    Protocol.parse('{"say":"he said \\"no\\"","event":{"kind":"complete_step","step":"s1"}}').say
+      === 'he said "no"');
+
+  for (const [name, reply] of [
+    ['prose with no object', 'I think we should start with the grammar.'],
+    ['JSON that does not parse', '{"say": "x", "event": {kind: complete_step}}'],
+    ['an array', '[{"kind": "complete_step"}]'],
+    ['an envelope with no event', '{"say": "done!"}'],
+    ['an event with no kind', '{"say": "x", "event": {"step": "s1"}}'],
+    ['an event that is a string', '{"say": "x", "event": "complete_step"}'],
+    ['nothing at all', ''],
+  ]) {
+    const parsed = Protocol.parse(reply);
+    ok(`${name} is malformed`, !parsed.ok && parsed.reason === 'malformed', JSON.stringify(parsed));
+    ok(`${name} is refused by the same closed set the guard uses`,
+      Machine.REJECTION_REASONS.includes(parsed.reason));
+  }
+
+  ok('a parsed envelope goes straight to the guard',
+    Machine.step(executing(), Protocol.parse(good).event).rejection.reason === 'missing-artifact');
+});
+
+group('what the state costs', () => {
+  const sizes = [
+    ['planning, nothing planned', drive([START])],
+    ['planning, a plan waiting', planned()],
+    ['execution, first step', executing()],
+    ['validation', validating()],
+  ].map(([name, state]) => [name, Protocol.compile(state).stateTokens]);
+
+  for (const [name, tokens] of sizes) {
+    ok(`${name} compiles to a state block of ${tokens} tokens`, tokens > 0 && tokens < 400, String(tokens));
+  }
+  ok('the empty machine still compiles', Protocol.compile(Machine.empty()).tokens > 0);
+  ok('and says nothing has been asked',
+    Protocol.compile(Machine.empty()).user.includes('(nothing has been asked yet)'));
+
+  const withArtifacts = drive([...closeStep('s1'), ...closeStep('s2')], executing());
+  ok('the state grows with the work, because later steps need it',
+    Protocol.compile(withArtifacts).stateTokens > Protocol.compile(executing()).stateTokens);
 });
 
 (async () => {
