@@ -169,10 +169,15 @@ the tests.
 | `accept` / `abandon` | user | validation | closes the machine with an outcome |
 | `pause` / `resume` | user | anywhere | the flag, in the log, where it happened |
 
-Rejection reasons are a **closed set** — `wrong-stage`, `wrong-actor`,
-`wrong-kind`, `no-active-step`, `missing-artifact`, `missing-acceptance`,
-`unknown-step`, `malformed`, `paused`, `terminal` — so the README has rows to
-print and the tests have exact strings to assert.
+Rejection reasons are a **closed set** of twelve — `wrong-stage`,
+`wrong-actor`, `wrong-kind`, `paused`, `terminal`, `malformed`, `unknown-step`,
+`wrong-step`, `missing-artifact`, `missing-acceptance`, `unknown-criterion`,
+`incomplete-verdicts` — so the README has rows to print and the tests have exact
+strings to assert. A thirteenth, `no-active-step`, was written and then deleted:
+execution always has exactly one active step, so nothing could ever reach it.
+The test that says *every reason is provoked by a scenario above* is what found
+it, and that test is the reason the set stays closed rather than merely being
+called closed.
 
 ## Who decides what
 
