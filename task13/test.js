@@ -1330,8 +1330,81 @@ group('a whole experiment runs against a scripted model', async () => {
   ok('the repeat arm agreed with the state arm', summary.unstable.length === 0);
 });
 
+
+// ------------------------------------------------------------- the writing
+
+group('the README quotes what the code produces', () => {
+  const readme = fs.readFileSync(path.join(__dirname, 'README.md'), 'utf8');
+
+  ok('every refusal reason in the closed set is named in the README',
+    Machine.REJECTION_REASONS.every((reason) => readme.includes(`\`${reason}\``)),
+    Machine.REJECTION_REASONS.filter((r) => !readme.includes(`\`${r}\``)).join(', '));
+  ok('every event kind is named in the README',
+    Machine.EVENT_KINDS.every((kind) => readme.includes(`\`${kind}\``)),
+    Machine.EVENT_KINDS.filter((k) => !readme.includes(`\`${k}\``)).join(', '));
+  ok('the arc it draws is the arc the code has',
+    readme.includes(Machine.STAGES.join(' ──▶ ')));
+  ok('the number of refusal reasons is stated correctly',
+    readme.includes(`Twelve refusal reasons`) && Machine.REJECTION_REASONS.length === 12);
+  ok('the leash it quotes is the leash in the code',
+    readme.includes('six consecutive model turns')
+      && /const BUDGET = 6;/.test(fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8')));
+  ok('the token cost of the rules is the one the code computes',
+    readme.includes(`${Protocol.compile(Machine.empty()).rulesTokens} tokens and are identical`),
+    String(Protocol.compile(Machine.empty()).rulesTokens));
+
+  for (const fixture of Resume.FIXTURES) {
+    const measured = Resume.anatomy(fixture);
+    const row = `| ${fixture.id} | ${measured.work} | ${measured.state.total} | ${measured.state.scaffold}`
+      + ` | ${measured.transcript.total} | ${measured.transcript.talk} |`;
+    ok(`the anatomy row for ${fixture.id} is the one anatomy() returns`,
+      readme.includes(row), row);
+    ok(`and its ratio is the one it computes`,
+      readme.includes(`×${measured.ratio.toFixed(2)}`), measured.ratio.toFixed(2));
+
+    const curve = Resume.noiseCurve(fixture, 8);
+    ok(`the flat state line for ${fixture.id} is flat in the code too`,
+      curve.every((point) => point.state === curve[0].state)
+        && readme.includes(`| ${fixture.id} | state | ${curve[0].state} |`));
+    ok(`the transcript curve for ${fixture.id} is quoted from the code`,
+      readme.includes(`| | transcript | ${curve[0].transcript} | ${curve[1].transcript} | ${curve[2].transcript} | ${curve[4].transcript} | ${curve[8].transcript} |`),
+      [curve[0], curve[1], curve[2], curve[4], curve[8]].map((p) => p.transcript).join(' '));
+  }
+
+  ok('the state block sizes it quotes are the ones compile() produces',
+    readme.includes(`${Resume.anatomy(Resume.FIXTURES[0]).state.total} to ${Resume.anatomy(Resume.FIXTURES[2]).state.total} tokens`));
+  ok('the experiment is the size the README says',
+    readme.includes('twelve requests') && Resume.requests === 12);
+  // The README is hard-wrapped, so phrases match across a newline.
+  ok('the fuzz is the size the README says',
+    /90,000\s+fuzzed events/.test(readme) && /90,000\s+random events/.test(readme)
+      && 3000 * 30 === 90000);
+  ok('the paraphrase the README says is missed is actually missed',
+    Resume.reAsk(Resume.stateOf(Resume.FIXTURES[1]),
+      { kind: 'ask_user', question: 'Do longer units than an hour belong here?' }) === null);
+  ok('and the one it says is caught is actually caught',
+    Resume.reAsk(Resume.stateOf(Resume.FIXTURES[1]),
+      { kind: 'ask_user', question: 'Is 2d4h in or out?' }) !== null);
+  ok('every file the layout lists exists',
+    [...readme.matchAll(/^- `([a-z]+\.[a-z]+)`/gm)].map((m) => m[1])
+      .every((file) => fs.existsSync(path.join(__dirname, file))));
+  ok('and every script the page loads is listed',
+    SCRIPTS.every((file) => readme.includes(`\`${file}\``)),
+    SCRIPTS.filter((f) => !readme.includes(`\`${f}\``)).join(', '));
+});
+
 (async () => {
   for (const run of queue) await run();
+
+  // Last, because it is a claim about the number of checks including itself.
+  console.log('\nthe README counts the checks correctly');
+  const readme = fs.readFileSync(path.join(__dirname, 'README.md'), 'utf8');
+  const claimed = [...readme.matchAll(/(\d[\d,]*) checks/g)].map((m) => Number(m[1].replace(/,/g, '')));
+  const total = checks + 1;
+  ok('every count the README gives is the count this file runs',
+    claimed.length >= 2 && claimed.every((n) => n === total),
+    `README says ${claimed.join(', ')}; there are ${total}`);
+
   console.log(`\n${checks - failures}/${checks} checks passed`);
   if (failures) process.exit(1);
 })();
