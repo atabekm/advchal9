@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Task 13 · The task state machine</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="title">
+    <strong>The task state machine</strong>
+    <span class="dim">the runtime owns the state; the model only proposes events</span>
+  </div>
+  <div class="settings">
+    <label>model
+      <select id="model"></select>
+    </label>
+    <label>temperature
+      <input id="temperature" type="number" min="0" max="2" step="0.1" value="0.4">
+    </label>
+    <label class="key">key
+      <input id="key" type="password" placeholder="sk-… stays in this browser" autocomplete="off">
+    </label>
+  </div>
+</header>
+
+<nav class="tabs">
+  <button class="tab" data-tab="task" aria-selected="true">the task</button>
+  <button class="tab" data-tab="log" aria-selected="false">the log</button>
+  <button class="tab" data-tab="resume" aria-selected="false">resuming</button>
+  <span id="keyNote" class="keynote"></span>
+</nav>
+
+<main>
+
+  <!-- ------------------------------------------------------------ the task -->
+  <section class="pane" data-pane="task">
+
+    <div class="machine">
+      <div class="railrow">
+        <div id="rail" class="rail"></div>
+        <span id="pausedFlag" class="pausedflag" hidden>paused</span>
+      </div>
+      <div id="goalLine" class="goalline"></div>
+
+      <div class="panel">
+        <div class="panelhead">the plan
+          <span class="dim">— proposed by the model, approved by you, fixed after that</span>
+        </div>
+        <div id="steps" class="steps"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panelhead">what would count as done
+          <span class="dim">— written before the work existed, so validation has something to compare against</span>
+        </div>
+        <div id="criteria" class="criteria"></div>
+      </div>
+
+      <div class="panel" id="decisionsPanel">
+        <div class="panelhead">already settled
+          <span class="dim">— goes up with every request; never asked about twice</span>
+        </div>
+        <div id="decisions" class="decisions"></div>
+      </div>
+    </div>
+
+    <div class="run">
+      <div id="note" class="note" hidden></div>
+      <div id="feed" class="feed"></div>
+      <pre id="stream" class="stream" hidden></pre>
+      <div id="controls" class="controls"></div>
+
+      <div class="blockstrip">
+        <div class="blockhead">
+          <span>what goes up on the next request — all of it</span>
+          <span id="requestMeta" class="dim"></span>
+        </div>
+        <pre id="requestText" class="block"></pre>
+        <details class="rules">
+          <summary>and the rules above it, identical on every request of every run</summary>
+          <pre id="requestRules" class="block"></pre>
+        </details>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ------------------------------------------------------------- the log -->
+  <section class="pane" data-pane="log" hidden>
+    <div class="runner">
+      <div class="runnerhead">
+        <div>
+          <strong>Everything that was proposed, and what the guard did with it.</strong>
+          <p class="dim">
+            The state is a fold over this list, so this is the whole of what persists —
+            there is no saved state anywhere, because a saved state would be a second
+            source of truth that could disagree with the log that produced it. Rejected
+            entries stay in place and the fold walks past them: they are the record of
+            what the model tried, which is the only evidence the guard does anything.
+            Copy it out and paste it back and you land on exactly this screen.
+          </p>
+        </div>
+        <div class="runnerbuttons">
+          <button id="exportLog" type="button">copy</button>
+          <button id="importLog" type="button">replay what is in the box</button>
+          <button id="clearLog" type="button">start over</button>
+        </div>
+      </div>
+      <div id="logMeta" class="status"></div>
+      <table class="logtable">
+        <thead><tr><th>#</th><th>at</th><th>event</th><th>guard</th><th></th></tr></thead>
+        <tbody id="logRows"></tbody>
+      </table>
+      <textarea id="logJson" class="logjson" rows="10" spellcheck="false"></textarea>
+    </div>
+  </section>
+
+
+  <!-- ---------------------------------------------------------- resuming -->
+  <section class="pane" data-pane="resume" hidden>
+    <div class="runner">
+      <div class="runnerhead">
+        <div>
+          <strong>Three pause points, four ways to resume from each.</strong>
+          <p class="dim">
+            Continuing without re-explaining is a claim about what the next turn needs,
+            so it is measured by holding the pause point fixed and varying what gets
+            sent. Every arm is graded against the same machine: what an arm was told
+            has no bearing on what the guard will accept. The fixtures are logs, not
+            states, because a state is a fold over a log and writing the fold by hand
+            would be writing a second source of truth.
+          </p>
+        </div>
+        <div class="runnerbuttons">
+          <button id="runResume" type="button">run the twelve requests</button>
+          <button id="stopResume" type="button" hidden>stop</button>
+        </div>
+      </div>
+
+      <div class="panelhead">what each arm is paying for — counted here, with no key</div>
+      <p class="dim narrow">
+        Work is the substance: artifacts, step titles, criteria, and what the person
+        settled. Both arms carry every token of it and neither can drop any. What is
+        left is what each pays on top. The plan predicted the state would be a
+        fraction of the transcript. It is not.
+      </p>
+      <table class="logtable" id="anatomyTable"></table>
+
+      <div class="panelhead">and what happens when the model gets it wrong</div>
+      <p class="dim narrow">
+        The state is a function of the machine, so anything that happens without
+        moving the machine costs it nothing. A transcript has no such property:
+        every refused attempt stays in it forever. The state line is flat by
+        construction — that, and not compression, is what the state buys.
+      </p>
+      <table class="logtable" id="noiseTable"></table>
+
+      <div id="resumeStatus" class="status"></div>
+      <div id="resumeOut"></div>
+    </div>
+  </section>
+
+</main>
+
+<script src="markdown.js"></script>
+<script src="machine.js"></script>
+<script src="protocol.js"></script>
+<script src="store.js"></script>
+<script src="api.js"></script>
+<script src="resume.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

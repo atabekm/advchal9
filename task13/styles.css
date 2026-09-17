@@ -1,0 +1,336 @@
+/* Carried over from task 12, because the series should look like a series.
+ * What is new is the rail and the step list: the stage, the step and the open
+ * slot are the three things the brief asks for, so they are the three things
+ * that are legible without scrolling, and they stay legible while the model is
+ * mid-sentence. */
+
+:root {
+  --bg: #f7f6f3;
+  --panel: #ffffff;
+  --ink: #1c1b19;
+  --dim: #6b6862;
+  --line: #e3e0d9;
+  --accent: #b4491f;
+  --bad: #b03030;
+  --good: #3d7a4a;
+  --warn: #9a7b1f;
+  --model: #4a7fb5;
+  --person: #6b53a8;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #16161a;
+    --panel: #1e1e23;
+    --ink: #e8e6e1;
+    --dim: #918d86;
+    --line: #2f2f36;
+    --accent: #e8794a;
+    --bad: #e07070;
+    --good: #6fb583;
+    --warn: #cfae4e;
+    --model: #79aee0;
+    --person: #a992e8;
+  }
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  height: 100dvh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--ink);
+  font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.dim { color: var(--dim); font-weight: 400; }
+
+/* ------------------------------------------------------------------- top */
+
+.top {
+  display: flex; flex-wrap: wrap; gap: 12px 20px;
+  align-items: center; justify-content: space-between;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+.title { display: flex; flex-direction: column; }
+.title strong { font-size: 15px; }
+.title span { font-size: 12px; }
+
+.settings { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.settings label { display: flex; gap: 6px; align-items: center; font-size: 12px; color: var(--dim); }
+.settings input, .settings select {
+  font: inherit; font-size: 12px; padding: 4px 6px;
+  border: 1px solid var(--line); border-radius: 5px;
+  background: var(--bg); color: var(--ink);
+}
+.settings .key input { width: 220px; }
+.settings input[type="number"] { width: 62px; }
+
+.tabs {
+  display: flex; gap: 4px; align-items: center;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+.tab {
+  font: inherit; font-size: 13px; padding: 8px 12px;
+  border: none; border-bottom: 2px solid transparent;
+  background: none; color: var(--dim); cursor: pointer;
+}
+.tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.keynote { margin-left: auto; font-size: 12px; color: var(--bad); }
+
+main { flex: 1; min-height: 0; display: flex; }
+.pane { flex: 1; min-height: 0; display: flex; }
+
+/* --------------------------------------------------------------- the rail */
+
+.machine {
+  width: 380px;
+  flex: none;
+  overflow-y: auto;
+  padding: 14px 16px;
+  border-right: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.railrow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+.rail { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.stagechip {
+  padding: 3px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 11.5px;
+  color: var(--dim);
+}
+.stagechip.past { color: var(--ink); border-color: color-mix(in srgb, var(--good) 35%, var(--line)); }
+.stagechip.here {
+  color: var(--panel);
+  background: var(--accent);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+.arrow { color: var(--dim); font-size: 11px; }
+
+.pausedflag {
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11.5px; font-weight: 600;
+  color: var(--panel); background: var(--warn);
+}
+
+.goalline { margin: 10px 0 14px; font-size: 13.5px; }
+
+.panel { margin-bottom: 16px; }
+.panelhead {
+  margin-bottom: 7px;
+  font-size: 11.5px; font-weight: 600;
+  text-transform: lowercase; letter-spacing: 0.02em;
+}
+
+/* ------------------------------------------------------------- the steps */
+
+.step, .criterion, .decision {
+  display: flex; gap: 8px;
+  padding: 6px 8px;
+  margin-bottom: 4px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--bg);
+  font-size: 13px;
+}
+.stepbody { flex: 1; min-width: 0; }
+.stepid { font-family: var(--mono); font-size: 11.5px; color: var(--dim); }
+.stepstatus { font-size: 11px; color: var(--dim); }
+
+.step.active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 7%, var(--panel));
+}
+.step.active .stepstatus { color: var(--accent); font-weight: 600; }
+.step.done .steptitle { color: var(--dim); }
+.step.skipped .steptitle { color: var(--dim); text-decoration: line-through; }
+.stepnote { margin-top: 3px; font-size: 12px; color: var(--dim); }
+
+.artifact { margin-top: 5px; }
+.artifact summary { font-size: 11.5px; color: var(--dim); cursor: pointer; }
+.artifact pre {
+  margin: 5px 0 0;
+  padding: 7px 9px;
+  max-height: 260px; overflow: auto;
+  border-radius: 6px;
+  background: var(--panel);
+  font-family: var(--mono); font-size: 12px;
+  white-space: pre-wrap; word-break: break-word;
+}
+
+.criterion.met { border-color: color-mix(in srgb, var(--good) 45%, var(--line)); }
+.criterion.unmet { border-color: color-mix(in srgb, var(--bad) 45%, var(--line)); }
+.criterion.met .stepnote { color: var(--good); }
+.criterion.unmet .stepnote { color: var(--bad); }
+
+.decision { flex-direction: column; gap: 2px; }
+
+/* --------------------------------------------------------------- the run */
+
+.run { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+.note {
+  padding: 7px 16px;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--warn) 12%, var(--panel));
+  font-size: 12.5px;
+}
+
+.feed { flex: 1; overflow-y: auto; padding: 14px 16px; }
+
+.turn {
+  max-width: 760px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--model);
+  border-radius: 9px;
+  background: var(--panel);
+}
+.turn.user { border-left-color: var(--person); margin-left: auto; }
+.turn.rejected { border-left-color: var(--bad); background: color-mix(in srgb, var(--bad) 6%, var(--panel)); }
+
+.turnhead { display: flex; gap: 8px; align-items: baseline; margin-bottom: 3px; }
+.kind { font-family: var(--mono); font-size: 11.5px; color: var(--dim); }
+.reason {
+  font-family: var(--mono); font-size: 11px;
+  padding: 1px 6px; border-radius: 999px;
+  color: var(--panel); background: var(--bad);
+}
+.say p:first-child { margin-top: 0; }
+.say p:last-child { margin-bottom: 0; }
+.say pre {
+  overflow-x: auto; padding: 8px 10px; border-radius: 7px;
+  background: var(--bg); font-family: var(--mono); font-size: 12.5px;
+}
+.say code { font-family: var(--mono); font-size: 12.5px; }
+.detail { margin-top: 3px; font-size: 12.5px; color: var(--bad); }
+
+.marker {
+  max-width: 760px; margin: 14px auto;
+  text-align: center; font-size: 12px; color: var(--warn);
+  border-top: 1px dashed color-mix(in srgb, var(--warn) 55%, var(--line));
+  padding-top: 5px;
+}
+
+.stream {
+  margin: 0 16px 10px;
+  max-height: 150px; overflow: auto;
+  padding: 8px 10px;
+  border: 1px dashed var(--line); border-radius: 7px;
+  background: var(--panel);
+  font-family: var(--mono); font-size: 11.5px; color: var(--dim);
+  white-space: pre-wrap; word-break: break-word;
+}
+
+/* ----------------------------------------------------------- the controls */
+
+.controls {
+  padding: 10px 16px;
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+}
+.waiting { margin: 0 0 8px; font-size: 13px; color: var(--dim); }
+.question { margin: 0 0 8px; font-size: 13.5px; color: var(--ink); font-weight: 500; }
+.buttonrow { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.controls button, .runnerbuttons button {
+  font: inherit; font-size: 13px;
+  padding: 6px 13px;
+  border: 1px solid var(--line); border-radius: 7px;
+  background: var(--bg); color: var(--ink); cursor: pointer;
+}
+.controls button.primary, .runnerbuttons button:first-child {
+  border-color: var(--accent); background: var(--accent); color: #fff;
+}
+.controls button:hover, .runnerbuttons button:hover { border-color: var(--accent); }
+
+.ask { display: flex; gap: 8px; margin-top: 8px; }
+.ask input, .ask textarea {
+  flex: 1; font: inherit; font-size: 13px; resize: none;
+  padding: 6px 9px;
+  border: 1px solid var(--line); border-radius: 7px;
+  background: var(--bg); color: var(--ink);
+}
+
+/* -------------------------------------------------------- the request panel */
+
+.blockstrip { border-top: 1px solid var(--line); background: var(--panel); }
+.blockhead {
+  display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  padding: 7px 16px 4px;
+  font-size: 11.5px;
+}
+.block {
+  margin: 0; padding: 0 16px 10px;
+  max-height: 190px; overflow: auto;
+  font-family: var(--mono); font-size: 11.5px; line-height: 1.5;
+  color: var(--dim);
+  white-space: pre-wrap; word-break: break-word;
+}
+.rules summary { padding: 0 16px 8px; font-size: 11.5px; color: var(--dim); cursor: pointer; }
+
+/* ------------------------------------------------------------- the log tab */
+
+.runner { flex: 1; min-width: 0; overflow-y: auto; padding: 16px; }
+.runnerhead { display: flex; gap: 20px; justify-content: space-between; flex-wrap: wrap; margin-bottom: 12px; }
+.runnerhead p { margin: 6px 0 0; max-width: 62ch; font-size: 13px; }
+.runnerbuttons { display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap; }
+.status { margin-bottom: 10px; font-size: 12.5px; color: var(--dim); }
+
+.logtable { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.logtable th {
+  text-align: left; font-weight: 600; color: var(--dim); font-size: 11.5px;
+  padding: 5px 8px; border-bottom: 1px solid var(--line);
+}
+.logtable td { padding: 5px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.logtable tr.rejected td { color: var(--bad); }
+.logtable .num { font-family: var(--mono); color: var(--dim); }
+.logtable .detailcell { color: var(--dim); max-width: 46ch; }
+
+.logjson {
+  width: 100%; margin-top: 12px;
+  font-family: var(--mono); font-size: 11.5px;
+  padding: 9px 11px;
+  border: 1px solid var(--line); border-radius: 8px;
+  background: var(--panel); color: var(--ink);
+  resize: vertical;
+}
+
+@media (max-width: 900px) {
+  body { height: auto; overflow: auto; }
+  main, .pane { flex-direction: column; }
+  .machine { width: auto; border-right: none; border-bottom: 1px solid var(--line); }
+}
+
+/* ------------------------------------------------------- the experiment */
+
+.narrow { max-width: 68ch; font-size: 13px; }
+.logtable th.num, .logtable td.num { text-align: right; font-family: var(--mono); }
+.logtable td.cell { vertical-align: top; min-width: 150px; }
+.cell .kind { font-family: var(--mono); font-size: 11.5px; color: var(--ink); }
+.marks { display: flex; gap: 5px; margin: 3px 0; flex-wrap: wrap; }
+.marks span {
+  padding: 1px 6px; border-radius: 999px; font-size: 11px;
+  border: 1px solid var(--line);
+}
+.marks .good { color: var(--good); border-color: color-mix(in srgb, var(--good) 45%, var(--line)); }
+.marks .bad { color: var(--panel); background: var(--bad); border-color: var(--bad); }
+.cell .detail { font-size: 11.5px; }
+.summary { margin-top: 14px; font-size: 13.5px; max-width: 68ch; }
