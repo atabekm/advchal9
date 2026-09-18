@@ -87,7 +87,13 @@ Five ops, and that is the whole grammar:
 | `allow-only` | every declared item matches one of the listed globs |
 | `deny` | no declared item matches a listed glob |
 | `require` | every listed item is declared |
-| `max` | the declared count is at or below `n` |
+| ~~`max`~~ | ~~the declared count is at or below `n`~~ |
+
+*Four, as built. `max` was written and then nothing needed it: every real limit
+turned out to be `allow-only` with a short list, or `deny-all`, which is the
+same thing said plainly. An op no invariant uses is an op no test exercises, so
+it went — the same way task 13 cut a rejection reason no scenario could reach.
+All four that remain are exercised by a seeded invariant, and a test says so.*
 
 A rule is either that — one predicate over one facet — or **conditional**,
 which is the shape most business rules actually have:
@@ -97,7 +103,7 @@ rule: { when: { facet: 'operation', includes: 'issue_refund' },
         then: { facet: 'precondition', op: 'require', items: ['payment_settled'] } }
 ```
 
-Two shapes, five ops. Deliberately small. A rule language that can express
+Two shapes, four ops. Deliberately small. A rule language that can express
 anything is a programming language, and then the invariant set is code the user
 has to debug.
 
@@ -181,10 +187,10 @@ an `import` of an undeclared package, a `fetch(` to an undeclared host, the word
 everywhere it appears, in the same spirit as task 13's "no re-ask". It catches
 the obvious lie. It will not catch a careful one.
 
-## Rejection reasons — a closed set of nine
+## Rejection reasons — a closed set of eight
 
-Five from the checker — `denied-all`, `not-allowed`, `denied-item`,
-`missing-required`, `over-max` — and four from the envelope:
+Four from the checker — `denied-all`, `not-allowed`, `denied-item`,
+`missing-required` — and four from the envelope:
 
 | reason | when |
 | --- | --- |
@@ -247,7 +253,8 @@ rules tasks 4 through 13 have actually obeyed, and ten folders are the proof.
 | INV-3 | architecture | no new services |
 | INV-4 | business | no refund against an unsettled payment |
 | INV-5 | business | PII never leaves the EU |
-| INV-6 | business · **soft** | no order is charged twice |
+| INV-6 | architecture | the refunds service never captures or voids a payment |
+| INV-7 | business · **soft** | no order is charged twice |
 
 ## The measurement: a pressure ladder
 
