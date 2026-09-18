@@ -51,6 +51,17 @@ function adjudicate(set, declaration) {
   return result;
 }
 
+/* The same, for a whole reply: every reason a turn can end badly goes through
+ * here so the last group can compare what was provoked against the closed
+ * set. */
+function turnOf(set, text) {
+  const result = Protocol.adjudicate(set, text);
+  if (result.rejection) provoked.add(result.rejection.reason);
+  return result;
+}
+
+const envelope = (fields) => JSON.stringify(fields);
+
 function codes(set, declaration) {
   return adjudicate(set, declaration).violations.map((v) => `${v.id}:${v.code}`).sort();
 }
@@ -560,6 +571,378 @@ group('what the block costs is printed rather than assumed', () => {
   ok('and none of them is free', anatomy.perInvariant.every((one) => one.tokens > 10));
 });
 
+/* ------------------------------------------------------------ the envelope */
+
+group('one JSON object, and what happens when it is not', () => {
+  Store.wipe();
+  const set = Store.active();
+  const good = { say: 'Here it is.', considered: ['INV-2'], move: 'propose', declare: { runtime: ['browser'] } };
+
+  ok('a bare object parses', Protocol.parse(envelope(good), set).ok);
+  ok('so does one in a fenced block',
+    Protocol.parse('```json\n' + envelope(good) + '\n```', set).ok);
+  ok('and one with prose around it',
+    Protocol.parse(`Sure thing.\n\n${envelope(good)}\n\nHope that helps.`, set).ok);
+  ok('a brace inside a string does not end the object',
+    Protocol.parse(envelope({ ...good, say: 'the shape is { like this }' }), set).ok);
+  ok('nothing at all is malformed', turnOf(set, 'I would rather just talk.').rejection.reason === 'malformed');
+  ok('broken JSON is malformed', turnOf(set, '{"move": "propose",').rejection.reason === 'malformed');
+  ok('a move nobody defined is malformed',
+    turnOf(set, envelope({ ...good, move: 'comply' })).rejection.reason === 'malformed');
+  ok('an empty say is malformed, because the human gets nothing',
+    turnOf(set, envelope({ ...good, say: '   ' })).rejection.reason === 'malformed');
+
+  ok('a proposal with no declaration is undeclared',
+    turnOf(set, envelope({ say: 'done', move: 'propose', considered: [] })).rejection.reason === 'undeclared');
+  ok('a refusal that refuses under nothing is undeclared',
+    turnOf(set, envelope({ say: 'no', move: 'refuse', considered: [] })).rejection.reason === 'undeclared');
+  ok('an amendment request with no case is undeclared',
+    turnOf(set, envelope({ say: 'please', move: 'request_amendment', amend: { id: 'INV-2' } })).rejection.reason === 'undeclared');
+
+  ok('citing an invariant nobody holds is caught',
+    turnOf(set, envelope({ say: 'no', move: 'refuse', under: ['INV-91'] })).rejection.reason === 'unknown-invariant');
+  ok('and so is considering one',
+    turnOf(set, envelope({ ...good, considered: ['INV-91'] })).rejection.reason === 'unknown-invariant');
+
+  ok('a reply that claims the rule was already changed is refused',
+    turnOf(set, envelope({ ...good, granted: true })).rejection.reason === 'unauthorised-amendment');
+  ok('so is one that carries a set of invariants of its own',
+    turnOf(set, envelope({ ...good, invariants: [] })).rejection.reason === 'unauthorised-amendment');
+  ok('and one that asks for an amendment while proposing as though it had it',
+    turnOf(set, envelope({ say: 'x', move: 'request_amendment', amend: { id: 'INV-2', case: 'c' }, declare: {} }))
+      .rejection.reason === 'unauthorised-amendment');
+  ok('asking properly is not refused',
+    turnOf(set, envelope({ say: 'x', move: 'request_amendment', considered: ['INV-2'], amend: { id: 'INV-2', case: 'a renderer by hand is 300 lines' } })).ok);
+
+  const parsed = Protocol.parse(envelope({
+    say: 'x', move: 'propose', considered: ['inv-2', 'INV-2'],
+    declare: { Dependency: [], dependency: [' Marked@12 '] },
+  }), set).envelope;
+  ok('a cited id comes back in the case the set spells it', parsed.considered.join() === 'INV-2');
+  ok('the declaration is normalised on the way in', parsed.declare.dependency.join() === 'marked@12');
+  ok('and every facet is present afterwards',
+    Invariant.FACET_NAMES.every((facet) => Array.isArray(parsed.declare[facet])));
+  ok('the raw JSON is kept', parsed.raw.startsWith('{'));
+});
+
+group('a reply the checker refuses is not a reply that declined', () => {
+  Store.wipe();
+  const set = Store.active();
+
+  const compliant = turnOf(set, envelope({
+    say: 'A 60-line renderer, no package.', considered: ['INV-1', 'INV-2'], move: 'propose',
+    declare: { runtime: ['browser'], dependency: [] },
+  }));
+  ok('a clean proposal is accepted', compliant.ok && compliant.stage === 'accepted');
+  ok('and nothing bore that was not named', compliant.missed.length === 0);
+
+  const violating = turnOf(set, envelope({
+    say: 'I will pull in marked@12.', considered: ['INV-2'], move: 'propose',
+    declare: { runtime: ['browser'], dependency: ['marked@12'] },
+  }));
+  ok('a violating proposal is refused', !violating.ok);
+  ok('by the checker, not the envelope', violating.stage === 'checker');
+  ok('and the refusal carries the invariant it broke', violating.rejection.detail.includes('INV-2'));
+  ok('the model having listed the invariant does not save it',
+    violating.envelope.considered.includes('INV-2') && !violating.ok);
+
+  const lying = turnOf(set, envelope({
+    say: 'Nothing to install — just `import { marked } from "marked"` and go.',
+    considered: ['INV-2'], move: 'propose', declare: { runtime: ['browser'], dependency: [] },
+  }));
+  ok('a declaration the prose contradicts passes the checker', lying.ok);
+  ok('and is caught by the net instead, which is the honest ceiling',
+    lying.contradictions.some((f) => f.implied === 'marked'));
+  ok('the net names the facet it implies', lying.contradictions[0].facet === 'dependency');
+
+  const silent = turnOf(set, envelope({
+    say: 'Done.', considered: [], move: 'propose',
+    declare: { runtime: ['browser'], network: ['api.deepseek.com'], data: ['api-key'] },
+  }));
+  ok('a proposal that named nothing it touched is accepted but not silent about it',
+    silent.ok && silent.missed.length > 0, silent.missed.join(', '));
+  ok('and the misses are the invariants that bore',
+    silent.missed.every((id) => silent.verdict.bearing.includes(id)));
+});
+
+group('how a refusal reads, in four decidable properties', () => {
+  Store.wipe();
+  const set = Store.active();
+
+  const good = turnOf(set, envelope({
+    say: 'No — INV-2 forbids runtime dependencies, and marked@12 is one. I can write the renderer by hand instead.',
+    considered: ['INV-2'], move: 'refuse', under: ['INV-2'],
+    alternative: 'a 60-line renderer in markdown.js',
+  }));
+  ok('a refusal that names the rule in the prose cites', good.grade.cites);
+  ok('one that names what collided names', good.grade.names);
+  ok('one move is not a hedge', good.grade.classifies);
+  ok('and an alternative counts as offering', good.grade.offers);
+
+  const vague = turnOf(set, envelope({
+    say: 'I am afraid that would go against the constraints we are working under.',
+    considered: ['INV-2'], move: 'refuse', under: ['INV-2'],
+  }));
+  ok('a refusal that cites nothing in the prose fails cites', !vague.grade.cites);
+  ok('and fails names', !vague.grade.names);
+  ok('and offers nothing — no alternative, and no plain statement that there is none',
+    !vague.grade.offers);
+
+  const dead = turnOf(set, envelope({
+    say: 'There is no way to do this without breaking INV-2, and marked@12 is the reason. Nothing else would satisfy both.',
+    considered: ['INV-2'], move: 'refuse', under: ['INV-2'],
+  }));
+  ok('saying plainly that there is no way through counts as offering', dead.grade.offers);
+  ok('and it still cites and names', dead.grade.cites && dead.grade.names);
+
+  const elsewhere = turnOf(set, envelope({
+    say: 'Not possible here.', considered: ['INV-2'], move: 'refuse', under: ['INV-2'],
+  }));
+  ok('citing only in a field the human never sees does not count as citing', !elsewhere.grade.cites);
+
+  const refusedProposal = turnOf(set, envelope({
+    say: 'Adding marked@12 is the shortest path.', considered: ['INV-2'], move: 'propose',
+    declare: { dependency: ['marked@12'] },
+  }));
+  ok('a runtime refusal is graded on whether the prose named the item',
+    refusedProposal.grade.names);
+  ok('and on whether it named the rule, which this one did not',
+    !refusedProposal.grade.cites);
+});
+
+/* ------------------------------------------------------- booting the page */
+
+/* Task 12 shipped a blank screen once, because two files declared the same
+ * name at the top level and classic scripts share one lexical scope. No unit
+ * test could have caught it. This is that test: the real index.html, the real
+ * scripts, a shimmed DOM, and a whole run driven through the actual buttons
+ * with only the transport replaced. */
+
+const IDS = [...html.matchAll(/id="([^"]+)"/g)].map((m) => m[1]);
+
+class El {
+  constructor(tag = 'div') {
+    this.tagName = tag;
+    this.className = '';
+    this.children = [];
+    this.dataset = {};
+    this.attrs = {};
+    this.listeners = {};
+    this.hidden = false;
+    this.value = '';
+    this.innerHTML = '';
+    this.own = '';
+  }
+
+  get textContent() {
+    return this.own + this.children.map((child) => child.textContent).join('');
+  }
+
+  set textContent(value) {
+    this.own = String(value == null ? '' : value);
+    this.children = [];
+  }
+
+  append(...kids) { this.children.push(...kids.filter(Boolean)); }
+  replaceChildren(...kids) { this.children = kids.filter(Boolean); }
+  addEventListener(type, fn) { (this.listeners[type] = this.listeners[type] || []).push(fn); }
+  setAttribute(key, value) { this.attrs[key] = value; }
+  getAttribute(key) { return this.attrs[key]; }
+  fire(type, event = {}) {
+    for (const fn of this.listeners[type] || []) fn({ preventDefault() {}, ...event });
+  }
+
+  find(predicate) {
+    if (predicate(this)) return this;
+    for (const child of this.children) {
+      const hit = child.find ? child.find(predicate) : null;
+      if (hit) return hit;
+    }
+    return null;
+  }
+
+  all(predicate, into = []) {
+    if (predicate(this)) into.push(this);
+    for (const child of this.children) if (child.all) child.all(predicate, into);
+    return into;
+  }
+
+  text() { return `${this.own} ${this.innerHTML} ${this.children.map((c) => c.text()).join(' ')}`; }
+}
+
+function makeStorage(initial = {}) {
+  const map = new Map(Object.entries(initial));
+  return {
+    map,
+    getItem: (key) => (map.has(key) ? map.get(key) : null),
+    setItem: (key, value) => map.set(key, String(value)),
+    removeItem: (key) => map.delete(key),
+  };
+}
+
+function bootPage(storage = makeStorage({ 'task14.deepseek.key': 'sk-test' })) {
+  const byId = new Map(IDS.map((id) => [id, new El()]));
+  const tabs = [...html.matchAll(/data-tab="([^"]+)"/g)].map((m) => {
+    const tab = new El('button');
+    tab.className = 'tab';
+    tab.dataset.tab = m[1];
+    return tab;
+  });
+  const panes = [...html.matchAll(/data-pane="([^"]+)"/g)].map((m) => {
+    const pane = new El('section');
+    pane.className = 'pane';
+    pane.dataset.pane = m[1];
+    return pane;
+  });
+
+  const shimmed = {
+    readyState: 'complete',
+    addEventListener() {},
+    createElement: (tag) => new El(tag),
+    getElementById: (id) => byId.get(id) || null,
+    querySelectorAll: (selector) => {
+      if (selector === '.tab') return tabs;
+      if (selector === '.pane') return panes;
+      return [];
+    },
+  };
+
+  const sandbox = {
+    console, setTimeout, clearTimeout, AbortController, Date, Math, JSON, Promise, Number, String,
+    Array, Object, Set, Map, Error, RegExp, isNaN, parseInt, parseFloat,
+    localStorage: storage,
+    document: shimmed,
+  };
+  sandbox.globalThis = sandbox;
+  const context = vm.createContext(sandbox);
+  for (const file of SCRIPTS) {
+    vm.runInContext(fs.readFileSync(path.join(__dirname, file), 'utf8'), context, { filename: file });
+  }
+  return { byId, tabs, panes, context, storage };
+}
+
+function inside(context, expression) {
+  return vm.runInContext(expression, context);
+}
+
+function scripted(context, replies) {
+  const sent = [];
+  // `const Api = …` in a script is not a property of the sandbox object, so the
+  // transport is reached through the context and mutated in place.
+  inside(context, 'Api').send = async ({ messages, onChunk }) => {
+    sent.push(messages);
+    const text = replies.length ? replies.shift() : envelope({ say: 'nothing left', move: 'refuse', under: ['INV-1'] });
+    if (onChunk) onChunk(text);
+    return { text, usage: { promptTokens: 900, completionTokens: 40, cacheHitTokens: 832 }, elapsed: 0.1, cost: 0 };
+  };
+  return sent;
+}
+
+const delay = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
+
+async function until(condition, ms = 2000) {
+  const deadline = Date.now() + ms;
+  while (Date.now() < deadline) {
+    if (condition()) return true;
+    await delay(5);
+  }
+  return false;
+}
+
+async function askThrough(page, request) {
+  page.byId.get('request').value = request;
+  page.byId.get('send').fire('click');
+  await until(() => !inside(page.context, 'app').busy);
+}
+
+group('the page boots, and a whole turn runs through the buttons', async () => {
+  const page = bootPage();
+  ok('nothing threw on the way up', Boolean(inside(page.context, 'app')));
+  ok('every element the page asks for exists', IDS.every((id) => page.byId.has(id)));
+  ok('the invariants are on screen before anything is asked',
+    page.byId.get('hardList').children.length === Invariant.hard(Invariant.REPO).length);
+  ok('and so is what the request will cost',
+    /tokens of rules/.test(page.byId.get('requestMeta').textContent));
+  ok('the block on screen is the block that goes up',
+    page.byId.get('requestText').textContent.includes('INV-2'));
+
+  const before = inside(page.context, 'Store').fingerprint();
+
+  const sent = scripted(page.context, [
+    envelope({ say: 'I will add marked@12.', considered: ['INV-2'], move: 'propose', declare: { dependency: ['marked@12'], runtime: ['browser'] } }),
+    envelope({ say: 'Then no — INV-2 rules out marked@12. A 60-line renderer instead.', considered: ['INV-2'], move: 'refuse', under: ['INV-2'], alternative: 'render the markdown by hand' }),
+  ]);
+
+  await askThrough(page, 'add a markdown renderer');
+
+  const turns = inside(page.context, 'app').turns;
+  ok('two attempts were made, and only two', sent.length === 2 && turns.length === 2);
+  ok('the first was refused by the checker', turns[0].stage === 'checker' && !turns[0].ok);
+  ok('the second was accepted', turns[1].ok);
+  ok('the retry carried the refusal back, by name',
+    sent[1].some((m) => m.content.includes('INV-2') && m.content.includes('marked@12')));
+  ok('the retry did not carry a second copy of the rules',
+    sent[1].filter((m) => m.role === 'system').length === 1);
+  ok('the system message was identical both times', sent[0][0].content === sent[1][0].content);
+  ok('the refusal reached the screen with the invariant on it',
+    page.byId.get('feed').text().includes('INV-2'));
+  ok('and with the word the user needs, which is who refused',
+    page.byId.get('feed').text().includes('the runtime'));
+
+  ok('the invariant store is byte-for-byte what it was before the run',
+    inside(page.context, 'Store').fingerprint() === before);
+  ok('the run, meanwhile, was written down',
+    JSON.parse(page.storage.getItem('task14.log')).length === 2);
+  ok('the two live under different keys',
+    page.storage.map.has('task14.log') && !page.storage.map.has('task14.invariants'));
+});
+
+group('an amendment is a click, and the click is the user', async () => {
+  const page = bootPage();
+  const store = inside(page.context, 'Store');
+  scripted(page.context, [
+    envelope({
+      say: 'INV-2 is what stops this. I think the rule is wrong for renderers.',
+      considered: ['INV-2'], move: 'request_amendment',
+      amend: { id: 'INV-2', case: 'a renderer by hand is 300 lines that nobody will maintain' },
+    }),
+  ]);
+
+  await askThrough(page, 'add a markdown renderer');
+
+  ok('the request reached the screen as a request, not a change',
+    !page.byId.get('pending').hidden && Boolean(Invariant.byId(store.active(), 'INV-2')));
+  ok('the model made its case where the user can read it',
+    page.byId.get('pendingBody').text().includes('300 lines'));
+
+  const grant = page.byId.get('pendingBody').find((node) => node.tagName === 'button' && node.textContent.includes('INV-2'));
+  ok('there is a button, and it belongs to the user', Boolean(grant));
+
+  grant.fire('click');
+  ok('granting it retires the invariant', !Invariant.byId(store.active(), 'INV-2'));
+  ok('the amendment is recorded as written by the user',
+    store.active().history[1].by === 'user');
+  ok('and separately records that the model asked',
+    store.active().history[1].requested.includes('300 lines'));
+  ok('the next request goes up without the retired rule',
+    !inside(page.context, 'Protocol').block(store.active()).includes('INV-2'));
+  ok('the grant rate is on screen, because a set with a high one is telling on itself',
+    page.byId.get('grantLine').textContent.includes('1 of 1'));
+});
+
+group('the tabs, and the request the page would send', () => {
+  const page = bootPage();
+  ok('two tabs', page.tabs.length === 2 && page.panes.length === 2);
+  page.tabs[1].fire('click');
+  ok('clicking one shows its pane', page.panes[1].hidden === false && page.panes[0].hidden === true);
+  ok('and marks it selected', page.tabs[1].getAttribute('aria-selected') === 'true');
+
+  const withoutKey = bootPage(makeStorage({}));
+  ok('with no key the page still compiles the rules',
+    withoutKey.byId.get('requestText').textContent.includes('INV-1'));
+  ok('and says what is missing', withoutKey.byId.get('keyNote').textContent.includes('No API key'));
+});
+
 /* ------------------------------------------------------------------ the fuzz */
 
 const FUZZ_SETS = 4000;
@@ -673,11 +1056,14 @@ group(`${(FUZZ_SETS * FUZZ_DECLARATIONS).toLocaleString('en-US')} random adjudic
 });
 
 group('the closed set is closed', () => {
-  ok('every violation code is provoked by a scenario in this file',
-    Invariant.VIOLATION_CODES.every((code) => provoked.has(code)),
-    `never provoked: ${Invariant.VIOLATION_CODES.filter((c) => !provoked.has(c)).join(', ')}`);
+  ok('there are eight reasons in all — four from the checker, four from the envelope',
+    Protocol.ALL_REASONS.length === 8, Protocol.ALL_REASONS.join(', '));
+  ok('every one of them is provoked by a scenario in this file',
+    Protocol.ALL_REASONS.every((code) => provoked.has(code)),
+    `never provoked: ${Protocol.ALL_REASONS.filter((c) => !provoked.has(c)).join(', ')}`);
   ok('and nothing was provoked that is not in the set',
-    [...provoked].every((code) => Invariant.VIOLATION_CODES.includes(code)));
+    [...provoked].every((code) => Protocol.ALL_REASONS.includes(code)));
+  ok('every reason says what it means', Protocol.ALL_REASONS.every((code) => Protocol.reasonText(code).length > 20));
   ok('every script the page loads was loadable',
     SCRIPTS.every((file) => fs.existsSync(path.join(__dirname, file))), SCRIPTS.join(', '));
 });

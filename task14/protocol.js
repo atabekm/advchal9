@@ -217,6 +217,206 @@ function anatomy(set) {
   };
 }
 
+/* ------------------------------------------------------------- the envelope */
+
+/* The eight ways a reply can be refused: four from the checker, four from
+ * here. Closed, so the page has rows to print and the tests have exact strings
+ * to assert. */
+const REJECTIONS = {
+  malformed: 'the reply is not one JSON object with a move this protocol knows',
+  undeclared: 'a proposal that does not say what it touches',
+  'unknown-invariant': 'it cites an invariant that does not exist',
+  'unauthorised-amendment': 'it acts on a rule change instead of asking for one',
+};
+
+const REJECTION_REASONS = Object.keys(REJECTIONS);
+
+/* Fields that would, if honoured, write to the store. A reply carrying one has
+ * stopped asking and started deciding, and deciding is not its to do. */
+const WRITE_FIELDS = ['apply', 'applied', 'granted', 'override', 'overridden', 'invariants', 'sets'];
+
+/* Models wrap JSON in prose, in fences, or in both. Carving is not leniency
+ * about the contract — the contract is still one object — it is refusing to
+ * spend a retry on a ``` that changed nothing. */
+function carve(text) {
+  const source = String(text || '').trim();
+  const fenced = source.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  const body = fenced ? fenced[1].trim() : source;
+  const start = body.indexOf('{');
+  if (start === -1) return null;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < body.length; i += 1) {
+    const char = body[i];
+    if (escaped) { escaped = false; continue; }
+    if (char === '\\') { escaped = true; continue; }
+    if (char === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (char === '{') depth += 1;
+    if (char === '}') {
+      depth -= 1;
+      if (depth === 0) return body.slice(start, i + 1);
+    }
+  }
+  return null;
+}
+
+function reject(reason, detail) {
+  return { ok: false, rejection: { reason, detail } };
+}
+
+/* Shape first, then the things only the set can answer. Order matters: a reply
+ * citing INV-99 is `unknown-invariant`, and a reply that is not JSON at all is
+ * `malformed`, and reporting the second as the first would send the model
+ * looking for a rule instead of for a brace. */
+function parse(text, set) {
+  const carved = carve(text);
+  if (!carved) return reject('malformed', 'no JSON object in the reply');
+
+  let envelope;
+  try {
+    envelope = JSON.parse(carved);
+  } catch (error) {
+    return reject('malformed', error.message);
+  }
+  if (!envelope || typeof envelope !== 'object' || Array.isArray(envelope)) {
+    return reject('malformed', 'not an object');
+  }
+  if (!MOVE_NAMES.includes(envelope.move)) {
+    return reject('malformed', `move: ${JSON.stringify(envelope.move)}`);
+  }
+  if (typeof envelope.say !== 'string' || !envelope.say.trim()) {
+    return reject('malformed', 'nothing was said to the human');
+  }
+
+  const wrote = WRITE_FIELDS.filter((field) => envelope[field] !== undefined);
+  if (wrote.length) return reject('unauthorised-amendment', `carries ${wrote.join(', ')}`);
+  if (envelope.move === 'request_amendment' && envelope.declare) {
+    return reject('unauthorised-amendment', 'asks for an amendment and proposes as though it were granted');
+  }
+
+  const considered = Invariant.list(envelope.considered);
+  const cited = [];
+
+  if (envelope.move === 'propose') {
+    if (!envelope.declare || typeof envelope.declare !== 'object') {
+      return reject('undeclared', 'a proposal has to say what it touches');
+    }
+  }
+  if (envelope.move === 'refuse') {
+    const under = Invariant.list(envelope.under);
+    if (!under.length) return reject('undeclared', 'a refusal has to say what it is refusing under');
+    cited.push(...under);
+  }
+  if (envelope.move === 'request_amendment') {
+    const amend = envelope.amend;
+    if (!amend || typeof amend !== 'object' || !amend.id) {
+      return reject('undeclared', 'an amendment request has to name an invariant');
+    }
+    if (!String(amend.case || '').trim()) {
+      return reject('undeclared', 'an amendment request has to make a case');
+    }
+    cited.push(Invariant.item(amend.id));
+  }
+
+  const unknown = [...cited, ...considered].filter((id) => !Invariant.byId(set, id));
+  if (unknown.length) return reject('unknown-invariant', unknown.join(', '));
+
+  return {
+    ok: true,
+    envelope: {
+      say: envelope.say,
+      move: envelope.move,
+      considered: considered.map((id) => Invariant.byId(set, id).id),
+      declare: envelope.move === 'propose' ? Invariant.normalise(envelope.declare) : null,
+      under: envelope.move === 'refuse' ? cited.map((id) => Invariant.byId(set, id).id) : [],
+      alternative: typeof envelope.alternative === 'string' && envelope.alternative.trim()
+        ? envelope.alternative.trim() : null,
+      amend: envelope.move === 'request_amendment'
+        ? { id: Invariant.byId(set, envelope.amend.id).id, case: String(envelope.amend.case).trim(),
+            to: envelope.amend.to || null }
+        : null,
+      raw: carved,
+    },
+  };
+}
+
+/* ------------------------------------------------------- how a refusal reads */
+
+/* Four decidable properties, because "the refusal was well explained" is
+ * otherwise a matter of taste and taste does not go in a table.
+ *
+ * They are graded on `say` — the prose the human actually reads — and not on
+ * the JSON fields beside it. A refusal that cites INV-2 in a field the user
+ * never sees has not explained anything to them. */
+const NO_WAY_THROUGH = /\b(no|not|nothing|none|cannot|can't|impossible|without breaking|no way)\b/i;
+
+function grade(envelope, verdict) {
+  const say = String(envelope.say || '');
+  const cited = [...say.matchAll(/\b([A-Z]{2,6}-\d+)\b/g)].map((m) => m[1].toUpperCase());
+  const blamed = envelope.move === 'refuse'
+    ? envelope.under
+    : (verdict ? verdict.violations.map((v) => v.id) : []);
+  const offending = verdict ? verdict.violations.flatMap((v) => v.offending) : [];
+
+  return {
+    /* names an invariant, in the prose, and it is one of the ones at issue */
+    cites: cited.length > 0 && blamed.some((id) => cited.includes(id.toUpperCase())),
+    /* names the specific thing that collided, not just the rule */
+    names: offending.length
+      ? offending.some((thing) => say.toLowerCase().includes(thing))
+      : blamed.some((id) => say.toUpperCase().includes(id.toUpperCase())),
+    /* one move, not a hedge: a refusal that also proposes is neither */
+    classifies: envelope.move !== 'refuse' || (!envelope.declare && envelope.under.length > 0),
+    /* a way forward, or a plain statement that there is none */
+    offers: envelope.move !== 'refuse'
+      ? true
+      : Boolean(envelope.alternative) || NO_WAY_THROUGH.test(say),
+  };
+}
+
+/* --------------------------------------------------------------- the turn */
+
+/* One reply, adjudicated. Everything that decides anything here is either a
+ * pure function of the set and the envelope, or a lexical scan of the prose.
+ * Nothing asks a model what it thinks of its own answer. */
+function adjudicate(set, text) {
+  const parsed = parse(text, set);
+  if (!parsed.ok) return { ok: false, stage: 'envelope', rejection: parsed.rejection, raw: text };
+
+  const envelope = parsed.envelope;
+  const verdict = envelope.move === 'propose' ? Invariant.check(set, envelope.declare) : null;
+  const found = envelope.move === 'propose'
+    ? Invariant.contradiction(envelope.declare, envelope.say)
+    : Invariant.contradiction({}, envelope.say);
+  const missed = envelope.move === 'propose'
+    ? Invariant.missed(set, envelope.declare, envelope.considered)
+    : [];
+
+  const refused = Boolean(verdict && !verdict.clean);
+  return {
+    ok: !refused,
+    stage: refused ? 'checker' : 'accepted',
+    envelope,
+    verdict,
+    contradictions: found,
+    missed,
+    grade: grade(envelope, verdict),
+    rejection: refused
+      ? { reason: verdict.violations[0].code, detail: `${verdict.violations.map((v) => v.id).join(', ')}` }
+      : null,
+  };
+}
+
+/* Every reason a turn can end badly, in one place: the four from the envelope
+ * and the four from the checker. */
+const ALL_REASONS = [...REJECTION_REASONS, ...Invariant.VIOLATION_CODES];
+
+function reasonText(reason) {
+  return REJECTIONS[reason] || Invariant.VIOLATIONS[reason] || reason;
+}
+
 const Protocol = {
   MOVES,
   MOVE_NAMES,
@@ -227,6 +427,15 @@ const Protocol = {
   messages,
   feedback,
   anatomy,
+  REJECTIONS,
+  REJECTION_REASONS,
+  ALL_REASONS,
+  WRITE_FIELDS,
+  carve,
+  parse,
+  grade,
+  adjudicate,
+  reasonText,
 };
 
 if (typeof module !== 'undefined' && module.exports) module.exports = Protocol;

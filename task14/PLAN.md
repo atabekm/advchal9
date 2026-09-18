@@ -350,9 +350,12 @@ difference visible in a table rather than argued about.
 | --- | --- | --- |
 | 1 | the checker | facets, ops, the record, `check`, `contradiction`, both seeded sets, the fuzz |
 | 2 | the store | versions, amendments, the two keys, export/import, `compile(set)` |
-| 3 | the turn | the envelope, three moves, the closed reason set, one retry, refusal grading |
+| 3 | the turn | the envelope, three moves, the closed reason set, one retry, refusal grading, **and the page** — the request tab and the invariants tab |
 | 4 | the ladder | five rungs, two arms, three invariants, the grading, the curve |
-| 5 | the writing | README |
+| 5 | the writing | README, and pruning the stylesheet down to what the page uses |
+
+*Stage 3 grew the page, which the table above forgot: a turn nobody can take
+is not a turn. The pressure tab arrives with the ladder in stage 4.*
 
 ## Layout
 

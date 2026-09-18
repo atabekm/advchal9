@@ -4,16 +4,135 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Task 14 · Invariants and state constraints</title>
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
-<!-- The page arrives in stage 3. The script list is the one thing that exists
-     from stage 1, because test.js reads it from here rather than from a list
-     written in the test — a file added and never wired up is then caught by a
-     failing test instead of by a blank screen. -->
+<header class="top">
+  <div class="title">
+    <strong>Invariants and state constraints</strong>
+    <span class="dim">the rules live in a store the model cannot write to, and a checker decides</span>
+  </div>
+  <div class="settings">
+    <label>model
+      <select id="model"></select>
+    </label>
+    <label>temperature
+      <input id="temperature" type="number" min="0" max="2" step="0.1" value="0.4">
+    </label>
+    <label class="key">key
+      <input id="key" type="password" placeholder="sk-… stays in this browser" autocomplete="off">
+    </label>
+  </div>
+</header>
 
+<nav class="tabs">
+  <button class="tab" data-tab="ask" aria-selected="true">the request</button>
+  <button class="tab" data-tab="invariants" aria-selected="false">the invariants</button>
+  <span id="keyNote" class="keynote"></span>
+</nav>
+
+<main>
+
+  <!-- --------------------------------------------------------- the request -->
+  <section class="pane" data-pane="ask">
+
+    <div class="run">
+      <div class="buttonrow">
+        <select id="setPicker"></select>
+        <span id="setLine" class="dim"></span>
+      </div>
+
+      <div class="ask">
+        <textarea id="request" rows="3" spellcheck="false"
+          placeholder="Ask for something. Asking for something the invariants forbid is the interesting case."></textarea>
+        <div class="buttonrow">
+          <button id="send" type="button">ask</button>
+          <button id="stop" type="button" hidden>stop</button>
+          <span id="note" class="dim"></span>
+        </div>
+      </div>
+
+      <div id="feed" class="feed"></div>
+      <pre id="stream" class="stream" hidden></pre>
+
+      <div class="blockstrip">
+        <div class="blockhead">
+          <span>what goes up on every request — reassembled from the store, never from the scrollback</span>
+          <span id="requestMeta" class="dim"></span>
+        </div>
+        <pre id="requestText" class="block"></pre>
+        <details class="rules">
+          <summary>and the contract above it, identical on every request of every run</summary>
+          <pre id="requestRules" class="block"></pre>
+        </details>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ------------------------------------------------------ the invariants -->
+  <section class="pane" data-pane="invariants" hidden>
+    <div class="runner">
+      <div class="runnerhead">
+        <div>
+          <strong>The rules, the revisions, and who wrote each one.</strong>
+          <p class="dim">
+            These live under their own storage key. Clearing the run does not touch them,
+            and nothing downstream of a reply can reach them: an amendment is written by
+            the user, and what the model did was ask. The set is a fold over the
+            amendments below it, so the rules as they stood at any earlier revision are
+            still answerable — which is the only thing that makes "the model did not
+            rewrite them mid-run" a checkable claim rather than a promise.
+          </p>
+        </div>
+        <div class="runnerbuttons">
+          <button id="exportInv" type="button">copy</button>
+          <button id="importInv" type="button">load what is in the box</button>
+          <button id="resetInv" type="button">back to what shipped</button>
+        </div>
+      </div>
+
+      <div id="pending" class="panel" hidden>
+        <div class="panelhead">the model has asked for an amendment
+          <span class="dim">— it cannot make one; this is the only door, and you are it</span>
+        </div>
+        <div id="pendingBody"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panelhead">checked
+          <span class="dim">— a declaration that breaks one of these is refused by the runtime</span>
+        </div>
+        <div id="hardList"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panelhead">not checked
+          <span class="dim">— nothing mechanical can decide these, so they are never scored as passed</span>
+        </div>
+        <div id="softList"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panelhead">the amendments
+          <span class="dim">— append-only; the set is a fold over this</span>
+        </div>
+        <div id="history"></div>
+        <div id="grantLine" class="status"></div>
+      </div>
+
+      <textarea id="invJson" class="logjson" rows="8" spellcheck="false"></textarea>
+    </div>
+  </section>
+
+</main>
+
+<script src="markdown.js"></script>
 <script src="invariant.js"></script>
 <script src="store.js"></script>
 <script src="protocol.js"></script>
+<script src="api.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
