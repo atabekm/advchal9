@@ -967,6 +967,105 @@ group('an amendment is a click, and the click is the user', async () => {
     page.byId.get('grantLine').textContent.includes('1 of 1'));
 });
 
+group('a conversation belongs to a project', async () => {
+  const page = bootPage();
+  const store = inside(page.context, 'Store');
+
+  scripted(page.context, [
+    envelope({ say: 'No — INV-2 rules out marked@12.', considered: ['INV-2'], move: 'refuse', under: ['INV-2'], alternative: 'by hand' }),
+  ]);
+  await askThrough(page, 'add a markdown renderer');
+  ok('the repo conversation has a turn', page.byId.get('log').text().includes('markdown renderer'));
+  ok('and the bar counts it', page.byId.get('chatCount').textContent === '1 turn');
+
+  page.byId.get('setPicker').value = 'payments';
+  page.byId.get('setPicker').fire('change');
+  ok('switching project switches the conversation with it',
+    !page.byId.get('log').text().includes('markdown renderer'));
+  ok('and the bar says so', page.byId.get('chatCount').textContent === 'nothing asked yet');
+  ok('the rules beside it are the other project’s',
+    page.byId.get('marks').text().includes('Postgres is the only datastore'));
+  ok('and none of them is marked, because nothing was asked here',
+    !page.byId.get('marks').text().includes('refused under'));
+
+  scripted(page.context, [
+    envelope({ say: 'A refund needs settlement first.', considered: ['INV-4'], move: 'propose',
+      declare: { operation: ['issue_refund'], precondition: ['payment_settled'], storage: ['postgres'], language: ['go'] } }),
+  ]);
+  await askThrough(page, 'issue the refund immediately');
+  ok('the payments conversation has its own turn', page.byId.get('log').text().includes('refund'));
+  ok('and not the other one’s', !page.byId.get('log').text().includes('markdown renderer'));
+
+  page.byId.get('setPicker').value = 'repo';
+  page.byId.get('setPicker').fire('change');
+  ok('switching back brings the first conversation with it',
+    page.byId.get('log').text().includes('markdown renderer'));
+  ok('the marks come back with it',
+    /INV-2[\s\S]{0,160}refused under/.test(page.byId.get('marks').text()));
+  ok('one log holds both, because the record is the record',
+    store.run().length === 2 && store.runOf('repo').length === 1 && store.runOf('payments').length === 1);
+});
+
+group('an amendment asked in one project cannot be granted against another', async () => {
+  /* The bug this is here for: invariant ids are scoped to a set, so INV-2 is
+   * "no runtime dependencies" in one and "services are written in Go" in the
+   * other. An unfiltered pending panel offered to retire the second when the
+   * model had asked about the first — recorded properly, by the user, with a
+   * reason, and entirely the wrong rule. */
+  const page = bootPage();
+  const store = inside(page.context, 'Store');
+
+  scripted(page.context, [
+    envelope({ say: 'INV-2 is what stops this.', considered: ['INV-2'], move: 'request_amendment',
+      amend: { id: 'INV-2', case: 'a renderer by hand is 300 lines' } }),
+  ]);
+  await askThrough(page, 'add a markdown renderer');
+  ok('the ask is pending against the project it was made in', !page.byId.get('pending').hidden);
+
+  page.byId.get('setPicker').value = 'payments';
+  page.byId.get('setPicker').fire('change');
+  ok('and is not offered against the other one', page.byId.get('pending').hidden);
+  ok('so the rule that means something else there is untouched',
+    Invariant.byId(store.set('payments'), 'INV-2').text.includes('Go'));
+
+  page.byId.get('setPicker').value = 'repo';
+  page.byId.get('setPicker').fire('change');
+  const grant = page.byId.get('pendingBody').find((node) => node.tagName === 'button' && node.textContent.includes('INV-2'));
+  grant.fire('click');
+  ok('granting it retires the rule it was asked about', !Invariant.byId(store.set('repo'), 'INV-2'));
+  ok('and leaves the other project’s INV-2 standing',
+    Boolean(Invariant.byId(store.set('payments'), 'INV-2')));
+  ok('the grant rate counts only this project’s asks',
+    store.grantRate('repo').asked === 1 && store.grantRate('payments').asked === 0);
+});
+
+group('clearing a conversation clears one thing', async () => {
+  const page = bootPage();
+  const store = inside(page.context, 'Store');
+  const rules = store.fingerprint();
+
+  scripted(page.context, [envelope({ say: 'no', move: 'refuse', under: ['INV-2'], considered: [], alternative: 'by hand' })]);
+  await askThrough(page, 'add a markdown renderer');
+  page.byId.get('setPicker').value = 'payments';
+  page.byId.get('setPicker').fire('change');
+  scripted(page.context, [envelope({ say: 'no', move: 'refuse', under: ['INV-4'], considered: [], alternative: 'wait for settlement' })]);
+  await askThrough(page, 'refund immediately');
+
+  page.byId.get('clearRun').fire('click');
+  ok('the conversation is empty', page.byId.get('log').children.length === 0);
+  ok('and the note says which one and what was spared',
+    /payments[\s\S]*invariants are untouched/.test(page.byId.get('note').textContent));
+  ok('the other project still has its turns', store.runOf('repo').length === 1);
+  ok('the invariants are byte-for-byte what they were', store.fingerprint() === rules);
+
+  page.byId.get('setPicker').value = 'repo';
+  page.byId.get('setPicker').fire('change');
+  ok('and it is still on screen', page.byId.get('log').text().includes('markdown renderer'));
+  page.byId.get('clearRun').fire('click');
+  ok('clearing that one too leaves nothing', store.run().length === 0);
+  ok('the button goes away when there is nothing to clear', page.byId.get('clearRun').hidden);
+});
+
 group('the tabs, and the request the page would send', () => {
   const page = bootPage();
   ok('three tabs', page.tabs.length === 3 && page.panes.length === 3);

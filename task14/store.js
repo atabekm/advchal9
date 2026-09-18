@@ -227,7 +227,7 @@ function amend(setId, change) {
  */
 function grantRate(setId) {
   const granted = amendments(setId).filter((one) => one.requested).length;
-  const asked = run().filter((turn) => turn.move === 'request_amendment').length;
+  const asked = runOf(setId).filter((turn) => turn.move === 'request_amendment').length;
   return { granted, asked, rate: asked ? granted / asked : null };
 }
 
@@ -240,9 +240,24 @@ function resetSet(setId) {
 
 /* ---------------------------------------------------------------- the run */
 
+/* One log, filtered on read.
+ *
+ * A conversation belongs to a set, because the ids do: INV-2 is "no runtime
+ * dependencies" in one of them and "services are written in Go" in the other.
+ * A view that mixes the two will eventually offer to retire the wrong rule,
+ * which it did, before this existed.
+ *
+ * Filtering on read rather than splitting the key keeps the log a complete
+ * account of everything that happened — including the turns of a conversation
+ * you have since cleared out of the other set — and keeps the run one
+ * exportable object. `runOf` is the view; `run` is the record. */
 function run() {
   const log = readKey(RUN_KEY, null);
   return Array.isArray(log) ? log : [];
+}
+
+function runOf(setId) {
+  return run().filter((turn) => turn.set === setId);
 }
 
 function appendTurn(turn) {
@@ -250,8 +265,12 @@ function appendTurn(turn) {
   return writeKey(RUN_KEY, log) ? log : run();
 }
 
-function clearRun() {
-  return writeKey(RUN_KEY, []);
+/* Clearing one conversation leaves the other standing, and leaves the
+ * invariants alone in both cases — that is the whole reason they are under a
+ * different key. Called with nothing, it clears everything. */
+function clearRun(setId) {
+  const kept = setId ? run().filter((turn) => turn.set !== setId) : [];
+  return writeKey(RUN_KEY, kept) ? kept : run();
 }
 
 /* --------------------------------------------------------- in and out */
@@ -290,12 +309,17 @@ function exportRun() {
   return JSON.stringify({ schema: SCHEMA, log: run() }, null, 2);
 }
 
-/* A stable print of the invariant store, for the one test worth running on it:
- * drive a whole adversarial run, then compare this before and after. Any run
- * that has not been granted an amendment must leave it identical. */
+/* A stable print of the RULES, for the one test worth running on them: drive a
+ * whole adversarial run, then compare this before and after. Any run that has
+ * not been granted an amendment must leave it identical.
+ *
+ * `active` is deliberately not in it. Which project you have open is not a
+ * rule, and counting it as one would make switching tabs look like an
+ * amendment — the loudest possible false positive on the one claim this
+ * function exists to check. */
 function fingerprint() {
   const all = readKey(INVARIANT_KEY, null) || {};
-  return JSON.stringify({ active: all.active || 'repo', sets: all.sets || {} });
+  return JSON.stringify(all.sets || {});
 }
 
 /* Used by the tests to start from nothing, and by the page's reset button.
@@ -322,6 +346,7 @@ const Store = {
   grantRate,
   resetSet,
   run,
+  runOf,
   appendTurn,
   clearRun,
   exportInvariants,

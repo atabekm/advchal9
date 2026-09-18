@@ -109,7 +109,8 @@ function record(set, request, attempt, result, reply) {
     raw: result.envelope ? null : String(reply.text || '').slice(0, 2000),
     usage: reply.usage || null,
   };
-  app.turns = Store.appendTurn(turn);
+  Store.appendTurn(turn);
+  app.turns = Store.runOf(set.id);
   return turn;
 }
 
@@ -268,6 +269,11 @@ function paintLog() {
  * `bore` and `broke` are different facts and both are shown. A rule that bore
  * and held is the ordinary case and the one nobody ever renders — but it is
  * the evidence that the rule was live, rather than merely present. */
+/* No `turn.set === set.id` guard here any more. There used to be one, and it
+ * was the code covering for a log that was not filtered: after switching sets
+ * every mark silently went blank rather than being wrong, which is a bug
+ * wearing a disguise. `app.turns` is now the active set's conversation and
+ * nothing else, so the guard cannot fire and is gone. */
 function markOf(one, turn) {
   if (one.enforcement === 'soft') return { tone: '', label: 'unverified' };
   if (!turn) return { tone: '', label: '·' };
@@ -290,10 +296,11 @@ function lastTurn() {
 function paintMarks() {
   const set = currentSet();
   const turn = lastTurn();
+  el('setName').textContent = set.name;
   el('setLine').textContent = `revision ${set.rev} · ${set.subject}`;
 
   el('marks').replaceChildren(...Invariant.invariantsOf(set).map((one) => {
-    const mark = markOf(one, turn && turn.set === set.id ? turn : null);
+    const mark = markOf(one, turn);
     const node = tag('div', `inv ${mark.tone}`.trim());
     const head = tag('div', 'invhead');
     head.append(tag('span', 'stepid', one.id));
@@ -380,7 +387,7 @@ function paintPending() {
   const deny = tag('button', '', 'leave it standing');
   deny.addEventListener('click', () => {
     Store.appendTurn({ move: 'amendment_denied', request: '', id: last.amend.id, set: set.id, rev: set.rev });
-    app.turns = Store.run();
+    app.turns = Store.runOf(set.id);
     app.note = `${last.amend.id} stands`;
     render();
   });
@@ -517,6 +524,13 @@ function render() {
   el('note').hidden = !el('note').textContent;
   el('keyNote').textContent = Api.ready();
 
+  const conversation = app.turns.filter((turn) => turn.request !== undefined
+    && turn.move !== 'amendment_denied');
+  el('chatCount').textContent = conversation.length
+    ? `${conversation.length} turn${conversation.length === 1 ? '' : 's'}`
+    : 'nothing asked yet';
+  el('clearRun').hidden = !app.turns.length;
+
   paintLog();
   paintStream();
   paintMarks();
@@ -551,8 +565,19 @@ function boot() {
     return option;
   }));
   el('setPicker').value = Store.activeId();
+  /* Switching the project switches the conversation with it. They are the same
+   * choice: the rules and the turns that were adjudicated against them. */
   el('setPicker').addEventListener('change', () => {
     Store.selectSet(el('setPicker').value);
+    app.turns = Store.runOf(Store.activeId());
+    app.note = '';
+    render();
+  });
+
+  el('clearRun').addEventListener('click', () => {
+    const set = currentSet();
+    app.turns = Store.clearRun(set.id).filter((turn) => turn.set === set.id);
+    app.note = `the ${set.name} conversation is cleared — the invariants are untouched`;
     render();
   });
 
@@ -575,12 +600,16 @@ function boot() {
   el('importInv').addEventListener('click', () => {
     const result = Store.importInvariants(el('invJson').value);
     app.note = result.ok ? `loaded — ${result.sets.join(', ') || 'nothing amended'}` : result.refusal;
-    if (result.ok) el('setPicker').value = Store.activeId();
+    if (result.ok) {
+      el('setPicker').value = Store.activeId();
+      app.turns = Store.runOf(Store.activeId());
+    }
     render();
   });
   el('resetInv').addEventListener('click', () => {
     Store.wipe('invariants');
     el('setPicker').value = Store.activeId();
+    app.turns = Store.runOf(Store.activeId());
     app.note = 'the invariants are back to what shipped';
     render();
   });
@@ -600,7 +629,7 @@ function boot() {
     });
   }
 
-  app.turns = Store.run();
+  app.turns = Store.runOf(Store.activeId());
   render();
 }
 

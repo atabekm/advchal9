@@ -22,7 +22,7 @@ produces *even when the model tried to comply and slide* is an invariant.
 Open `index.html`. No server, no build, no dependencies — the same as task 4
 through task 13. Storage keys are namespaced `task14.*`.
 
-`node test.js` runs 355 checks with no network and no key. That includes 80,000
+`node test.js` runs 379 checks with no network and no key. That includes 80,000
 random adjudications against the checker, and booting the page itself against a
 shimmed DOM to run a whole turn through the actual buttons — which is the only
 thing standing between this repo and a blank screen. It caught one real bug in
@@ -200,6 +200,29 @@ Each invariant carries a mark from the last turn:
 | `amendment asked` | the model wants this one lifted; the decision sits here |
 | `·` | it had nothing to say about this turn |
 | `unverified` | soft — nothing mechanical can grade it |
+
+### Two projects, two conversations
+
+The picker at the top of the chat chooses both the rules and the turns that
+were adjudicated against them, because they are one choice. The run log records
+the set on every turn and is filtered on read — one log, so the record stays
+complete, and a view per project, so the conversation matches the rules beside
+it. Clearing empties the project you are in and leaves the other standing, and
+leaves the invariants alone in both cases, which is what the second storage key
+is for.
+
+That was not always true, and the bug it produced is the best argument for it.
+**Invariant ids are scoped to a set**: `INV-2` is *no runtime dependencies* in
+this repo and *services are written in Go* in the payments service. With an
+unfiltered log, a request to amend the first would appear as a grant button
+while the second was on screen — and retire the wrong rule, properly recorded,
+by the user, with a reason. There is a test named after it now.
+
+The `markOf` function used to carry a `turn.set === set.id` guard, which meant
+that after switching projects every mark silently went blank rather than being
+wrong. That guard is gone. It was not safety; it was the code covering for a
+log that was never filtered, and a guard that can no longer fire is a guard
+that was hiding something.
 
 The second and third rows are the ones nobody normally renders, and they are
 the point. A rule that bore and held is the evidence that the rule was *live*

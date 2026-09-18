@@ -39,6 +39,12 @@
   <section class="pane" data-pane="ask">
 
     <div class="chat">
+      <div class="chatbar">
+        <select id="setPicker"></select>
+        <span id="chatCount" class="dim"></span>
+        <button id="clearRun" type="button">clear this conversation</button>
+      </div>
+
       <div id="log" class="log"></div>
       <pre id="stream" class="stream" hidden></pre>
       <div id="note" class="note" hidden></div>
@@ -65,7 +71,7 @@
 
     <aside class="aside">
       <div class="asidehead">
-        <select id="setPicker"></select>
+        <strong id="setName"></strong>
         <span id="setLine" class="dim"></span>
       </div>
 
