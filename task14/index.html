@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Task 14 · Invariants and state constraints</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="title">
+    <strong>Invariants and state constraints</strong>
+    <span class="dim">the rules live in a store the model cannot write to, and a checker decides</span>
+  </div>
+  <div class="settings">
+    <label>model
+      <select id="model"></select>
+    </label>
+    <label>temperature
+      <input id="temperature" type="number" min="0" max="2" step="0.1" value="0.4">
+    </label>
+    <label class="key">key
+      <input id="key" type="password" placeholder="sk-… stays in this browser" autocomplete="off">
+    </label>
+  </div>
+</header>
+
+<nav class="tabs">
+  <button class="tab" data-tab="ask" aria-selected="true">the request</button>
+  <button class="tab" data-tab="invariants" aria-selected="false">the invariants</button>
+  <button class="tab" data-tab="pressure" aria-selected="false">pressure</button>
+  <span id="keyNote" class="keynote"></span>
+</nav>
+
+<main>
+
+  <!-- --------------------------------------------------------- the request -->
+  <section class="pane" data-pane="ask">
+
+    <div class="chat">
+      <div class="chatbar">
+        <select id="setPicker"></select>
+        <span id="chatCount" class="dim"></span>
+        <button id="clearRun" type="button">clear this conversation</button>
+      </div>
+
+      <div id="log" class="log"></div>
+      <pre id="stream" class="stream" hidden></pre>
+      <div id="note" class="note" hidden></div>
+
+      <form id="composer" class="composer">
+        <textarea id="request" rows="2" spellcheck="false"
+          placeholder="Ask for something. Asking for something the invariants forbid is the interesting case."></textarea>
+        <button id="send" type="submit">ask</button>
+        <button id="stop" type="button" hidden>stop</button>
+      </form>
+
+      <div class="blockstrip">
+        <details class="rules">
+          <summary>
+            <span>what goes up on every request — reassembled from the store, never from the scrollback</span>
+            <span id="requestMeta" class="dim"></span>
+          </summary>
+          <pre id="requestText" class="block"></pre>
+          <div class="blockhead">and the contract above it, identical on every request of every run</div>
+          <pre id="requestRules" class="block"></pre>
+        </details>
+      </div>
+    </div>
+
+    <aside class="aside">
+      <div class="asidehead">
+        <strong id="setName"></strong>
+        <span id="setLine" class="dim"></span>
+      </div>
+
+      <div id="pending" class="pending" hidden>
+        <div class="panelhead">it has asked for an amendment
+          <span class="dim">— it cannot make one; this is the only door</span>
+        </div>
+        <div id="pendingBody"></div>
+      </div>
+
+      <div id="marks" class="invlist"></div>
+      <div class="asidefoot dim">Marks are from the last turn. <b>bore</b> means the
+        declaration touched the facet this rule reads, so the rule had something to say
+        about it — whether or not it was broken.</div>
+    </aside>
+
+  </section>
+
+  <!-- ------------------------------------------------------ the invariants -->
+  <section class="pane" data-pane="invariants" hidden>
+    <div class="runner">
+      <div class="runnerhead">
+        <div>
+          <strong>The rules, the revisions, and who wrote each one.</strong>
+          <p class="dim">
+            These live under their own storage key. Clearing the run does not touch them,
+            and nothing downstream of a reply can reach them: an amendment is written by
+            the user, and what the model did was ask. The set is a fold over the
+            amendments below it, so the rules as they stood at any earlier revision are
+            still answerable — which is the only thing that makes "the model did not
+            rewrite them mid-run" a checkable claim rather than a promise.
+          </p>
+        </div>
+        <div class="runnerbuttons">
+          <button id="exportInv" type="button">copy</button>
+          <button id="importInv" type="button">load what is in the box</button>
+          <button id="resetInv" type="button">back to what shipped</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panelhead">checked
+          <span class="dim">— a declaration that breaks one of these is refused by the runtime</span>
+        </div>
+        <div id="hardList"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panelhead">not checked
+          <span class="dim">— nothing mechanical can decide these, so they are never scored as passed</span>
+        </div>
+        <div id="softList"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panelhead">the amendments
+          <span class="dim">— append-only; the set is a fold over this</span>
+        </div>
+        <div id="history"></div>
+        <div id="grantLine" class="status"></div>
+      </div>
+
+      <textarea id="invJson" class="logjson" rows="8" spellcheck="false"></textarea>
+    </div>
+  </section>
+
+  <!-- ------------------------------------------------------------ pressure -->
+  <section class="pane" data-pane="pressure" hidden>
+    <div class="runner">
+      <div class="runnerhead">
+        <div>
+          <strong>Five rungs of pressure, three invariants, and where the declaration came from.</strong>
+          <p class="dim">
+            Asked once, "what happens when a request conflicts with an invariant" is an
+            anecdote. The question worth measuring is what happens when the request keeps
+            asking. Only one thing differs between the arms: whether the model wrote the
+            declaration because the protocol made it, or whether one had to be recovered
+            from prose afterwards. One checker adjudicates all three.
+          </p>
+        </div>
+        <div class="runnerbuttons">
+          <button id="runLadder" type="button">run the forty-five requests</button>
+          <button id="stopLadder" type="button" hidden>stop</button>
+        </div>
+      </div>
+
+      <div class="panelhead">what the runtime can be made to accept — enumerated here, with no key</div>
+      <p class="dim narrow">
+        The declared arm is flat at zero, and it is worth being exact about why. Not
+        because the model behaved: because for each of these invariants the space of
+        declarations is small enough to walk, and every one that breaks the rule is
+        refused while every one that does not is accepted. The rule refuses what it
+        says it refuses, and nothing else.
+      </p>
+      <table class="logtable" id="proofTable"></table>
+
+      <div class="panelhead">the ladder</div>
+      <p class="dim narrow">
+        Three invariants per rung. The prose arm is graded twice — by a lexical net
+        that needs no key and under-counts, and by an extraction call that is a model
+        grading a model. The declared arm reports two different things: what the model
+        tried, and what the system let through.
+      </p>
+      <table class="logtable" id="curveTable"></table>
+
+      <div id="ladderStatus" class="status"></div>
+      <div id="ladderOut"></div>
+    </div>
+  </section>
+
+</main>
+
+<script src="markdown.js"></script>
+<script src="invariant.js"></script>
+<script src="store.js"></script>
+<script src="protocol.js"></script>
+<script src="api.js"></script>
+<script src="pressure.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
