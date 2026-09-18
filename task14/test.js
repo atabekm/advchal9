@@ -345,6 +345,221 @@ group('the clause is generated from the rule, never written beside it', () => {
   ok('and an id nobody holds is null', Invariant.byId(REPO, 'INV-99') === null);
 });
 
+/* ------------------------------------------------------------- the store */
+
+group('the two keys are two keys', () => {
+  Store.wipe();
+  Store.appendTurn({ move: 'propose', note: 'a turn' });
+  Store.amend('repo', { action: 'retire', id: 'INV-3', why: 'we build now' });
+
+  ok('the run holds the turn', Store.run().length === 1);
+  ok('the set holds the amendment', !Invariant.byId(Store.active(), 'INV-3'));
+
+  Store.clearRun();
+  ok('clearing the run empties it', Store.run().length === 0);
+  ok('and leaves the invariants exactly as they were', !Invariant.byId(Store.active(), 'INV-3'));
+
+  Store.appendTurn({ move: 'propose' });
+  Store.wipe('invariants');
+  ok('wiping the invariants restores the shipped set', Boolean(Invariant.byId(Store.active(), 'INV-3')));
+  ok('and leaves the run alone', Store.run().length === 1);
+  ok('the two keys are not the same key', Store.INVARIANT_KEY !== Store.RUN_KEY);
+  Store.wipe();
+});
+
+group('a set is a fold over its amendments, and nothing else', () => {
+  Store.wipe();
+  ok('a fresh set is at revision zero', Store.active().rev === 0);
+  ok('and is the one compiled into the page',
+    JSON.stringify(Store.active().invariants) === JSON.stringify(Invariant.REPO.invariants));
+
+  const amended = Store.amend('repo', {
+    action: 'amend',
+    id: 'INV-2',
+    to: { rule: { facet: 'dependency', op: 'allow-only', items: ['marked@12'] } },
+    why: 'one renderer is worth one file',
+  });
+  ok('an accepted amendment moves the revision', amended.ok && Store.active().rev === 1);
+  ok('the rule it changed is the rule the checker now applies',
+    Invariant.check(Store.active(), { dependency: ['marked@12'] }).clean);
+  ok('and what it used to be is still answerable',
+    !Invariant.check(Store.setAt('repo', 0), { dependency: ['marked@12'] }).clean);
+  ok('the amendment records what the rule was before',
+    JSON.stringify(amended.entry.before.rule) === JSON.stringify({ facet: 'dependency', op: 'deny-all' }));
+
+  Store.amend('repo', { action: 'retire', id: 'INV-3', why: 'we have a build now' });
+  ok('a retired invariant is gone from the set', !Invariant.byId(Store.active(), 'INV-3'));
+  ok('and still in the history', Store.active().history.some((h) => h.action === 'retire'));
+  ok('and still in the set as it stood before', Boolean(Invariant.byId(Store.setAt('repo', 1), 'INV-3')));
+
+  const added = Store.amend('repo', {
+    action: 'add',
+    invariant: { id: 'INV-8', kind: 'stack', text: 'No CSS frameworks.', why: 'the same reason as INV-2, one layer up in the stack and just as unremovable later',
+      enforcement: 'hard', rule: { facet: 'dependency', op: 'deny', items: ['tailwind*', 'bootstrap*'] } },
+    why: 'it kept coming up',
+  });
+  ok('an invariant can be added', added.ok && Boolean(Invariant.byId(Store.active(), 'INV-8')));
+  ok('and it is enforced from the revision it was added at',
+    Invariant.check(Store.active(), { dependency: ['tailwind@3'] }).violations
+      .some((v) => v.id === 'INV-8' && v.code === 'denied-item'));
+
+  ok('the seed is never persisted, so it always comes from the code',
+    !JSON.parse(Store.exportInvariants()).sets.repo.some((one) => one.action === 'seed'));
+  ok('every revision in the history carries who wrote it and why',
+    Store.active().history.slice(1).every((h) => h.by === 'user' && h.why));
+  Store.wipe();
+});
+
+group('the model is not an author', () => {
+  Store.wipe();
+  const before = Store.fingerprint();
+
+  const granted = Store.amend('repo', {
+    action: 'amend',
+    id: 'INV-4',
+    to: { rule: { facet: 'network', op: 'allow-only', items: ['api.deepseek.com', 'api.anthropic.com'] } },
+    why: 'we want the comparison after all',
+    requested: 'a second provider would let the ablation run against two models',
+  });
+  ok('a granted amendment is written by the user', granted.entry.by === 'user');
+  ok('and separately records that the model asked', granted.entry.requested.includes('second provider'));
+  ok('there is no way to pass an author', !String(Store.amend).includes('by:') || granted.entry.by === 'user');
+  ok('the store moved because the user acted', Store.fingerprint() !== before);
+
+  ok('an import may not claim an amendment was written by anything else',
+    Store.importInvariants(JSON.stringify({
+      schema: Store.SCHEMA,
+      active: 'repo',
+      sets: { repo: [{ action: 'retire', id: 'INV-2', by: 'model', why: 'I decided' }] },
+    })).refusal.includes('by the user'));
+  ok('and the store is untouched by a refused import',
+    Boolean(Invariant.byId(Store.active(), 'INV-2')));
+  Store.wipe();
+});
+
+group('an amendment that would not fire is refused', () => {
+  Store.wipe();
+  const refuse = (change) => Store.amend('repo', change).refusal || '';
+  ok('one that says nothing about why is refused',
+    refuse({ action: 'retire', id: 'INV-2' }).includes('say why'));
+  ok('an unknown action is refused', refuse({ action: 'ignore', id: 'INV-2', why: 'x' }).includes('unknown action'));
+  ok('an id nobody holds is refused', refuse({ action: 'retire', id: 'INV-99', why: 'x' }).includes('no invariant'));
+  ok('an added invariant with a broken rule is refused',
+    refuse({ action: 'add', why: 'x', invariant: { id: 'Z', text: 't', kind: 'stack', enforcement: 'hard', rule: { facet: 'vibes', op: 'deny-all' } } })
+      .includes('unknown facet'));
+  ok('an id that is taken is refused',
+    refuse({ action: 'add', why: 'x', invariant: { id: 'INV-2', text: 't', kind: 'stack', enforcement: 'hard', rule: { facet: 'build', op: 'deny-all' } } })
+      .includes('taken'));
+  ok('an amendment that would break the rule it edits is refused',
+    refuse({ action: 'amend', id: 'INV-2', to: { rule: { facet: 'dependency', op: 'allow-only', items: [] } }, why: 'x' })
+      .includes('needs items'));
+  ok('nothing refused reached the store', Store.active().rev === 0);
+  Store.wipe();
+});
+
+group('the store goes in and out in one piece', () => {
+  Store.wipe();
+  Store.amend('repo', { action: 'retire', id: 'INV-3', why: 'a build it is' });
+  Store.selectSet('payments');
+  const exported = Store.exportInvariants();
+
+  Store.wipe();
+  ok('a wipe puts the shipped set back', Store.activeId() === 'repo' && Store.active().rev === 0);
+
+  const back = Store.importInvariants(exported);
+  ok('an export imports back', back.ok);
+  ok('including which set was active', Store.activeId() === 'payments');
+  ok('and the amendment that was made', !Invariant.byId(Store.set('repo'), 'INV-3'));
+  ok('the fingerprint round-trips', Store.fingerprint() === JSON.parse(JSON.stringify(Store.fingerprint())));
+
+  ok('a wrong schema is refused', Store.importInvariants('{"schema":99,"sets":{}}').refusal.includes('schema'));
+  ok('a set nobody ships is refused',
+    Store.importInvariants(JSON.stringify({ schema: Store.SCHEMA, sets: { aerospace: [] } })).refusal.includes('no such set'));
+  ok('prose is refused', Store.importInvariants('not json at all').refusal === 'not JSON');
+  ok('the run exports separately from the invariants',
+    JSON.parse(Store.exportRun()).log.length === 0 && JSON.parse(Store.exportInvariants()).sets.repo.length === 1);
+  Store.wipe();
+});
+
+/* ---------------------------------------------------------- the prompt side */
+
+group('the block says exactly what the checker will do', () => {
+  Store.wipe();
+  const set = Store.active();
+  const text = Protocol.block(set);
+
+  for (const one of Invariant.hard(set)) {
+    ok(`${one.id} is in the block with the clause the checker applies`,
+      text.includes(one.id) && text.includes(Invariant.clauseOf(one)), one.id);
+  }
+  ok('every soft invariant is in it too', Invariant.soft(set).every((one) => text.includes(one.id)));
+  ok('and is marked as the thing nothing can decide', text.includes('Not checked'));
+  ok('every invariant carries its reason, not just its rule',
+    Invariant.invariantsOf(set).every((one) => text.includes(one.why)));
+  ok('the revision is on the block', text.includes(`revision ${set.rev}`));
+
+  const payments = Protocol.block(Store.set('payments'));
+  ok('a different set compiles to a different block', payments !== text);
+  ok('and names its own subject', payments.includes(Invariant.PAYMENTS.subject));
+});
+
+group('the contract above it is the same on every request', () => {
+  const first = Protocol.contract();
+  Store.wipe();
+  Store.amend('repo', { action: 'retire', id: 'INV-3', why: 'x' });
+  ok('amending a rule does not change the contract', Protocol.contract() === first);
+  ok('nor does switching sets entirely', Protocol.contract() === first);
+  ok('it names all three moves', Protocol.MOVE_NAMES.every((move) => first.includes(`"${move}"`)));
+  ok('and all ten facets', Invariant.FACET_NAMES.every((facet) => first.includes(facet)));
+  ok('it says the checker cannot be persuaded', /cannot be persuaded/.test(first));
+  ok('it says the conversation cannot write to the store', /cannot write to it/.test(first));
+  ok('it tells the model to declare what it actually does', /ACTUALLY does/.test(first));
+
+  ok('the invariants sit under the contract, so the cache prefix is the contract',
+    Protocol.compile(Store.active()).startsWith(first));
+  ok('and amending a rule is what moves the block',
+    Protocol.compile(Store.setAt('repo', 0)) !== Protocol.compile(Store.active()));
+  Store.wipe();
+});
+
+group('a refusal goes back with everything needed to answer it', () => {
+  Store.wipe();
+  const set = Store.active();
+  const declaration = { runtime: ['browser'], dependency: ['react@18'], network: ['cdn.jsdelivr.net'] };
+  const result = adjudicate(set, declaration);
+  const found = Invariant.contradiction(declaration, 'we also run npm install redux');
+  const text = Protocol.feedback(result, found);
+
+  ok('it names every invariant that was broken',
+    result.violations.every((v) => text.includes(v.id)));
+  ok('it quotes the items to blame',
+    text.includes('react@18') && text.includes('cdn.jsdelivr.net'));
+  ok('it gives the code and what the code means',
+    text.includes('denied-all') && text.includes(Invariant.VIOLATIONS['denied-all']));
+  ok('it carries the clause the checker applied', text.includes('no dependency may be declared'));
+  ok('a contradiction goes back too, with the text it fired on', text.includes('redux'));
+  ok('and it says what the three ways forward are', /propose|refuse|amend/.test(text));
+  ok('it does not tell the model to try the same thing again', text.includes('Do not re-send'));
+
+  const turns = Protocol.messages(set, 'add a markdown renderer', [{ reply: '{"move":"propose"}', feedback: text }]);
+  ok('the system message is the compiled invariants', turns[0].role === 'system' && turns[0].content === Protocol.compile(set));
+  ok('the request is the user message', turns[1].content === 'add a markdown renderer');
+  ok('a retry appends the reply and the refusal, in that order',
+    turns[2].role === 'assistant' && turns[3].role === 'user' && turns[3].content === text);
+  ok('nothing else is in the request', turns.length === 4);
+  Store.wipe();
+});
+
+group('what the block costs is printed rather than assumed', () => {
+  Store.wipe();
+  const anatomy = Protocol.anatomy(Store.active());
+  ok('the contract is the larger half, and it is the cacheable one',
+    anatomy.contract > anatomy.invariants, `${anatomy.contract} vs ${anatomy.invariants}`);
+  ok('the whole thing is under fifteen hundred tokens', anatomy.total < 1500, String(anatomy.total));
+  ok('every invariant is priced separately', anatomy.perInvariant.length === Invariant.invariantsOf(Store.active()).length);
+  ok('and none of them is free', anatomy.perInvariant.every((one) => one.tokens > 10));
+});
+
 /* ------------------------------------------------------------------ the fuzz */
 
 const FUZZ_SETS = 4000;
