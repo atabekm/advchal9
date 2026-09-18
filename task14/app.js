@@ -128,114 +128,182 @@ function paintStream() {
   box.textContent = app.streaming;
 }
 
-function verdictRows(turn) {
-  const wrap = tag('div', 'rows');
-  for (const violation of turn.violations) {
-    const row = tag('div', 'row');
-    row.append(tag('span', 'stepid', violation.id));
-    row.append(tag('span', 'code', violation.code));
-    row.append(tag('span', 'detail',
-      `${violation.text}  ·  checked as: ${violation.clause}  ·  you declared ${violation.facet}: ${violation.offending.join(', ')}`));
-    wrap.append(row);
-  }
-  for (const found of turn.contradictions) {
-    const row = tag('div', 'row');
-    row.append(tag('span', 'stepid', 'prose'));
-    row.append(tag('span', 'code', 'contradiction'));
-    row.append(tag('span', 'detail',
-      `implies ${found.facet}: ${found.implied}, which was not declared — from "${found.evidence}". A heuristic.`));
-    wrap.append(row);
+function pills(items) {
+  const wrap = tag('div', 'pills');
+  for (const one of items) {
+    const pill = tag('span', `pill ${one.tone || ''}`.trim());
+    pill.append(tag('b', '', one.head));
+    if (one.tail) pill.append(tag('span', 'why', one.tail));
+    wrap.append(pill);
   }
   return wrap;
 }
 
-function declaration(turn) {
-  const wrap = tag('div', 'rows');
+/* The verdict, as a strip rather than a card. Task 12 drew its checker results
+ * this way and it was right: a violation is one fact, and one fact does not
+ * need a heading, a panel and a border to be read. */
+function verdictStrip(turn) {
+  const marks = [];
+  for (const violation of turn.violations) {
+    marks.push({
+      tone: 'fail',
+      head: `${violation.id} · ${violation.code}`,
+      tail: `${violation.facet}: ${violation.offending.join(', ')}`,
+    });
+  }
+  for (const found of turn.contradictions) {
+    marks.push({
+      tone: 'warn',
+      head: 'prose · contradiction',
+      tail: `implies ${found.facet}: ${found.implied}, undeclared — heuristic`,
+    });
+  }
+  for (const id of turn.missed) {
+    marks.push({ tone: 'warn', head: `${id} · unnamed`, tail: 'it bore, and went unlisted' });
+  }
+  return marks.length ? pills(marks) : null;
+}
+
+function declaredLine(turn) {
   const touched = Invariant.FACET_NAMES.filter((facet) => turn.declare && turn.declare[facet].length);
-  if (!touched.length) return tag('p', 'dim', 'declared nothing at all — which is itself a claim');
+  if (!touched.length) return tag('div', 'declared dim', 'declared nothing at all — which is itself a claim');
+  const wrap = tag('div', 'declared');
+  wrap.append(tag('span', 'dim', 'declared'));
   for (const facet of touched) {
-    const row = tag('div', 'row');
-    row.append(tag('span', 'stepid', facet));
-    row.append(tag('span', 'detail', turn.declare[facet].join(', ')));
-    wrap.append(row);
+    const item = tag('span', 'facet');
+    item.append(tag('b', '', facet));
+    item.append(tag('span', '', turn.declare[facet].join(', ')));
+    wrap.append(item);
   }
   return wrap;
 }
 
 const GRADE_TEXT = {
-  cites: 'names an invariant, in the prose the human reads',
-  names: 'names the specific thing that collided',
+  cites: 'names the rule, in the prose',
+  names: 'names what collided',
   classifies: 'one move, not a hedge',
-  offers: 'offers a way through, or says plainly there is none',
+  offers: 'a way through, or none plainly',
 };
 
-function gradeRow(turn) {
-  const wrap = tag('div', 'rows');
-  for (const key of Object.keys(GRADE_TEXT)) {
-    const row = tag('div', 'row');
-    row.append(tag('span', turn.grade[key] ? 'tick good' : 'tick bad', turn.grade[key] ? '✓' : '✗'));
-    row.append(tag('span', 'detail', GRADE_TEXT[key]));
-    wrap.append(row);
-  }
-  return wrap;
+function gradeStrip(turn) {
+  return pills(Object.keys(GRADE_TEXT).map((key) => ({
+    tone: turn.grade[key] ? 'pass' : 'fail',
+    head: turn.grade[key] ? '✓' : '✗',
+    tail: GRADE_TEXT[key],
+  })));
 }
 
-function turnNode(turn) {
-  const node = tag('div', 'turn');
+function userBubble(text) {
+  const node = tag('div', 'turn user');
+  node.append(tag('div', 'bubble', text));
+  return node;
+}
 
-  const head = tag('div', 'turnhead');
-  head.append(tag('span', 'stagechip', turn.move || 'unparsed'));
-  if (turn.attempt > 0) head.append(tag('span', 'kind', `attempt ${turn.attempt + 1} of ${ATTEMPTS}`));
-  head.append(tag('span', 'kind', turn.ok ? 'accepted' : `refused · ${turn.rejection.reason}`));
-  head.append(tag('span', 'dim', `${turn.set} · revision ${turn.rev}`));
-  node.append(head);
+/* "accepted" beside a refusal reads as a contradiction, and it is not one —
+ * the envelope was accepted; the answer inside it was a no. Saying which is
+ * the difference between the model declining and the runtime refusing, and
+ * that difference is the whole task. */
+function bylineVerb(turn) {
+  if (!turn.ok) return `refused by the ${turn.stage}`;
+  if (turn.move === 'refuse') return 'the model refused';
+  if (turn.move === 'request_amendment') return 'asked for an amendment';
+  return 'accepted';
+}
 
-  node.append(tag('div', 'question', turn.request));
+function modelTurn(turn) {
+  const node = tag('div', turn.ok ? 'turn' : 'turn refused');
 
-  if (turn.say) {
-    const said = tag('div', 'say');
-    said.innerHTML = renderMarkdown(turn.say);
-    node.append(said);
-  } else {
-    node.append(tag('pre', 'block', turn.raw || ''));
-  }
-
-  if (turn.move === 'propose') {
-    node.append(tag('div', 'panelhead', 'what it says it touches'));
-    node.append(declaration(turn));
-  }
-
-  if (turn.violations.length || turn.contradictions.length) {
-    node.append(tag('div', 'panelhead', turn.violations.length
-      ? 'the checker refused it — this is not the model declining, it is the runtime'
-      : 'the prose and the declaration disagree'));
-    node.append(verdictRows(turn));
-  }
-
-  if (turn.move === 'refuse') {
-    node.append(tag('div', 'panelhead', 'how the refusal reads'));
-    node.append(gradeRow(turn));
-    if (turn.alternative) node.append(tag('div', 'prose', turn.alternative));
-  }
-
-  if (turn.move === 'request_amendment' && turn.amend) {
-    node.append(tag('div', 'panelhead', `it wants ${turn.amend.id} amended — you decide, on the invariants tab`));
-    node.append(tag('div', 'prose', turn.amend.case));
-  }
-
-  if (turn.bearing.length || turn.considered.length) {
-    const line = turn.missed.length
-      ? `considered ${turn.considered.join(', ') || 'nothing'} — and ${turn.missed.join(', ')} bore on this and went unnamed`
-      : `considered ${turn.considered.join(', ') || 'nothing'} — nothing that bore went unnamed`;
-    node.append(tag('div', turn.missed.length ? 'stepnote' : 'dim', line));
-  }
-
+  const byline = tag('div', 'byline');
+  byline.append(tag('span', 'move', turn.move || 'unparsed'));
+  byline.append(tag('span', '', bylineVerb(turn)));
+  if (turn.attempt > 0) byline.append(tag('span', '', `attempt ${turn.attempt + 1} of ${ATTEMPTS}`));
+  byline.append(tag('span', '', `${turn.set} · rev ${turn.rev}`));
   if (turn.usage) {
-    node.append(tag('div', 'dim',
-      `${turn.usage.promptTokens} prompt · ${turn.usage.cacheHitTokens} of them cached · ${turn.usage.completionTokens} out`));
+    byline.append(tag('span', '', `${turn.usage.promptTokens} in · ${turn.usage.cacheHitTokens} cached`));
+  }
+  node.append(byline);
+
+  const bubble = tag('div', 'bubble');
+  if (turn.say) bubble.innerHTML = renderMarkdown(turn.say);
+  else bubble.append(tag('pre', 'block', turn.raw || ''));
+  node.append(bubble);
+
+  if (turn.move === 'propose') node.append(declaredLine(turn));
+
+  const strip = verdictStrip(turn);
+  if (strip) node.append(strip);
+
+  if (turn.move === 'refuse') node.append(gradeStrip(turn));
+  if (turn.alternative) node.append(tag('div', 'aside-note', `instead: ${turn.alternative}`));
+  if (turn.move === 'request_amendment' && turn.amend) {
+    node.append(tag('div', 'aside-note', `wants ${turn.amend.id} amended — the decision is on the right`));
   }
 
   return node;
+}
+
+/* The log, as a conversation. A retry is a second model turn under the same
+ * ask, so the ask is drawn once and the attempts stack under it — which is
+ * also what actually happened. */
+function paintLog() {
+  const nodes = [];
+  let lastRequest = null;
+  for (const turn of app.turns) {
+    if (turn.request === undefined || turn.move === 'amendment_denied') continue;
+    if (turn.request !== lastRequest) {
+      nodes.push(userBubble(turn.request));
+      lastRequest = turn.request;
+    }
+    nodes.push(modelTurn(turn));
+  }
+  el('log').replaceChildren(...nodes);
+}
+
+/* ------------------------------------------------------- the aside marks */
+
+/* What each rule did on the last turn. This is the reason the rules are beside
+ * the conversation rather than behind a tab: a refusal that cites INV-2 is not
+ * an explanation if INV-2 is on another screen.
+ *
+ * `bore` and `broke` are different facts and both are shown. A rule that bore
+ * and held is the ordinary case and the one nobody ever renders — but it is
+ * the evidence that the rule was live, rather than merely present. */
+function markOf(one, turn) {
+  if (one.enforcement === 'soft') return { tone: '', label: 'unverified' };
+  if (!turn) return { tone: '', label: '·' };
+  if (turn.violations.some((v) => v.id === one.id)) return { tone: 'fail', label: '✗ broke' };
+  if (turn.bearing.includes(one.id)) {
+    return turn.considered.includes(one.id)
+      ? { tone: 'pass', label: '✓ bore' }
+      : { tone: 'warn', label: '✓ bore · unnamed' };
+  }
+  if (turn.under && turn.under.includes(one.id)) return { tone: 'pass', label: '✓ refused under' };
+  if (turn.amend && turn.amend.id === one.id) return { tone: 'warn', label: 'amendment asked' };
+  return { tone: '', label: '·' };
+}
+
+function lastTurn() {
+  const real = app.turns.filter((turn) => turn.request !== undefined && turn.move !== 'amendment_denied');
+  return real.length ? real[real.length - 1] : null;
+}
+
+function paintMarks() {
+  const set = currentSet();
+  const turn = lastTurn();
+  el('setLine').textContent = `revision ${set.rev} · ${set.subject}`;
+
+  el('marks').replaceChildren(...Invariant.invariantsOf(set).map((one) => {
+    const mark = markOf(one, turn && turn.set === set.id ? turn : null);
+    const node = tag('div', `inv ${mark.tone}`.trim());
+    const head = tag('div', 'invhead');
+    head.append(tag('span', 'stepid', one.id));
+    head.append(tag('span', 'kind', one.kind));
+    head.append(tag('span', 'mark', mark.label));
+    node.append(head);
+    node.append(tag('div', 'invtext', one.text));
+    if (one.rule) node.append(tag('div', 'invrule', Invariant.clauseOf(one)));
+    return node;
+  }));
 }
 
 /* ---------------------------------------------------------- the invariants */
@@ -279,13 +347,12 @@ function paintInvariants() {
   el('grantLine').textContent = rate.asked
     ? `${rate.granted} of ${rate.asked} amendment requests granted. A set with a high rate is telling on itself.`
     : 'No amendment has been asked for yet.';
-
-  paintPending(set);
 }
 
-/* The only door into the store, and it is drawn here rather than triggered
- * anywhere near a reply. A grant is a click. */
-function paintPending(set) {
+/* The only door into the store, and it is drawn beside the rule it concerns
+ * rather than triggered anywhere near a reply. A grant is a click. */
+function paintPending() {
+  const set = currentSet();
   const asked = app.turns.filter((turn) => turn.move === 'request_amendment');
   const last = asked[asked.length - 1];
   const settled = Store.amendments(set.id).some((one) => one.requested && last && one.requested === last.amend.case);
@@ -447,16 +514,18 @@ function render() {
   el('send').hidden = app.busy;
   el('stop').hidden = !app.busy;
   el('note').textContent = app.note || (app.busy ? 'asking…' : '');
+  el('note').hidden = !el('note').textContent;
   el('keyNote').textContent = Api.ready();
 
-  el('feed').replaceChildren(...app.turns.filter((turn) => turn.request !== undefined && turn.move !== 'amendment_denied')
-    .map(turnNode));
+  paintLog();
   paintStream();
+  paintMarks();
+  paintPending();
 
   const anatomy = Protocol.anatomy(set);
   el('requestText').textContent = Protocol.block(set);
   el('requestRules').textContent = Protocol.contract();
-  el('requestMeta').textContent = `${anatomy.invariants} tokens of rules, on top of ${anatomy.contract} of contract`;
+  el('requestMeta').textContent = `${anatomy.invariants} of rules + ${anatomy.contract} of contract`;
 
   paintInvariants();
   el('invJson').value = Store.exportInvariants();
@@ -490,7 +559,16 @@ function boot() {
   el('key').value = Api.getKey();
   el('key').addEventListener('change', () => { Api.setKey(el('key').value); render(); });
 
-  el('send').addEventListener('click', ask);
+  el('composer').addEventListener('submit', (event) => { event.preventDefault(); ask(); });
+  /* Enter sends, shift-enter breaks the line. A textarea in a form does
+   * neither on its own, and the alternative is reaching for the mouse after
+   * every question. */
+  el('request').addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      ask();
+    }
+  });
   el('stop').addEventListener('click', () => { if (app.abort) app.abort.abort(); });
 
   el('exportInv').addEventListener('click', () => { el('invJson').value = Store.exportInvariants(); });

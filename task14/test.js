@@ -851,7 +851,7 @@ async function until(condition, ms = 2000) {
 
 async function askThrough(page, request) {
   page.byId.get('request').value = request;
-  page.byId.get('send').fire('click');
+  page.byId.get('composer').fire('submit');
   await until(() => !inside(page.context, 'app').busy);
 }
 
@@ -859,12 +859,20 @@ group('the page boots, and a whole turn runs through the buttons', async () => {
   const page = bootPage();
   ok('nothing threw on the way up', Boolean(inside(page.context, 'app')));
   ok('every element the page asks for exists', IDS.every((id) => page.byId.has(id)));
-  ok('the invariants are on screen before anything is asked',
-    page.byId.get('hardList').children.length === Invariant.hard(Invariant.REPO).length);
-  ok('and so is what the request will cost',
-    /tokens of rules/.test(page.byId.get('requestMeta').textContent));
+  ok('the invariants stand beside the conversation, not behind a tab',
+    page.byId.get('marks').children.length === Invariant.invariantsOf(Invariant.REPO).length);
+  ok('every one of them carries the clause the checker applies',
+    Invariant.hard(Invariant.REPO).every((one) =>
+      page.byId.get('marks').text().includes(Invariant.clauseOf(one))));
+  ok('before anything is asked, none of them is marked',
+    !page.byId.get('marks').text().includes('broke'));
+  ok('and what the request will cost is on screen, itemised',
+    /\d+ of rules \+ \d+ of contract/.test(page.byId.get('requestMeta').textContent),
+    page.byId.get('requestMeta').textContent);
   ok('the block on screen is the block that goes up',
     page.byId.get('requestText').textContent.includes('INV-2'));
+  ok('the invariants tab still holds the editing surface',
+    page.byId.get('hardList').children.length === Invariant.hard(Invariant.REPO).length);
 
   const before = inside(page.context, 'Store').fingerprint();
 
@@ -884,10 +892,37 @@ group('the page boots, and a whole turn runs through the buttons', async () => {
   ok('the retry did not carry a second copy of the rules',
     sent[1].filter((m) => m.role === 'system').length === 1);
   ok('the system message was identical both times', sent[0][0].content === sent[1][0].content);
-  ok('the refusal reached the screen with the invariant on it',
-    page.byId.get('feed').text().includes('INV-2'));
+  ok('the refusal reached the log with the invariant on it',
+    page.byId.get('log').text().includes('INV-2'));
   ok('and with the word the user needs, which is who refused',
-    page.byId.get('feed').text().includes('the runtime'));
+    page.byId.get('log').text().includes('refused by the checker'));
+  ok('a model that declines is not described as accepted',
+    page.byId.get('log').text().includes('the model refused'));
+  ok('the ask is drawn once, with both attempts under it',
+    page.byId.get('log').all((node) => node.className === 'turn user').length === 1);
+  ok('the rule the refusal was made under is marked, beside the conversation',
+    /INV-2[\s\S]{0,160}refused under/.test(page.byId.get('marks').text()),
+    page.byId.get('marks').text().slice(0, 200));
+  ok('and a rule with nothing to say about this turn is not marked at all',
+    page.byId.get('marks').all((node) => node.className === 'mark')
+      .some((node) => node.textContent.trim() === '·'));
+
+  /* The marks follow the last turn, so a run that ends on a refused proposal
+   * is the one that shows a broken rule. Both readings matter and both are
+   * drawn: what the rule did, not merely that it exists. */
+  const stuck = bootPage();
+  scripted(stuck.context, [
+    envelope({ say: 'Adding marked@12.', considered: ['INV-2'], move: 'propose', declare: { dependency: ['marked@12'], runtime: ['browser'], network: ['api.deepseek.com'] } }),
+    envelope({ say: 'Still marked@12.', considered: [], move: 'propose', declare: { dependency: ['marked@12'], runtime: ['browser'], network: ['api.deepseek.com'] } }),
+  ]);
+  await askThrough(stuck, 'add a markdown renderer');
+  ok('a rule that was broken is marked broken', /INV-2[\s\S]{0,160}broke/.test(stuck.byId.get('marks').text()),
+    stuck.byId.get('marks').text().slice(0, 240));
+  ok('a rule that bore and held is marked too, because that is the evidence it was live',
+    /INV-1[\s\S]{0,160}bore/.test(stuck.byId.get('marks').text()));
+  ok('and one that bore and went unlisted says so, which is the miss made visible',
+    stuck.byId.get('marks').text().includes('unnamed'));
+  ok('the run gave up after the one retry', inside(stuck.context, 'app').turns.length === 2);
 
   ok('the invariant store is byte-for-byte what it was before the run',
     inside(page.context, 'Store').fingerprint() === before);
@@ -912,6 +947,8 @@ group('an amendment is a click, and the click is the user', async () => {
 
   ok('the request reached the screen as a request, not a change',
     !page.byId.get('pending').hidden && Boolean(Invariant.byId(store.active(), 'INV-2')));
+  ok('and the decision is drawn beside the rule it concerns',
+    page.byId.get('marks').text().includes('amendment asked'));
   ok('the model made its case where the user can read it',
     page.byId.get('pendingBody').text().includes('300 lines'));
 
@@ -1300,7 +1337,7 @@ group('the stylesheet and the markup agree, in both directions', () => {
   /* Class names reach the DOM from app.js as plain lowercase string literals —
    * loose on purpose, because the alternative is a parser, and a parser here
    * would be a second implementation of the thing being checked. */
-  for (const match of app.matchAll(/'([a-z][a-z -]*)'/g)) {
+  for (const match of app.matchAll(/['`]([a-z][a-z -]*)[`'\s$]/g)) {
     for (const name of match[1].split(/\s+/)) used.add(name);
   }
 

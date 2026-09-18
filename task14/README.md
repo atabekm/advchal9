@@ -22,7 +22,7 @@ produces *even when the model tried to comply and slide* is an invariant.
 Open `index.html`. No server, no build, no dependencies — the same as task 4
 through task 13. Storage keys are namespaced `task14.*`.
 
-`node test.js` runs 343 checks with no network and no key. That includes 80,000
+`node test.js` runs 355 checks with no network and no key. That includes 80,000
 random adjudications against the checker, and booting the page itself against a
 shimmed DOM to run a whole turn through the actual buttons — which is the only
 thing standing between this repo and a blank screen. It caught one real bug in
@@ -178,6 +178,34 @@ accumulated context for it to erode in.
 None of which stops a model violating it. Nothing written in a prompt does.
 What it does is make sure the model was told, in full, every time — so that a
 violation is a violation and not a misunderstanding.
+
+## The rules are on screen, beside the conversation
+
+The layout is task 12's: a chat column with the composer at the bottom, and an
+aside holding whatever goes up with every request. There it was the profile.
+Here it is the invariant set, and that is an argument rather than a decoration.
+
+**A refusal that cites `INV-2` has explained nothing if `INV-2` is on another
+screen.** The first version of this page put the rules behind a tab, which
+meant leaving the conversation to read the rule the conversation was about.
+
+Each invariant carries a mark from the last turn:
+
+| mark | means |
+| --- | --- |
+| `✗ broke` | the declaration violated it |
+| `✓ bore` | it had something to say, and the declaration satisfied it |
+| `✓ bore · unnamed` | the same, and the model did not list it as considered |
+| `✓ refused under` | the model refused, citing this rule |
+| `amendment asked` | the model wants this one lifted; the decision sits here |
+| `·` | it had nothing to say about this turn |
+| `unverified` | soft — nothing mechanical can grade it |
+
+The second and third rows are the ones nobody normally renders, and they are
+the point. A rule that bore and held is the evidence that the rule was *live*
+rather than merely present — and the gap between `bore` and `bore · unnamed` is
+consideration recall, drawn where you can see it happen instead of described in
+a line of grey text underneath.
 
 ## "Explicitly considered", made into a number
 
@@ -375,8 +403,11 @@ name declared twice across the page's scripts.
 
 **A stylesheet full of rules for elements that no longer exist.** The carried
 stylesheet had rails, step statuses and criterion colours from task 13, and
-several classes this page used meant something else in it. A test now compares
-every selector in `styles.css` against the markup, in both directions.
+several classes this page used meant something else there — `.detail` was red,
+`.marks` was a row of pills, `.ask` was a flex row with a textarea wedged into
+it. It was rewritten once for the card layout and again for the chat one, and a
+test now compares every selector in `styles.css` against the markup in both
+directions, so the second rewrite could delete rather than accumulate.
 
 ## Layout
 

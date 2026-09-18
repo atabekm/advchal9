@@ -38,37 +38,49 @@
   <!-- --------------------------------------------------------- the request -->
   <section class="pane" data-pane="ask">
 
-    <div class="run">
-      <div class="buttonrow">
-        <select id="setPicker"></select>
-        <span id="setLine" class="dim"></span>
-      </div>
-
-      <div class="ask">
-        <textarea id="request" rows="3" spellcheck="false"
-          placeholder="Ask for something. Asking for something the invariants forbid is the interesting case."></textarea>
-        <div class="buttonrow">
-          <button id="send" type="button">ask</button>
-          <button id="stop" type="button" hidden>stop</button>
-          <span id="note" class="dim"></span>
-        </div>
-      </div>
-
-      <div id="feed" class="feed"></div>
+    <div class="chat">
+      <div id="log" class="log"></div>
       <pre id="stream" class="stream" hidden></pre>
+      <div id="note" class="note" hidden></div>
+
+      <form id="composer" class="composer">
+        <textarea id="request" rows="2" spellcheck="false"
+          placeholder="Ask for something. Asking for something the invariants forbid is the interesting case."></textarea>
+        <button id="send" type="submit">ask</button>
+        <button id="stop" type="button" hidden>stop</button>
+      </form>
 
       <div class="blockstrip">
-        <div class="blockhead">
-          <span>what goes up on every request — reassembled from the store, never from the scrollback</span>
-          <span id="requestMeta" class="dim"></span>
-        </div>
-        <pre id="requestText" class="block"></pre>
         <details class="rules">
-          <summary>and the contract above it, identical on every request of every run</summary>
+          <summary>
+            <span>what goes up on every request — reassembled from the store, never from the scrollback</span>
+            <span id="requestMeta" class="dim"></span>
+          </summary>
+          <pre id="requestText" class="block"></pre>
+          <div class="blockhead">and the contract above it, identical on every request of every run</div>
           <pre id="requestRules" class="block"></pre>
         </details>
       </div>
     </div>
+
+    <aside class="aside">
+      <div class="asidehead">
+        <select id="setPicker"></select>
+        <span id="setLine" class="dim"></span>
+      </div>
+
+      <div id="pending" class="pending" hidden>
+        <div class="panelhead">it has asked for an amendment
+          <span class="dim">— it cannot make one; this is the only door</span>
+        </div>
+        <div id="pendingBody"></div>
+      </div>
+
+      <div id="marks" class="invlist"></div>
+      <div class="asidefoot dim">Marks are from the last turn. <b>bore</b> means the
+        declaration touched the facet this rule reads, so the rule had something to say
+        about it — whether or not it was broken.</div>
+    </aside>
 
   </section>
 
@@ -92,13 +104,6 @@
           <button id="importInv" type="button">load what is in the box</button>
           <button id="resetInv" type="button">back to what shipped</button>
         </div>
-      </div>
-
-      <div id="pending" class="panel" hidden>
-        <div class="panelhead">the model has asked for an amendment
-          <span class="dim">— it cannot make one; this is the only door, and you are it</span>
-        </div>
-        <div id="pendingBody"></div>
       </div>
 
       <div class="panel">
