@@ -129,19 +129,19 @@ function paintStream() {
 }
 
 function verdictRows(turn) {
-  const wrap = tag('div', 'marks');
+  const wrap = tag('div', 'rows');
   for (const violation of turn.violations) {
-    const row = tag('div', 'reason');
+    const row = tag('div', 'row');
     row.append(tag('span', 'stepid', violation.id));
-    row.append(tag('span', 'kind', violation.code));
+    row.append(tag('span', 'code', violation.code));
     row.append(tag('span', 'detail',
       `${violation.text}  ·  checked as: ${violation.clause}  ·  you declared ${violation.facet}: ${violation.offending.join(', ')}`));
     wrap.append(row);
   }
   for (const found of turn.contradictions) {
-    const row = tag('div', 'reason');
+    const row = tag('div', 'row');
     row.append(tag('span', 'stepid', 'prose'));
-    row.append(tag('span', 'kind', 'contradiction'));
+    row.append(tag('span', 'code', 'contradiction'));
     row.append(tag('span', 'detail',
       `implies ${found.facet}: ${found.implied}, which was not declared — from "${found.evidence}". A heuristic.`));
     wrap.append(row);
@@ -150,11 +150,11 @@ function verdictRows(turn) {
 }
 
 function declaration(turn) {
-  const wrap = tag('div', 'marks');
+  const wrap = tag('div', 'rows');
   const touched = Invariant.FACET_NAMES.filter((facet) => turn.declare && turn.declare[facet].length);
   if (!touched.length) return tag('p', 'dim', 'declared nothing at all — which is itself a claim');
   for (const facet of touched) {
-    const row = tag('div', 'cell');
+    const row = tag('div', 'row');
     row.append(tag('span', 'stepid', facet));
     row.append(tag('span', 'detail', turn.declare[facet].join(', ')));
     wrap.append(row);
@@ -170,10 +170,10 @@ const GRADE_TEXT = {
 };
 
 function gradeRow(turn) {
-  const wrap = tag('div', 'marks');
+  const wrap = tag('div', 'rows');
   for (const key of Object.keys(GRADE_TEXT)) {
-    const row = tag('div', 'cell');
-    row.append(tag('span', 'marker', turn.grade[key] ? '✓' : '✗'));
+    const row = tag('div', 'row');
+    row.append(tag('span', turn.grade[key] ? 'tick good' : 'tick bad', turn.grade[key] ? '✓' : '✗'));
     row.append(tag('span', 'detail', GRADE_TEXT[key]));
     wrap.append(row);
   }
@@ -215,12 +215,12 @@ function turnNode(turn) {
   if (turn.move === 'refuse') {
     node.append(tag('div', 'panelhead', 'how the refusal reads'));
     node.append(gradeRow(turn));
-    if (turn.alternative) node.append(tag('div', 'artifact', turn.alternative));
+    if (turn.alternative) node.append(tag('div', 'prose', turn.alternative));
   }
 
   if (turn.move === 'request_amendment' && turn.amend) {
     node.append(tag('div', 'panelhead', `it wants ${turn.amend.id} amended — you decide, on the invariants tab`));
-    node.append(tag('div', 'artifact', turn.amend.case));
+    node.append(tag('div', 'prose', turn.amend.case));
   }
 
   if (turn.bearing.length || turn.considered.length) {
@@ -247,7 +247,7 @@ function invariantNode(one, set) {
   head.append(tag('span', 'kind', one.kind));
   head.append(tag('span', 'stepstatus', one.enforcement === 'soft' ? 'unverified' : 'checked'));
   node.append(head);
-  node.append(tag('div', 'artifact', one.text));
+  node.append(tag('div', 'prose', one.text));
   node.append(tag('div', 'stepnote', `why: ${one.why}`));
   if (one.rule) node.append(tag('div', 'detail', `checked as: ${Invariant.clauseOf(one)}`));
   void set;
@@ -263,10 +263,10 @@ function paintInvariants() {
 
   const history = Store.active().history;
   el('history').replaceChildren(...history.map((entry) => {
-    const row = tag('div', 'cell');
+    const row = tag('div', 'row');
     row.append(tag('span', 'stepid', `r${entry.rev}`));
-    row.append(tag('span', 'kind', entry.action));
-    row.append(tag('span', 'marker', entry.by));
+    row.append(tag('span', 'code', entry.action));
+    row.append(tag('span', 'who', entry.by));
     row.append(tag('span', 'detail', [
       entry.id || '',
       entry.why,
@@ -294,7 +294,7 @@ function paintPending(set) {
 
   const body = el('pendingBody');
   const target = Invariant.byId(set, last.amend.id);
-  const node = tag('div', 'artifact', `${last.amend.id} — ${target ? target.text : ''}`);
+  const node = tag('div', 'prose', `${last.amend.id} — ${target ? target.text : ''}`);
   const argument = tag('div', 'stepnote', last.amend.case);
   const row = tag('div', 'buttonrow');
 

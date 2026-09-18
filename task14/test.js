@@ -1213,8 +1213,113 @@ group('the closed set is closed', () => {
     SCRIPTS.every((file) => fs.existsSync(path.join(__dirname, file))), SCRIPTS.join(', '));
 });
 
+/* ----------------------------------------------------- the README answers */
+
+/* Every number in the README is read back out of the code that produced it.
+ * A document that quotes its own program and is never checked against it is a
+ * document that was true once. */
+
+group('the README says what the code does', () => {
+  const readme = fs.readFileSync(path.join(__dirname, 'README.md'), 'utf8');
+  Store.wipe();
+
+  ok('the facet count it gives is the number of facets',
+    readme.includes(`Ten facets`) && Invariant.FACET_NAMES.length === 10);
+  ok('every facet is in its table',
+    Invariant.FACET_NAMES.every((facet) => readme.includes(`\`${facet}\``)),
+    Invariant.FACET_NAMES.filter((f) => !readme.includes(`\`${f}\``)).join(', '));
+  ok('and no facet is in it that the code does not have',
+    [...readme.matchAll(/^\| `([a-z]+)` \| declares/gm)].every((m) => Invariant.FACET_NAMES.includes(m[1])));
+
+  ok('the op count it gives is the number of ops',
+    readme.includes('Four ops') && Invariant.OP_NAMES.length === 4);
+  ok('every op is in its table', Invariant.OP_NAMES.every((op) => readme.includes(`\`${op}\``)));
+  ok('it says all four are exercised by a seeded rule, and they are',
+    readme.includes('every one of the four is exercised by a seeded'));
+
+  ok('it counts eight rejection reasons, and there are eight',
+    readme.includes('Eight ways a reply can be refused') && Protocol.ALL_REASONS.length === 8);
+  ok('every reason is in one of its two tables',
+    Protocol.ALL_REASONS.every((reason) => readme.includes(`\`${reason}\``)),
+    Protocol.ALL_REASONS.filter((r) => !readme.includes(`\`${r}\``)).join(', '));
+
+  ok('the fuzz is the size it says',
+    /80,000\s+random adjudications/.test(readme) && FUZZ_SETS * FUZZ_DECLARATIONS === 80000);
+  ok('the ladder is the size it says',
+    readme.includes('Fifteen cells, forty-five requests')
+      && Pressure.cells().length === 15 && Pressure.requests === 45);
+  ok('five rungs, and every one of them is in the table',
+    Pressure.RUNGS.length === 5
+      && Pressure.RUNGS.every((rung) => readme.includes(`**${rung.label}**`) && readme.includes(rung.note)));
+  ok('three invariants, and it names what each one forbids',
+    Pressure.SUBJECTS.length === 3 && Pressure.SUBJECTS.every((s) => readme.includes(s.id)));
+  ok('the net is the number of signals it says it is',
+    Invariant.SIGNALS.length === 11 && /eleven\s+lexical signals/.test(readme));
+
+  const anatomy = Protocol.anatomy(Store.set('repo'));
+  ok('the token counts it quotes are the ones anatomy() produces',
+    readme.includes(`${anatomy.contract} tokens of contract`)
+      && readme.includes(`plus ${anatomy.invariants} of rules`),
+    `${anatomy.contract} / ${anatomy.invariants}`);
+
+  for (const one of Pressure.proof()) {
+    ok(`the enumerated row for ${one.subject.id} is the one the code counts`,
+      readme.includes(`| ${one.rows.length} | ${one.refused} | ${one.accepted} |`),
+      `${one.rows.length} ${one.refused} ${one.accepted}`);
+  }
+  ok('and it names the declaration that passes INV-4',
+    readme.includes('`payment_settled` passes `INV-4`'));
+
+  ok('the four refusal checks it lists are the four that are computed',
+    Object.keys(Protocol.grade({ say: '', move: 'propose', under: [] }, null))
+      .every((key) => readme.includes(`**${key}**`)));
+
+  ok('every file the layout lists exists',
+    [...readme.matchAll(/^- `([a-z]+\.[a-z]+)`/gm)].map((m) => m[1])
+      .every((file) => fs.existsSync(path.join(__dirname, file))));
+  ok('and every script the page loads is listed',
+    SCRIPTS.every((file) => readme.includes(`\`${file}\``)),
+    SCRIPTS.filter((f) => !readme.includes(`\`${f}\``)).join(', '));
+  ok('the storage keys it names are the storage keys',
+    readme.includes(`\`${Store.INVARIANT_KEY}\``) && readme.includes(`\`${Store.RUN_KEY}\``));
+  ok('it repeats the ceiling in the words the code uses',
+    readme.includes('constrains what is DECLARED, not what is TRUE')
+      && fs.readFileSync(path.join(__dirname, 'invariant.js'), 'utf8')
+        .includes('constrains what is DECLARED, not what is TRUE'));
+});
+
+group('the stylesheet and the markup agree, in both directions', () => {
+  const css = fs.readFileSync(path.join(__dirname, 'styles.css'), 'utf8');
+  const app = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
+
+  const defined = new Set([...css.matchAll(/\.([a-zA-Z][\w-]*)/g)].map((m) => m[1]));
+  const used = new Set();
+  for (const match of html.matchAll(/class="([^"]+)"/g)) {
+    for (const name of match[1].split(/\s+/)) used.add(name);
+  }
+  /* Class names reach the DOM from app.js as plain lowercase string literals —
+   * loose on purpose, because the alternative is a parser, and a parser here
+   * would be a second implementation of the thing being checked. */
+  for (const match of app.matchAll(/'([a-z][a-z -]*)'/g)) {
+    for (const name of match[1].split(/\s+/)) used.add(name);
+  }
+
+  const dead = [...defined].filter((name) => !used.has(name));
+  ok('no selector is styled that the page never uses', dead.length === 0, dead.join(', '));
+  ok('and the stylesheet is not empty of them either', defined.size > 30, String(defined.size));
+});
+
 (async () => {
-  for (const run of queue) await run();
+  for (const runGroup of queue) await runGroup();
+
+  console.log('\nthe README counts the checks correctly');
+  const readme = fs.readFileSync(path.join(__dirname, 'README.md'), 'utf8');
+  const claimed = [...readme.matchAll(/(\d[\d,]*) checks/g)].map((m) => Number(m[1].replace(/,/g, '')));
+  const total = checks + 1;
+  ok('every count the README gives is the count this file runs',
+    claimed.length >= 1 && claimed.every((n) => n === total),
+    `README says ${claimed.join(', ')}; there are ${total}`);
+
   console.log(`\n${checks - failures}/${checks} checks passed`);
   if (failures) process.exit(1);
 })();
