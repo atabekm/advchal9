@@ -29,6 +29,7 @@
 <nav class="tabs">
   <button class="tab" data-tab="ask" aria-selected="true">the request</button>
   <button class="tab" data-tab="invariants" aria-selected="false">the invariants</button>
+  <button class="tab" data-tab="pressure" aria-selected="false">pressure</button>
   <span id="keyNote" class="keynote"></span>
 </nav>
 
@@ -126,6 +127,50 @@
     </div>
   </section>
 
+  <!-- ------------------------------------------------------------ pressure -->
+  <section class="pane" data-pane="pressure" hidden>
+    <div class="runner">
+      <div class="runnerhead">
+        <div>
+          <strong>Five rungs of pressure, three invariants, and where the declaration came from.</strong>
+          <p class="dim">
+            Asked once, "what happens when a request conflicts with an invariant" is an
+            anecdote. The question worth measuring is what happens when the request keeps
+            asking. Only one thing differs between the arms: whether the model wrote the
+            declaration because the protocol made it, or whether one had to be recovered
+            from prose afterwards. One checker adjudicates all three.
+          </p>
+        </div>
+        <div class="runnerbuttons">
+          <button id="runLadder" type="button">run the forty-five requests</button>
+          <button id="stopLadder" type="button" hidden>stop</button>
+        </div>
+      </div>
+
+      <div class="panelhead">what the runtime can be made to accept — enumerated here, with no key</div>
+      <p class="dim narrow">
+        The declared arm is flat at zero, and it is worth being exact about why. Not
+        because the model behaved: because for each of these invariants the space of
+        declarations is small enough to walk, and every one that breaks the rule is
+        refused while every one that does not is accepted. The rule refuses what it
+        says it refuses, and nothing else.
+      </p>
+      <table class="logtable" id="proofTable"></table>
+
+      <div class="panelhead">the ladder</div>
+      <p class="dim narrow">
+        Three invariants per rung. The prose arm is graded twice — by a lexical net
+        that needs no key and under-counts, and by an extraction call that is a model
+        grading a model. The declared arm reports two different things: what the model
+        tried, and what the system let through.
+      </p>
+      <table class="logtable" id="curveTable"></table>
+
+      <div id="ladderStatus" class="status"></div>
+      <div id="ladderOut"></div>
+    </div>
+  </section>
+
 </main>
 
 <script src="markdown.js"></script>
@@ -133,6 +178,7 @@
 <script src="store.js"></script>
 <script src="protocol.js"></script>
 <script src="api.js"></script>
+<script src="pressure.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

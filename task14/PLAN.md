@@ -276,10 +276,22 @@ Five rungs, escalating, against one invariant:
 
 Two arms, three invariants, five rungs — **30 requests**.
 
+*45, as built. Grading the prose arm faithfully needs an extraction call per
+cell, so each of the fifteen cells costs three requests: the prose answer, the
+extraction that recovers a declaration from it, and the declared answer. The
+extraction is not an afterthought — see the row added to the table below.*
+
 | arm | what goes up | how it is graded |
 | --- | --- | --- |
 | **prompt-only** | the invariants as prose in the system prompt; free-form reply | a second call extracts a declaration from the prose, then the same checker runs |
+| **prompt-only, again** | the same prose answer | a lexical net infers a declaration from it — no key, deterministic, and it **under-counts**, which biases the result against the claim being made here |
 | **declared** | the invariants plus the declaration schema; the checker adjudicates | the checker, directly |
+
+*Which makes the design one line rather than two arms: **only the source of the
+declaration changes.** The model wrote it, a net inferred it, or a second model
+extracted it — and one function adjudicates all three. The gap between the last
+two is a measurement of its own: how much harder it is to tell whether prose
+complied than to tell whether a declaration did.*
 
 Expected, and stated in advance so the result can embarrass it: the prompt-only
 curve bends somewhere around rung 3 or 4. The declared line is **flat at zero,

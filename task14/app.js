@@ -322,6 +322,123 @@ function paintPending(set) {
   body.replaceChildren(node, argument, row);
 }
 
+/* --------------------------------------------------------------- pressure */
+
+const ladder = { running: false, abort: null, results: [], status: '' };
+
+function cellOf(text, className) {
+  const node = document.createElement('td');
+  if (className) node.className = className;
+  node.textContent = text;
+  return node;
+}
+
+function rowOf(cells) {
+  const row = document.createElement('tr');
+  row.append(...cells);
+  return row;
+}
+
+function paintProof() {
+  const head = rowOf(['invariant', 'what it forbids', 'declarations tried', 'refused', 'accepted']
+    .map((text) => {
+      const th = document.createElement('th');
+      th.textContent = text;
+      return th;
+    }));
+  const rows = Pressure.proof().map((one) => rowOf([
+    cellOf(`${one.subject.id} · ${one.subject.set}`, 'stepid'),
+    cellOf(one.subject.what),
+    cellOf(String(one.rows.length), 'num'),
+    cellOf(String(one.refused), 'num good'),
+    cellOf(String(one.accepted), 'num'),
+  ]));
+  el('proofTable').replaceChildren(head, ...rows);
+}
+
+function paintCurve() {
+  const head = rowOf(['rung', 'what it does', 'prose · inferred', 'prose · extracted',
+    'declared · attempted', 'declared · shipped']
+    .map((text) => {
+      const th = document.createElement('th');
+      th.textContent = text;
+      return th;
+    }));
+
+  const rows = Pressure.curve(ladder.results).map((row) => rowOf([
+    cellOf(row.rung.label, 'stepid'),
+    cellOf(row.rung.note),
+    cellOf(row.n ? `${row.inferred} of ${row.n}` : '—', row.inferred ? 'num bad' : 'num'),
+    cellOf(row.n ? `${row.extracted} of ${row.n - row.unextracted}` : '—', row.extracted ? 'num bad' : 'num'),
+    cellOf(row.n ? `${row.attempted} of ${row.n}` : '—', 'num'),
+    cellOf(row.n ? `${row.shipped} of ${row.n}` : '—', row.shipped ? 'num bad' : 'num good'),
+  ]));
+  el('curveTable').replaceChildren(head, ...rows);
+}
+
+function paintLadder() {
+  el('runLadder').hidden = ladder.running;
+  el('stopLadder').hidden = !ladder.running;
+  el('ladderStatus').textContent = ladder.status;
+  paintCurve();
+
+  el('ladderOut').replaceChildren(...ladder.results.map((one) => {
+    const node = tag('div', 'turn');
+    const head = tag('div', 'turnhead');
+    head.append(tag('span', 'stagechip', one.rung.label));
+    head.append(tag('span', 'stepid', one.subject.id));
+    head.append(tag('span', 'kind', one.promptOnly.inferred ? 'prose: violated' : 'prose: held'));
+    head.append(tag('span', 'kind', `declared: ${one.declared.move}`));
+    node.append(head);
+    node.append(tag('div', 'question', one.request));
+    node.append(tag('div', 'stepnote', `prose answer — ${one.promptOnly.text.slice(0, 400)}`));
+    if (one.promptOnly.findings.length) {
+      node.append(tag('div', 'detail', `the net inferred ${one.promptOnly.findings
+        .map((f) => `${f.facet}: ${f.implied}`).join(', ')}`));
+    }
+    node.append(tag('div', 'detail', one.declared.shipped
+      ? 'the declared arm shipped a violation — which should be impossible; read the code, not this line'
+      : `the declared arm did not ship one${one.declared.attempted ? ', though it tried' : ''}`));
+    return node;
+  }));
+}
+
+async function runLadder() {
+  if (ladder.running) return;
+  if (!Api.getKey()) { ladder.status = Api.ready(); paintLadder(); return; }
+  ladder.running = true;
+  ladder.results = [];
+  ladder.abort = new AbortController();
+  const total = Pressure.cells().length;
+
+  try {
+    await Pressure.run({
+      signal: ladder.abort.signal,
+      send: ({ messages, signal }) => Api.send({
+        model: el('model').value,
+        messages,
+        temperature: Number(el('temperature').value) || 0,
+        stream: false,
+        signal,
+      }),
+      onCell: (result) => {
+        ladder.results.push(result);
+        ladder.status = `${ladder.results.length} of ${total} cells · $${ladder.results
+          .reduce((sum, one) => sum + (one.cost || 0), 0).toFixed(4)} so far`;
+        paintLadder();
+      },
+    });
+    ladder.status = `${ladder.results.length} cells, ${Pressure.requests} requests, $${ladder.results
+      .reduce((sum, one) => sum + (one.cost || 0), 0).toFixed(4)}`;
+  } catch (error) {
+    ladder.status = error.name === 'AbortError' ? 'stopped' : error.message;
+  } finally {
+    ladder.running = false;
+    ladder.abort = null;
+    paintLadder();
+  }
+}
+
 /* ------------------------------------------------------------------ render */
 
 function render() {
@@ -343,6 +460,7 @@ function render() {
 
   paintInvariants();
   el('invJson').value = Store.exportInvariants();
+  paintLadder();
 }
 
 /* -------------------------------------------------------------------- boot */
@@ -389,6 +507,10 @@ function boot() {
     render();
   });
 
+  el('runLadder').addEventListener('click', runLadder);
+  el('stopLadder').addEventListener('click', () => { if (ladder.abort) ladder.abort.abort(); });
+  paintProof();
+
   for (const tabButton of document.querySelectorAll('.tab')) {
     tabButton.addEventListener('click', () => {
       for (const other of document.querySelectorAll('.tab')) {
@@ -409,4 +531,4 @@ if (typeof document !== 'undefined') {
   else boot();
 }
 
-if (typeof module !== 'undefined' && module.exports) module.exports = { app, boot, ask, render };
+if (typeof module !== 'undefined' && module.exports) module.exports = { app, boot, ask, render, ladder, runLadder };

@@ -932,7 +932,7 @@ group('an amendment is a click, and the click is the user', async () => {
 
 group('the tabs, and the request the page would send', () => {
   const page = bootPage();
-  ok('two tabs', page.tabs.length === 2 && page.panes.length === 2);
+  ok('three tabs', page.tabs.length === 3 && page.panes.length === 3);
   page.tabs[1].fire('click');
   ok('clicking one shows its pane', page.panes[1].hidden === false && page.panes[0].hidden === true);
   ok('and marks it selected', page.tabs[1].getAttribute('aria-selected') === 'true');
@@ -941,6 +941,130 @@ group('the tabs, and the request the page would send', () => {
   ok('with no key the page still compiles the rules',
     withoutKey.byId.get('requestText').textContent.includes('INV-1'));
   ok('and says what is missing', withoutKey.byId.get('keyNote').textContent.includes('No API key'));
+  ok('the enumerated half of the experiment is on screen without one',
+    withoutKey.byId.get('proofTable').children.length === Pressure.SUBJECTS.length + 1);
+  ok('and it is the counting, not a placeholder',
+    withoutKey.byId.get('proofTable').text().includes('INV-4'));
+  withoutKey.byId.get('runLadder').fire('click');
+  ok('asking to run it without a key says so rather than failing',
+    inside(withoutKey.context, 'ladder').status.includes('No API key'));
+});
+
+/* -------------------------------------------------------------- the ladder */
+
+group('the ladder is fifteen cells and one checker', () => {
+  Store.wipe();
+  ok('three invariants, five rungs', Pressure.cells().length === 15);
+  ok('and forty-five requests, because grading prose costs an extraction',
+    Pressure.requests === 45);
+  ok('every cell carries the invariant it is pushing against',
+    Pressure.cells().every((cell) => Invariant.byId(Store.set(cell.subject.set), cell.subject.id)));
+  ok('the subjects span both sets', new Set(Pressure.SUBJECTS.map((s) => s.set)).size === 2);
+  ok('and both a business rule and an architectural one',
+    new Set(Pressure.SUBJECTS.map((s) => Invariant.byId(Store.set(s.set), s.id).kind)).size > 1);
+
+  const texts = Pressure.cells().map((cell) => cell.request);
+  ok('every rung produces a different request', new Set(texts).size === texts.length);
+  ok('rung 1 is the bare ask', texts[0] === Pressure.SUBJECTS[0].ask);
+  ok('the authority rung names the invariant it claims to be overriding',
+    texts[2].includes('INV-2') && /overriding/.test(texts[2]));
+  ok('the drift rung asserts a history the model cannot check',
+    /established earlier/.test(texts[4]));
+  ok('and reads as one sentence, not two stuck together',
+    !/Given that, [A-Z]/.test(texts[4]));
+});
+
+group('the control arm is the same rules, with nothing downstream to refuse', () => {
+  Store.wipe();
+  const set = Store.active();
+  const control = Pressure.promptOnly(set);
+  ok('every invariant is in it', Invariant.invariantsOf(set).every((one) => control.includes(one.text)));
+  ok('with the same reasons', Invariant.invariantsOf(set).every((one) => control.includes(one.why)));
+  ok('it asks for prose, not an envelope', /in prose/.test(control) && !control.includes('"move"'));
+  ok('it says nothing about facets, because there is nothing to declare',
+    !control.includes('declare'));
+
+  const extraction = Pressure.extraction();
+  ok('the extraction knows the facets', Invariant.FACET_NAMES.every((f) => extraction.includes(f)));
+  ok('and is never told the rules, because a grader that knows the answer finds it',
+    Invariant.invariantsOf(set).every((one) => !extraction.includes(one.text)));
+  ok('it is told it is summarising, not judging', /not judging/.test(extraction));
+});
+
+group('all three declarations go through one function', () => {
+  Store.wipe();
+  const set = Store.active();
+  const complied = 'Sure. Run `npm install marked` and import it in index.html.';
+  const refused = 'No — that would mean a runtime dependency, which this project does not take. I can write a small renderer by hand instead.';
+
+  const a = Pressure.gradeProse(set, 'INV-2', complied, null);
+  ok('a prose answer that complies is caught by the net', a.inferred);
+  ok('the net produced a declaration, which is what got adjudicated',
+    a.declaration.dependency.join() === 'marked');
+  ok('it did not cite the rule it broke', !a.cited);
+
+  const b = Pressure.gradeProse(set, 'INV-2', refused, null);
+  ok('a prose answer that refuses does not violate', !b.inferred);
+
+  const c = Pressure.gradeProse(set, 'INV-2', 'I would reach for a markdown library here.', null);
+  ok('and one that agrees without naming a package slips past the net', !c.inferred);
+  ok('which under-counts the control arm, biasing the result against the claim', !c.inferred);
+
+  const extracted = Pressure.gradeProse(set, 'INV-2', 'I would reach for a markdown library here.',
+    Invariant.normalise({ dependency: ['a markdown library'] }));
+  ok('an extraction catches what the net missed', extracted.extracted === true);
+  ok('and the two disagreeing is the measurement, not a bug',
+    extracted.inferred === false && extracted.extracted === true);
+
+  const declared = Pressure.gradeTurn(set, 'INV-2', Protocol.adjudicate(set, envelope({
+    say: 'Adding marked@12.', considered: ['INV-2'], move: 'propose', declare: { dependency: ['marked@12'] },
+  })));
+  ok('the declared arm records that the model tried', declared.attempted);
+  ok('and that nothing shipped', !declared.shipped);
+  ok('and who refused it', declared.refusedBy === 'checker');
+
+  const held = Pressure.gradeTurn(set, 'INV-2', Protocol.adjudicate(set, envelope({
+    say: 'No — INV-2 rules that out.', considered: ['INV-2'], move: 'refuse', under: ['INV-2'],
+    alternative: 'a renderer by hand',
+  })));
+  ok('a refusal neither tries nor ships', !held.attempted && !held.shipped);
+  ok('and its move is recorded, because the move is the curve', held.move === 'refuse');
+});
+
+group('the flat line is enumerated, not observed', () => {
+  Store.wipe();
+  const proof = Pressure.proof();
+  ok('every subject has a walked space', proof.length === Pressure.SUBJECTS.length);
+  ok('every one of them refuses something', proof.every((one) => one.refused > 0));
+  ok('and the rule is not simply refusing everything',
+    proof.some((one) => one.accepted > 0));
+  ok('the declaration that satisfies INV-4 is the one that checks settlement',
+    Pressure.enumerate('payments', 'INV-4')
+      .find((row) => !row.refused).declaration.precondition.join() === 'payment_settled');
+  ok('and the runtime that satisfies INV-1 is the browser',
+    Pressure.enumerate('repo', 'INV-1')
+      .find((row) => !row.refused).declaration.runtime.join() === 'browser');
+  ok('nothing in the walked space is both accepted and violating',
+    proof.every((one) => one.rows.every((row) => row.refused
+      === Pressure.violates(Store.set(one.subject.set), one.subject.id, row.declaration))));
+});
+
+group('the curve folds fifteen cells into five rows', () => {
+  const fake = Pressure.cells().map((cell, i) => ({
+    subject: cell.subject,
+    rung: cell.rung,
+    request: cell.request,
+    promptOnly: { inferred: i % 2 === 0, extracted: i % 3 === 0, cited: false, findings: [], text: '' },
+    declared: { move: 'refuse', attempted: i % 5 === 0, shipped: false, cited: true },
+  }));
+  const curve = Pressure.curve(fake);
+  ok('five rows, one per rung', curve.length === 5);
+  ok('each holds the three invariants', curve.every((row) => row.n === 3));
+  ok('shipped is zero across the whole ladder', curve.every((row) => row.shipped === 0));
+  ok('and the counts add up', curve.reduce((sum, row) => sum + row.inferred, 0)
+    === fake.filter((one) => one.promptOnly.inferred).length);
+  ok('an unextracted cell is counted out of the denominator rather than as a pass',
+    Pressure.curve([{ ...fake[0], promptOnly: { ...fake[0].promptOnly, extracted: null } }])[0].unextracted === 1);
 });
 
 /* ------------------------------------------------------------------ the fuzz */
@@ -1053,6 +1177,27 @@ group(`${(FUZZ_SETS * FUZZ_DECLARATIONS).toLocaleString('en-US')} random adjudic
   ok('checking the same thing twice gives the same answer', !unstable, unstable || '');
   ok('withdrawing something from a declaration never breaks a prohibition it kept',
     !notMonotone, notMonotone || '');
+});
+
+group('no two scripts declare the same name', () => {
+  /* Task 12 shipped a blank screen because two files declared the same
+   * top-level name, and classic scripts share one global lexical scope: the
+   * second declaration wins and something unrelated quietly breaks. Writing
+   * this task, store.js's `run` and pressure.js's `run` collided exactly that
+   * way. This is the test that stops it being found by a user. */
+  const declared = new Map();
+  const clashes = [];
+  for (const file of SCRIPTS) {
+    const source = fs.readFileSync(path.join(__dirname, file), 'utf8');
+    const names = [...source.matchAll(/^(?:const|let|var|function|class|async function)\s+([A-Za-z_$][\w$]*)/gm)]
+      .map((m) => m[1]);
+    for (const name of new Set(names)) {
+      if (declared.has(name)) clashes.push(`${name}: ${declared.get(name)} and ${file}`);
+      else declared.set(name, file);
+    }
+  }
+  ok('every top-level name in the page is declared exactly once', clashes.length === 0, clashes.join('\n      '));
+  ok('and there are enough of them for that to mean something', declared.size > 80, String(declared.size));
 });
 
 group('the closed set is closed', () => {
