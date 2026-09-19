@@ -9,7 +9,7 @@ const path = require('path');
 const htmlPath = path.join(__dirname, 'index.html');
 const SCRIPTS = fs.existsSync(htmlPath)
   ? [...fs.readFileSync(htmlPath, 'utf8').matchAll(/<script src="([^"]+)"><\/script>/g)].map((m) => m[1])
-  : ['lifecycle.js'];
+  : ['lifecycle.js', 'protocol.js'];
 
 for (const file of SCRIPTS.filter((name) => name !== 'app.js')) {
   vm.runInThisContext(fs.readFileSync(path.join(__dirname, file), 'utf8'), { filename: file });
@@ -574,6 +574,141 @@ group('80,000 random moves break nothing', () => {
   ok('no invariant was ever broken', broke.length === 0, broke.slice(0, 3).join(' | '));
   ok('every refusal came from the closed set', badReason.length === 0, [...new Set(badReason)].join(', '));
   ok('and the walk actually went somewhere', moved.length > 1000, `${moved.length} moves landed`);
+});
+
+/* ------------------------------------------------------------- the protocol */
+
+group('the request is the state, and nothing else', () => {
+  const state = atFailedValidation();
+  const once = Protocol.compile(state);
+  const twice = Protocol.compile(JSON.parse(JSON.stringify(state)));
+  ok('the same state compiles to the same bytes', once.text === twice.text);
+  ok('and to the same fingerprint',
+    Protocol.fingerprint(once.text) === Protocol.fingerprint(twice.text));
+
+  // Task 13's claim, carried: there is no second compile() for resuming, so a
+  // pause cannot be a special path written to pass.
+  const paused = drive([{ type: 'action', actor: 'user', kind: 'pause' }], state);
+  const resumed = drive([{ type: 'action', actor: 'user', kind: 'resume' }], paused);
+  ok('the request after a pause is the request before it',
+    Protocol.compile(resumed).text === once.text);
+  ok('and the word pause appears nowhere in it', !/pause/i.test(once.text));
+
+  // The static half is identical on every request of every run, which is
+  // exactly what a prompt cache is for.
+  ok('the rules are identical whatever the state',
+    Protocol.compile(drive([START])).system === once.system);
+  ok('and they are the bigger half of an early request',
+    Protocol.compile(drive([START])).rulesTokens > Protocol.compile(drive([START])).stateTokens);
+  ok('the state block costs something worth printing', once.stateTokens > 100);
+});
+
+group('the graph is in the prompt, not described to it', () => {
+  const rules = Protocol.RULES;
+  ok('the diagram is in the rules', rules.includes(Protocol.DIAGRAM));
+  ok('every trigger is named in the rules the model is given',
+    Lifecycle.TRIGGERS.every((t) => rules.includes(t)));
+  ok('and every state', Lifecycle.STATES.every((s) => rules.includes(s)));
+  ok('the rules say a skip may be asked for', /may ask for any transition/i.test(rules));
+  ok('the rules say asking is not a way through', /not a way through/i.test(rules));
+  ok('the rules say an action never changes the state', /never changes the state/i.test(rules));
+
+  const planning = drive([START]);
+  const block = Protocol.compile(planning).user;
+  ok('the edges out of the current state are printed', block.includes('THE EDGES OUT OF PLANNING'));
+  ok('the shut guard is named', block.includes('a plan exists'));
+  ok('and so is its remedy', block.includes('the assistant proposes steps'));
+  ok('and who owns it', /yours to open/.test(block));
+
+  const mine = drive([START, PLAN]);
+  ok('an edge the model cannot take says so',
+    /approve_plan.*the person's/.test(Protocol.compile(mine).user));
+
+  const stale = drive([
+    { type: 'transition', actor: 'user', trigger: 'rework', step: 's3', reason: 'returns None' },
+    ...work('s3'), SUBMIT,
+  ], atFailedValidation());
+  const staleBlock = Protocol.compile(stale).user;
+  ok('a stale validation says STALE in the state block', staleBlock.includes('STALE'));
+  ok('and counts the changes since', /change\(s\) to the work since/.test(staleBlock));
+  ok('and the round trips are printed', /round trip\(s\)/.test(staleBlock));
+  ok('a fresh one does not say STALE', !Protocol.compile(atCleanValidation()).user.includes('STALE'));
+});
+
+group('the refusal reads the same to both parties', () => {
+  const planning = drive([START, PLAN]);
+  const jump = Lifecycle.step(planning, { type: 'transition', actor: 'user', to: 'done' });
+  const toModel = Protocol.explain(jump.rejection, 'model');
+  const toUser = Protocol.explain(jump.rejection, 'user');
+
+  ok('the reason is printed', toModel.includes('no-edge'));
+  ok('the detail is printed', toModel.includes('nothing goes from planning to done'));
+  ok('the route is printed', toModel.includes('the legal route is 3 moves'));
+  ok('every leg is named',
+    ['approve_plan', 'submit', 'accept'].every((t) => toModel.includes(t)));
+  ok('the limit is stated in the refusal itself, not only in the README',
+    toModel.includes('only the first of those was checked'));
+
+  ok('the two audiences differ only in who "yours" is',
+    toModel !== toUser
+    && toModel.replace(/yours|the person's|the assistant's/g, '_')
+      === toUser.replace(/yours|the person's|the assistant's/g, '_'));
+
+  const shut = Lifecycle.step(drive([START]), { type: 'transition', actor: 'user', trigger: 'approve_plan' });
+  const said = Protocol.explain(shut.rejection, 'user');
+  ok('a shut guard prints its label', said.includes('a plan exists'));
+  ok('its owner', said.includes("the assistant's to open"));
+  ok('and its remedy', said.includes('the assistant proposes steps'));
+
+  ok('no refusal renders as an empty string',
+    Lifecycle.REJECTION_REASONS.length > 0 && Protocol.explain(null) === '');
+});
+
+group('the nudge is the refusal, put in front of the model', () => {
+  const state = drive([START, PLAN, APPROVE]);
+  const clean = Protocol.compile(state);
+  const rejection = Lifecycle.step(state, {
+    type: 'action', actor: 'model', kind: 'complete_step', step: 's1',
+  }).rejection;
+  const nudged = Protocol.compile(state, { rejection });
+
+  ok('a clean request carries no nudge', !clean.user.includes('REFUSED'));
+  ok('a nudged one does', nudged.user.includes('YOUR LAST MOVE WAS REFUSED'));
+  ok('and names the reason', nudged.user.includes('missing-artifact'));
+  ok('and says it is the last attempt', /second and last attempt/.test(nudged.user));
+  ok('the nudge is the only difference',
+    nudged.user.startsWith(clean.user.trimEnd().slice(0, 200)));
+});
+
+group('the envelope is carved, and the actor is stamped', () => {
+  const plain = Protocol.parse('{"say":"here","move":{"type":"transition","trigger":"submit"}}');
+  ok('a bare object parses', plain.ok && plain.move.trigger === 'submit');
+  ok('the say comes through', plain.say === 'here');
+
+  const fenced = Protocol.parse('Sure!\n```json\n{"say":"x","move":{"kind":"validate","verdicts":[]}}\n```\nHope that helps.');
+  ok('a fenced object with prose around it parses', fenced.ok);
+  ok('and a missing type is inferred from the shape', fenced.move.type === 'action');
+
+  const toState = Protocol.parse('{"say":"x","move":{"to":"done"}}');
+  ok('naming a destination alone is a transition', toState.ok && toState.move.type === 'transition');
+
+  ok('an empty transition is refused',
+    !Protocol.parse('{"say":"x","move":{"type":"transition"}}').ok);
+  ok('an action with no kind is refused',
+    !Protocol.parse('{"say":"x","move":{"type":"action"}}').ok);
+  ok('a move that is neither is refused',
+    !Protocol.parse('{"say":"x","move":{"wish":"done"}}').ok);
+  ok('no JSON at all is refused', !Protocol.parse('I have finished the task.').ok);
+  ok('broken JSON is refused', !Protocol.parse('{"say":"x","move":{').ok);
+  ok('an array is refused', !Protocol.parse('[1,2,3]').ok);
+  ok('every parse failure is malformed',
+    ['x', '{}', '[1]', '{"move":1}'].every((r) => Protocol.parse(r).reason === 'malformed'));
+
+  // The one thing the model is not allowed to say about itself.
+  const forged = Protocol.parse('{"say":"x","move":{"type":"transition","trigger":"accept","actor":"user"}}');
+  ok('a model claiming to be the person is overruled', forged.move.actor === 'model');
+  ok('and the runtime then refuses the move on ownership',
+    refuse(atCleanValidation(), forged.move).rejection.reason === 'wrong-actor');
 });
 
 /* -------------------------------------------------------------- the closed set */

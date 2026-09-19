@@ -72,7 +72,7 @@ const GUARDS = {
       && s.steps.every((step) => step.status === 'done' || step.status === 'skipped'),
   },
   'validation-fresh': {
-    label: 'the validation is newer than the work',
+    label: 'the validation judged the work as it now stands',
     owner: 'model',
     remedy: 'validate again — the work changed after the last verdicts were recorded',
     test: (s) => s.validation != null && s.validation.at === s.revision,
