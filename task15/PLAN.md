@@ -65,7 +65,7 @@ Six edges, and they are a value in a file rather than a shape in a reducer.
 | `open` | `null` | `planning` | `start` | user | `goal-stated` |
 | `build` | `planning` | `execution` | `approve_plan` | **user** | `plan-proposed`, `criteria-fixed` |
 | `submit` | `execution` | `validation` | `submit` | model | `every-step-closed` |
-| `rework` | `validation` | `execution` | `rework` | **user** | `validation-fresh`, `some-criterion-unmet` |
+| `rework` | `validation` | `execution` | `rework` | **user** | `validation-fresh` |
 | `finish` | `validation` | `done` | `accept` | **user** | `validation-fresh`, `every-criterion-met` |
 | `abandon` | `validation` | `done` | `abandon` | **user** | `reason-given` |
 
@@ -115,14 +115,22 @@ assembled from it rather than composed by a model.
 | `every-step-closed` | no step is `pending` or `active` | model |
 | `validation-fresh` | `validation.at === revision` | model |
 | `every-criterion-met` | no verdict is `unmet` | model, by doing the work |
-| `some-criterion-unmet` | at least one verdict is `unmet` | — |
 
-Six guards, and every one of them is a predicate over the **state alone**.
+Five guards, and every one of them is a predicate over the **state alone**.
 Whether a move carries the fields it needs — a goal on `start`, a reason on
 `abandon`, a step on `rework` — is a different question with a different answer,
 and it refuses as `malformed` rather than `guard-unmet`. Keeping the two apart
 is what lets `offers()` evaluate every guard honestly without inventing a move
 to test them against.
+
+`rework` carried a sixth guard for a while — *something came back unmet* — and
+it was wrong twice. It is not the runtime's business to tell the person that
+work which technically passed is good enough. And with it in place,
+`validation-fresh` could never be the sole reason for a refusal: the only road
+back out of validation needed a failed criterion, so every state reached through
+it already failed `every-criterion-met`, and freshness never had to decide
+anything. A guard that can never be the reason is decoration. What caught it was
+driving the page.
 
 `owner` is the field that makes a refusal actionable. "You cannot go there" is a
 wall; "you cannot go there, `every-step-closed` is shut, and it is yours to
@@ -152,6 +160,7 @@ Actions, by the state they belong to:
 | `validate` | `validation` | model | `verdicts[]` with evidence |
 | `ask_user` | any working state | model | `question` |
 | `answer` | any working state | user | `text` |
+| `remark` | any working state | user | `text` — whatever the person just said |
 | `pause` / `resume` | any working state | user | — |
 
 One consequence of the split, and it is the visible difference from task 13:
@@ -159,6 +168,12 @@ closing the last step no longer lands you in validation. Task 13 advanced by
 itself; here `submit` is an edge somebody has to take, and until they do, the
 machine sits in `execution` with nothing left open. That is what it means for a
 transition to be explicit.
+
+`remark` is the one that is not in the brief and is needed anyway: the person
+leaning on the assistant to skip ahead has to be sayable on the page, or the
+thing this task exists to watch can only ever happen in a scripted experiment.
+It changes no work, moves no counter, and only the most recent one survives —
+the scrollback is not the state.
 
 `revision` is a counter, not a clock. Every action that changes the work
 increments it; `validate` records `validation = { at: revision, verdicts }`.
@@ -269,11 +284,16 @@ deliberate failure, because a passing run never reaches either new idea:
 | 1 | ask for `done` from `planning` | `no-edge`, and a three-move route back |
 | 2 | ask for `execution` before approving | `wrong-actor` — approval is the user's edge |
 | 3 | approve → work the three steps → `submit` | the ordinary path |
-| 4 | `validate` | the third criterion comes back `unmet` |
-| 5 | the person sends s3 back | the back edge, which task 13 did not have |
-| 6 | fix the step | `revision` moves; `validation.at` does not |
-| 7 | ask for `done` | `guard-unmet: validation-fresh` — **the stale verdict** |
-| 8 | `validate` again → `finish` | the door opens |
+| 4 | `validate` | every criterion comes back **met**, and `accept` opens |
+| 5 | the person sends s2 back anyway | the back edge, on work that passed |
+| 6 | the assistant redoes it and resubmits | `revision` moves; `validation.at` does not |
+| 7 | ask for `done` | every criterion still reads met, and `accept` is shut on `validation-fresh` **alone** — the stale verdict |
+| 8 | `validate` again → `accept` | the door opens |
+
+Sending back work that passed is what makes step 7 the thing it needs to be. The
+failure path — a criterion comes back unmet, the step goes back, the fix lands —
+is in the tests, but it proves less, because there `every-criterion-met` is shut
+too and freshness is not carrying the refusal on its own.
 
 Pause at step 6, reload the browser, carry on.
 

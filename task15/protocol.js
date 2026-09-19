@@ -170,6 +170,19 @@ function renderFreshness(state) {
   ];
 }
 
+function renderRemark(state) {
+  if (!state.remark) return [];
+  return [
+    'WHAT THE PERSON JUST SAID',
+    `  ${state.remark.text}`,
+    state.remark.heard
+      ? '  (you have already moved since)'
+      : '  Answer it with a move. If what is being asked for is not a legal move, the',
+    ...(state.remark.heard ? [] : ['  runtime will refuse it whatever you say, so say so and make a legal one.']),
+    '',
+  ];
+}
+
 function renderStanding(state) {
   const lines = ['WHERE THINGS STAND'];
   const open = Lifecycle.openSteps(state).length;
@@ -244,7 +257,7 @@ function renderSlot(state) {
  * reading the nudge are shown the same refusal, assembled from the same
  * record — because a refusal the model is shown privately and the person is
  * not is a refusal nobody can check. */
-function explain(rejection, audience = 'model') {
+function sayRefusal(rejection, audience = 'model') {
   if (!rejection) return '';
   const lines = [
     `REFUSED — ${rejection.reason}`,
@@ -285,12 +298,41 @@ function explain(rejection, audience = 'model') {
   return lines.join('\n');
 }
 
+/* The route explorer's answer, and the refusal's, are the same text — which is
+ * the point. Asking "where can it get to" and being told "you cannot go there"
+ * are the same question with the same answer, and if the page rendered them
+ * two different ways one of them would be a story. */
+function renderRoute(state, target, audience = 'model') {
+  const found = Lifecycle.route(state, target);
+  const here = state.state === null ? 'the start' : state.state;
+  if (!found.ok) {
+    return found.reason === 'no-such-state'
+      ? `"${target}" is not a state. The states are ${Lifecycle.STATES.join(', ')}.`
+      : `There is no route from ${here} to ${target}. Not a shut door — no door.`;
+  }
+  if (!found.path.length) return `The machine is already in ${target}.`;
+  const lines = [`From ${here} to ${target} is ${found.path.length} move${found.path.length === 1 ? '' : 's'}:`, ''];
+  found.path.forEach((leg, i) => {
+    lines.push(`  ${i + 1}. ${leg.edge.trigger.padEnd(14)}${leg.edge.from} → ${leg.edge.to}   ${who(leg.actor, audience)}`);
+    for (const guard of leg.guards) {
+      const mark = guard.holds === null ? '·' : (guard.holds ? '✓' : '✗');
+      lines.push(`     ${mark} ${guard.label}`);
+      if (guard.holds === false) lines.push(`       ${guard.remedy}`);
+    }
+  });
+  lines.push('');
+  lines.push('  ✓ and ✗ were checked against the state as it is now, and only the first');
+  lines.push('  move could be. The rest are marked · — requirements, not promises,');
+  lines.push('  because the state they would be judged against does not exist yet.');
+  return lines.join('\n');
+}
+
 function nudge(rejection) {
   if (!rejection) return [];
   return [
     '',
     'YOUR LAST MOVE WAS REFUSED',
-    ...explain(rejection, 'model').split('\n').map((line) => `  ${line}`),
+    ...sayRefusal(rejection, 'model').split('\n').map((line) => `  ${line}`),
     '',
     '  Read the state above again and make one move the runtime accepts.',
     '  This is your second and last attempt this turn.',
@@ -305,6 +347,7 @@ function compile(state, { rejection = null } = {}) {
     'THE GOAL',
     `  ${state.goal || '(nothing has been asked yet)'}`,
     '',
+    ...renderRemark(state),
     ...renderDecisions(state),
     ...renderSteps(state),
     '',
@@ -434,7 +477,8 @@ const Protocol = {
   messages,
   parse,
   carve,
-  explain,
+  explain: sayRefusal,
+  renderRoute,
   fingerprint,
   renderEdges: (state, audience) => renderEdges(state, audience).join('\n'),
   nudge: (rejection) => nudge(rejection).join('\n'),

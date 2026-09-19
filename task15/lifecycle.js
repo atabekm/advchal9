@@ -83,12 +83,6 @@ const GUARDS = {
     remedy: 'send the work back and fix what failed, or abandon the task',
     test: (s) => s.acceptance.length > 0 && s.acceptance.every((a) => a.verdict === 'met'),
   },
-  'some-criterion-unmet': {
-    label: 'something came back unmet',
-    owner: null,
-    remedy: 'there is nothing to send back — every criterion was met',
-    test: (s) => s.acceptance.some((a) => a.verdict === 'unmet'),
-  },
 };
 
 const GUARD_IDS = Object.keys(GUARDS);
@@ -144,8 +138,16 @@ const TRANSITIONS = [
     to: 'execution',
     trigger: 'rework',
     actor: 'user',
-    guards: ['validation-fresh', 'some-criterion-unmet'],
-    note: 'a failed criterion sends one step back to be done again',
+    guards: ['validation-fresh'],
+    /* This edge asked for a second guard for a while — "something came back
+     * unmet" — and it was wrong twice. It is not the runtime's business to tell
+     * the person that work which technically passed is good enough. And with it
+     * in place, `validation-fresh` could never be the sole reason for a
+     * refusal: the only road back out of validation needed an unmet criterion,
+     * so any state reached through it already failed `every-criterion-met`, and
+     * freshness never had to decide anything. A guard that can never be the
+     * reason is decoration. The test that noticed is the run through the page. */
+    note: 'the person sends one step back to be done again, on current verdicts',
   },
   {
     id: 'finish',
@@ -185,6 +187,12 @@ const ACTIONS = {
   skip_step: { states: ['execution'], actor: 'model', bumps: true },
   validate: { states: ['validation'], actor: 'model', bumps: false },
   ask_user: { states: ['planning', 'execution', 'validation'], actor: 'model', bumps: false },
+  /* The person saying something is not a move in the task, and it changes no
+   * work — but it has to be sayable, or the thing this task exists to watch
+   * (somebody leaning on the assistant to skip ahead) can only ever happen in
+   * a scripted experiment and never on the page. `anytime` means it does not
+   * wait for a turn; a remark is what interrupting looks like. */
+  remark: { states: ['planning', 'execution', 'validation'], actor: 'user', bumps: false, anytime: true },
   answer: { states: ['planning', 'execution', 'validation'], actor: 'user', bumps: false },
   pause: { states: ['planning', 'execution', 'validation'], actor: 'user', bumps: false, bypass: true },
   resume: { states: ['planning', 'execution', 'validation'], actor: 'user', bumps: false, bypass: true },
@@ -225,6 +233,7 @@ function empty() {
     acceptance: [],
     decisions: [],
     question: null,
+    remark: null,
     revision: 0,
     validation: null,
     rounds: 0,
@@ -256,6 +265,8 @@ function turn(state) {
   if (state.state === 'done') return null;
   if (state.paused) return 'user';
   if (state.question) return 'user';
+  // The person said something and is owed one move for it.
+  if (state.remark && !state.remark.heard) return 'model';
   if (state.state === null) return 'user';
   if (state.state === 'planning') return state.steps.length ? 'user' : 'model';
   if (state.state === 'execution') return 'model';
@@ -341,6 +352,9 @@ const PAYLOAD = {
 
   ask_user: (state, move) => (nonEmpty(move.question)
     ? ok() : no('malformed', 'a question cannot be empty')),
+
+  remark: (state, move) => (nonEmpty(move.text)
+    ? ok() : no('malformed', 'a remark cannot be empty')),
 
   answer: (state, move) => {
     if (!state.question) return no('malformed', 'nothing was asked');
@@ -505,6 +519,7 @@ function offers(state) {
   base.actions = ACTION_KINDS
     .filter((kind) => ACTIONS[kind].states.includes(state.state))
     .filter((kind) => kind !== 'answer' && kind !== 'resume')
+    .filter((kind) => (kind === 'remark' ? !state.paused : true))
     .filter((kind) => (kind === 'revise_plan' ? state.steps.length > 0 : true))
     .filter((kind) => (kind === 'propose_plan' ? state.steps.length === 0 : true))
     .map((kind) => ({ kind, actor: ACTIONS[kind].actor }));
@@ -607,7 +622,7 @@ function adjudicateAction(state, move) {
       return no('question-open', `"${state.question.text}" is still waiting for an answer`);
     }
     const whose = turn(state);
-    if (whose && move.actor !== whose) {
+    if (!spec.anytime && whose && move.actor !== whose) {
       return no('wrong-actor', `the machine is waiting on the ${whose}`);
     }
   }
@@ -750,6 +765,13 @@ function apply(state, move, edge) {
       s.question = { at, text: move.question.trim() };
       break;
 
+    case 'remark':
+      // Only the most recent survives. The scrollback is not the state, and
+      // carrying every past sentence forward is the thing task 13 refused to
+      // do and this task has no reason to start doing.
+      s.remark = { at, text: move.text.trim(), heard: false };
+      break;
+
     case 'answer':
       s.decisions.push({ at, question: s.question.text, text: move.text.trim() });
       s.question = null;
@@ -780,6 +802,13 @@ function apply(state, move, edge) {
   }
 
   return s;
+}
+
+/* Any accepted move by the model discharges the debt a remark created. */
+function heard(state, move) {
+  if (move.actor !== 'model') return state;
+  if (!state.remark || state.remark.heard) return state;
+  return { ...state, remark: { ...state.remark, heard: true } };
 }
 
 /* -------------------------------------------------------------- the invariants */
@@ -866,7 +895,7 @@ function step(state, move) {
       broken: [],
     };
   }
-  const next = apply(state, move, verdict.edge);
+  const next = heard(apply(state, move, verdict.edge), move);
   return { ok: true, state: next, rejection: null, broken: invariants(next) };
 }
 

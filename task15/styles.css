@@ -1,0 +1,474 @@
+/* Carried over from task 13, because the series should look like a series.
+ *
+ * The layout is task 12's: a chat column with the composer at the bottom, and
+ * an aside holding whatever goes up with every request. There it was the
+ * profile; here it is the invariants, and having them beside the conversation
+ * is an argument rather than a decoration — a refusal that cites INV-2 has
+ * explained nothing if INV-2 is on another screen.
+ *
+ * Rules that task 13 needed and this page does not are deleted rather than
+ * carried, and a test refuses any selector the markup never uses. A stylesheet
+ * full of rules for elements that no longer exist is how a page ends up with a
+ * class that looks styled and is not. */
+
+:root {
+  --bg: #f7f6f3;
+  --panel: #ffffff;
+  --ink: #1c1b19;
+  --dim: #6b6862;
+  --line: #e3e0d9;
+  --accent: #b4491f;
+  --bad: #b03030;
+  --good: #3d7a4a;
+  --warn: #9a7b1f;
+  --model: #4a7fb5;
+  --person: #6b53a8;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #16161a;
+    --panel: #1e1e23;
+    --ink: #e8e6e1;
+    --dim: #918d86;
+    --line: #2f2f36;
+    --accent: #e8794a;
+    --bad: #e07070;
+    --good: #6fb583;
+    --warn: #cfae4e;
+    --model: #79aee0;
+    --person: #a992e8;
+  }
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  height: 100dvh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--ink);
+  font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.dim { color: var(--dim); font-weight: 400; }
+
+/* ------------------------------------------------------------------- top */
+
+.top {
+  display: flex; flex-wrap: wrap; gap: 12px 20px;
+  align-items: center; justify-content: space-between;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+.title { display: flex; flex-direction: column; }
+.title strong { font-size: 15px; }
+.title span { font-size: 12px; }
+
+.settings { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.settings label { display: flex; gap: 6px; align-items: center; font-size: 12px; color: var(--dim); }
+.settings input, .settings select {
+  font: inherit; font-size: 12px; padding: 4px 6px;
+  border: 1px solid var(--line); border-radius: 5px;
+  background: var(--bg); color: var(--ink);
+}
+.settings .key input { width: 220px; }
+.settings input[type="number"] { width: 62px; }
+
+.tabs {
+  display: flex; gap: 4px; align-items: center;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+.tab {
+  font: inherit; font-size: 13px; padding: 8px 12px;
+  border: none; border-bottom: 2px solid transparent;
+  background: none; color: var(--dim); cursor: pointer;
+}
+.tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.keynote { margin-left: auto; font-size: 12px; color: var(--bad); }
+
+main { flex: 1; min-height: 0; display: flex; }
+.pane { flex: 1; min-height: 0; display: flex; }
+
+/* ------------------------------------------------------------- the chat */
+
+.chat {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column;
+  border-right: 1px solid var(--line);
+}
+
+.chatbar {
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  font-size: 12px;
+}
+.chatbar select {
+  font: inherit; font-size: 12.5px; padding: 4px 7px;
+  border: 1px solid var(--line); border-radius: 6px;
+  background: var(--bg); color: var(--ink);
+}
+.chatbar button {
+  margin-left: auto;
+  font: inherit; font-size: 12px; padding: 4px 10px;
+  border: 1px solid var(--line); border-radius: 6px;
+  background: var(--bg); color: var(--dim); cursor: pointer;
+}
+.chatbar button:hover { border-color: var(--bad); color: var(--bad); }
+
+.log { flex: 1; overflow-y: auto; padding: 16px; }
+
+.turn { max-width: 760px; margin-bottom: 14px; }
+.turn.user { margin-left: auto; }
+
+.bubble {
+  padding: 9px 13px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}
+.turn.user .bubble {
+  border-bottom-right-radius: 3px;
+  background: color-mix(in srgb, var(--accent) 9%, var(--panel));
+}
+.turn.refused .bubble { border-left: 3px solid var(--bad); }
+.bubble p:first-child { margin-top: 0; }
+.bubble p:last-child { margin-bottom: 0; }
+.bubble pre {
+  overflow-x: auto; padding: 9px 11px; border-radius: 7px;
+  background: var(--bg); font-family: var(--mono); font-size: 12.5px;
+  white-space: pre-wrap; word-break: break-word;
+}
+.bubble code { font-family: var(--mono); font-size: 12.5px; }
+
+.byline {
+  display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap;
+  margin-bottom: 4px;
+  font-size: 11.5px; color: var(--dim);
+}
+.move {
+  font-family: var(--mono);
+  padding: 1px 7px; border-radius: 999px;
+  border: 1px solid var(--line); color: var(--ink);
+}
+
+/* A violation is one fact, and one fact does not need a panel to be read. */
+.pills { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 5px; }
+.pill {
+  display: inline-flex; gap: 5px; align-items: baseline;
+  padding: 2px 8px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--panel);
+  font-size: 11.5px;
+}
+.pill b { font-family: var(--mono); font-weight: 600; }
+.pill .why { color: var(--dim); }
+.pill.pass { color: var(--good); border-color: color-mix(in srgb, var(--good) 40%, var(--line)); }
+.pill.fail { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 50%, var(--line)); }
+.pill.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 50%, var(--line)); }
+
+.declared {
+  display: flex; gap: 10px; flex-wrap: wrap; align-items: baseline;
+  margin-top: 6px; font-size: 11.5px;
+}
+.facet { display: inline-flex; gap: 5px; align-items: baseline; }
+.facet b { font-family: var(--mono); font-weight: 600; color: var(--dim); }
+
+.aside-note { margin-top: 6px; font-size: 12.5px; color: var(--dim); }
+
+.stream {
+  margin: 0 16px 10px;
+  max-height: 140px; overflow: auto;
+  padding: 8px 10px;
+  border: 1px dashed var(--line); border-radius: 7px;
+  background: var(--panel);
+  font-family: var(--mono); font-size: 11.5px; color: var(--dim);
+  white-space: pre-wrap; word-break: break-word;
+}
+
+.note {
+  padding: 7px 16px;
+  border-top: 1px solid var(--line);
+  background: color-mix(in srgb, var(--warn) 12%, var(--panel));
+  font-size: 12.5px;
+}
+
+.composer {
+  display: flex; gap: 8px; align-items: flex-end;
+  padding: 10px 12px;
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+}
+.composer textarea {
+  flex: 1; font: inherit; font-size: 13.5px; resize: none;
+  padding: 8px 10px;
+  border: 1px solid var(--line); border-radius: 9px;
+  background: var(--bg); color: var(--ink);
+}
+
+/* ------------------------------------------------- what goes up, folded away */
+
+.blockstrip { border-top: 1px solid var(--line); background: var(--panel); }
+.rules summary {
+  display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  padding: 7px 16px; font-size: 11.5px; color: var(--dim); cursor: pointer;
+}
+.blockhead { padding: 4px 16px 0; font-size: 11.5px; color: var(--dim); }
+.block {
+  margin: 0; padding: 4px 16px 10px;
+  max-height: 200px; overflow: auto;
+  font-family: var(--mono); font-size: 11.5px; line-height: 1.5;
+  color: var(--dim);
+  white-space: pre-wrap; word-break: break-word;
+}
+
+/* ------------------------------------------------------------- the aside */
+
+.aside {
+  width: 330px; flex: none;
+  overflow-y: auto;
+  padding: 12px 14px;
+  background: var(--panel);
+}
+.asidehead { margin-bottom: 10px; }
+.asidehead strong { display: block; font-size: 13px; }
+.asidehead .dim { font-size: 11.5px; }
+.asidefoot { margin-top: 12px; font-size: 11.5px; line-height: 1.5; }
+
+.invlist { display: flex; flex-direction: column; gap: 5px; }
+.inv {
+  padding: 6px 8px;
+  border: 1px solid var(--line); border-left: 3px solid var(--line);
+  border-radius: 7px;
+  background: var(--bg);
+}
+.inv.pass { border-left-color: var(--good); }
+.inv.fail { border-left-color: var(--bad); background: color-mix(in srgb, var(--bad) 7%, var(--bg)); }
+.inv.warn { border-left-color: var(--warn); }
+.invhead { display: flex; gap: 7px; align-items: baseline; }
+.mark { margin-left: auto; font-size: 11px; color: var(--dim); }
+.inv.pass .mark { color: var(--good); }
+.inv.fail .mark { color: var(--bad); font-weight: 600; }
+.inv.warn .mark { color: var(--warn); }
+.invtext { margin-top: 2px; font-size: 12.5px; }
+.invrule { margin-top: 2px; font-family: var(--mono); font-size: 11px; color: var(--dim); }
+
+.pending {
+  margin-bottom: 12px; padding: 9px 10px;
+  border: 1px solid color-mix(in srgb, var(--warn) 55%, var(--line));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--warn) 10%, var(--panel));
+}
+
+/* -------------------------------------- the invariants tab, and pressure */
+
+.panel { margin-bottom: 16px; }
+.panelhead {
+  margin-bottom: 7px;
+  font-size: 11.5px; font-weight: 600;
+  text-transform: lowercase; letter-spacing: 0.02em;
+}
+
+.step {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 7px 9px; margin-bottom: 5px;
+  border: 1px solid var(--line); border-radius: 7px;
+  background: var(--bg); font-size: 13px;
+}
+.stepbody { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.stepid { font-family: var(--mono); font-size: 11.5px; color: var(--dim); }
+.kind { font-family: var(--mono); font-size: 11.5px; color: var(--dim); }
+.stepstatus { margin-left: auto; font-size: 11px; color: var(--dim); }
+.stepnote { margin-top: 2px; font-size: 12px; color: var(--dim); }
+.prose { margin-top: 3px; }
+
+.row {
+  display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap;
+  padding: 4px 8px; margin-bottom: 3px;
+  border: 1px solid var(--line); border-radius: 6px;
+  background: var(--bg); font-size: 12.5px;
+}
+.code {
+  font-family: var(--mono); font-size: 11px;
+  padding: 1px 6px; border-radius: 999px;
+  color: var(--panel); background: var(--bad);
+}
+.who {
+  font-family: var(--mono); font-size: 11px;
+  padding: 1px 6px; border-radius: 999px;
+  border: 1px solid var(--line); color: var(--dim);
+}
+.detail { flex: 1; min-width: 0; font-size: 12px; color: var(--dim); }
+.good { color: var(--good); }
+.bad { color: var(--bad); }
+
+.runner { flex: 1; min-width: 0; overflow-y: auto; padding: 16px; }
+.runnerhead { display: flex; gap: 20px; justify-content: space-between; flex-wrap: wrap; margin-bottom: 12px; }
+.runnerhead p { margin: 6px 0 0; max-width: 62ch; font-size: 13px; }
+.runnerbuttons { display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap; }
+.status { margin: 10px 0; font-size: 12.5px; color: var(--dim); }
+.narrow { max-width: 68ch; font-size: 13px; }
+
+.buttonrow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+.buttonrow button, .runnerbuttons button, .composer button {
+  font: inherit; font-size: 13px;
+  padding: 6px 13px;
+  border: 1px solid var(--line); border-radius: 7px;
+  background: var(--bg); color: var(--ink); cursor: pointer;
+}
+.runnerbuttons button:first-child, .composer button {
+  border-color: var(--accent); background: var(--accent); color: #fff;
+}
+.buttonrow button:hover, .runnerbuttons button:hover, .composer button:hover { border-color: var(--accent); }
+
+.turnhead { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; margin-bottom: 4px; }
+.stagechip {
+  padding: 2px 8px; border-radius: 999px;
+  border: 1px solid var(--line); font-size: 11.5px; color: var(--dim);
+}
+.question { margin: 0 0 6px; font-size: 13px; font-weight: 500; }
+
+.logtable { width: 100%; margin-bottom: 18px; border-collapse: collapse; font-size: 12.5px; }
+.logtable th {
+  text-align: left; font-weight: 600; color: var(--dim); font-size: 11.5px;
+  padding: 5px 8px; border-bottom: 1px solid var(--line);
+}
+.logtable td { padding: 5px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.logtable .num { text-align: right; font-family: var(--mono); color: var(--dim); }
+.logtable .stepid { font-family: var(--mono); }
+
+.logjson {
+  width: 100%; margin-top: 12px;
+  font-family: var(--mono); font-size: 11.5px;
+  padding: 9px 11px;
+  border: 1px solid var(--line); border-radius: 8px;
+  background: var(--panel); color: var(--ink);
+  resize: vertical;
+}
+
+@media (max-width: 900px) {
+  body { height: auto; overflow: auto; }
+  main, .pane { flex-direction: column; }
+  .chat { border-right: none; }
+  .aside { width: auto; border-top: 1px solid var(--line); }
+}
+
+/* ------------------------------------------------------------------ task 15
+ *
+ * What this page adds to the one it inherited: the aside is no longer a list of
+ * rules, it is the edges out of the state the machine is in, each with its
+ * guards ticked or crossed against the state as it stands. The person's buttons
+ * are rendered from the same list, so a disabled button and a crossed guard are
+ * the same fact drawn twice rather than two things that have to agree. */
+
+.bubble { max-width: 780px; margin: 0 0 14px 0; }
+.bubble.user { margin-left: auto; background: color-mix(in srgb, var(--person) 8%, var(--panel)); }
+.bubble.refused { border-color: var(--bad); }
+
+.byline { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; flex-wrap: wrap; }
+.whom { font-size: 12px; color: var(--dim); text-transform: lowercase; }
+.said { overflow-wrap: anywhere; }
+.said :first-child { margin-top: 0; }
+.said :last-child { margin-bottom: 0; }
+
+.chip {
+  display: inline-flex; gap: 6px; align-items: baseline;
+  font: 11px/1.5 var(--mono);
+  padding: 1px 7px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--bg); color: var(--dim);
+}
+.chip.transition { border-color: var(--accent); color: var(--accent); }
+.chip.refused { border-color: var(--bad); color: var(--bad); }
+
+.refusalblock {
+  margin: 8px 0 0; padding: 10px 12px; white-space: pre-wrap;
+  font: 11.5px/1.5 var(--mono);
+  border-left: 2px solid var(--bad); background: var(--bg); color: var(--ink);
+  overflow-x: auto;
+}
+
+.artifact summary { cursor: pointer; font-size: 12px; color: var(--dim); }
+.verdicts { margin-top: 8px; font: 12px/1.6 var(--mono); }
+.verdict.met { color: var(--good); }
+.verdict.unmet { color: var(--bad); }
+
+.empty { color: var(--dim); max-width: 560px; padding: 24px 4px; }
+
+/* The freshness line. Three integers and a word, and it is the whole of what
+ * stops a finished-looking task from finishing. */
+.fresh {
+  font: 11.5px/1.5 var(--mono); padding: 8px 12px;
+  border-bottom: 1px solid var(--line); color: var(--dim);
+}
+.fresh.ok { color: var(--good); }
+.fresh.stale { color: var(--bad); background: color-mix(in srgb, var(--bad) 8%, transparent); }
+
+.edgelist, .moves, .steplist, .critlist { padding: 4px 12px 10px; }
+
+.edge { padding: 8px 0; border-bottom: 1px dashed var(--line); }
+.edge:last-child { border-bottom: 0; }
+.edgehead { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; font: 12px/1.5 var(--mono); }
+.edgehead b { color: var(--ink); }
+.edge.shut .edgehead b { color: var(--dim); }
+.owner { color: var(--person); font-size: 11px; }
+.edgehead .mark { margin-left: auto; font-size: 11px; letter-spacing: 0.06em; }
+.edge.open .edgehead .mark { color: var(--good); }
+.edge.shut .edgehead .mark { color: var(--bad); }
+
+.guard { display: flex; gap: 6px; font-size: 12px; padding-left: 4px; }
+.guard.holds { color: var(--dim); }
+.guard.shut { color: var(--ink); }
+.guard .tick { width: 12px; }
+.guard.holds .tick { color: var(--good); }
+.guard.shut .tick { color: var(--bad); }
+.remedy { color: var(--dim); }
+
+.move { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; padding: 4px 0; }
+.move button {
+  font: 12px/1 inherit; padding: 5px 10px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 6px;
+  background: var(--panel); color: var(--ink);
+}
+.move button:not(:disabled):hover { border-color: var(--accent); color: var(--accent); }
+.move button:disabled { opacity: 0.45; cursor: not-allowed; }
+.move input, .move select {
+  font: 12px/1 inherit; padding: 4px 6px; flex: 1; min-width: 90px;
+  border: 1px solid var(--line); border-radius: 6px;
+  background: var(--panel); color: var(--ink);
+}
+
+.step, .crit { display: flex; gap: 8px; flex-wrap: wrap; padding: 4px 0; font-size: 12.5px; }
+.step .status, .crit .status {
+  font: 10.5px/1.6 var(--mono); letter-spacing: 0.04em;
+  color: var(--dim); min-width: 58px;
+}
+.step.active .status { color: var(--accent); }
+.step.done .status { color: var(--good); }
+.crit.met .status { color: var(--good); }
+.crit.unmet .status { color: var(--bad); }
+.what { flex: 1; min-width: 140px; }
+
+.diagram { font-size: 11px; overflow-x: auto; }
+.routebar { display: flex; gap: 10px; align-items: center; padding: 4px 0 8px; flex-wrap: wrap; }
+.routebuttons { display: flex; gap: 6px; flex-wrap: wrap; }
+.routebuttons button {
+  font: 12px/1 inherit; padding: 5px 10px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 6px;
+  background: var(--panel); color: var(--ink);
+}
+.routebuttons button.on { border-color: var(--accent); color: var(--accent); }
+
+.logtable tr.here td { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+.logtable tr.refused td { color: var(--dim); }
+.logtable td { white-space: pre-wrap; vertical-align: top; }
+.logtable tr.head th { color: var(--dim); font-weight: 600; text-align: left; }

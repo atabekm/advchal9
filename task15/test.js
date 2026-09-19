@@ -4,12 +4,9 @@ const path = require('path');
 
 /* The script list comes from index.html rather than from a list written here,
  * so a file added to the page without being wired up is caught by the tests
- * instead of by a blank screen. Until the page exists — stages 1 and 2 — the
- * fallback below stands in, and it is deleted the moment index.html arrives. */
-const htmlPath = path.join(__dirname, 'index.html');
-const SCRIPTS = fs.existsSync(htmlPath)
-  ? [...fs.readFileSync(htmlPath, 'utf8').matchAll(/<script src="([^"]+)"><\/script>/g)].map((m) => m[1])
-  : ['lifecycle.js', 'protocol.js'];
+ * instead of by a blank screen. */
+const html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
+const SCRIPTS = [...html.matchAll(/<script src="([^"]+)"><\/script>/g)].map((m) => m[1]);
 
 for (const file of SCRIPTS.filter((name) => name !== 'app.js')) {
   vm.runInThisContext(fs.readFileSync(path.join(__dirname, file), 'utf8'), { filename: file });
@@ -321,14 +318,32 @@ group('a validation goes stale the moment the work moves', () => {
     state.validation.at === state.revision);
 });
 
-group('the back edge has guards of its own', () => {
+group('work that passed can still be sent back, and then only freshness stops it', () => {
+  // The case the whole guard exists for. Everything was met, so
+  // `every-criterion-met` holds and goes on holding — a validation writes a
+  // verdict for every criterion at once, so nothing it recorded has changed.
+  // The only thing standing between here and `done` is that those verdicts
+  // judged a revision that no longer exists.
   const clean = atCleanValidation();
-  const pointless = refuse(clean, {
-    type: 'transition', actor: 'user', trigger: 'rework', step: 's1', reason: 'why not',
-  });
-  ok('nothing goes back when nothing failed', pointless.rejection.reason === 'guard-unmet');
-  ok('and the shut guard says so',
-    same(pointless.rejection.guards.map((g) => g.id), ['some-criterion-unmet']));
+  ok('accept is open on a clean, fresh validation',
+    Lifecycle.offers(clean).transitions.find((t) => t.trigger === 'accept').open);
+
+  const sentBack = drive([{
+    type: 'transition', actor: 'user', trigger: 'rework', step: 's2',
+    reason: 'the tests are thinner than I want, do them again',
+  }], clean);
+  ok('sending back work that passed is allowed', sentBack.state === 'execution');
+
+  const redone = drive([...work('s2'), SUBMIT], sentBack);
+  ok('every criterion still reads met',
+    redone.acceptance.every((a) => a.verdict === 'met'));
+  ok('so every-criterion-met still holds',
+    Lifecycle.GUARDS['every-criterion-met'].test(redone));
+
+  const shut = refuse(redone, { type: 'transition', actor: 'user', trigger: 'accept' });
+  ok('and accept is shut anyway', shut.rejection.reason === 'guard-unmet');
+  ok('on freshness, and on nothing else',
+    same(shut.rejection.guards.map((g) => g.id), ['validation-fresh']));
 
   const failed = atFailedValidation();
   const nameless = refuse(failed, { type: 'transition', actor: 'user', trigger: 'rework', reason: 'x' });
@@ -709,6 +724,377 @@ group('the envelope is carved, and the actor is stamped', () => {
   ok('a model claiming to be the person is overruled', forged.move.actor === 'model');
   ok('and the runtime then refuses the move on ownership',
     refuse(atCleanValidation(), forged.move).rejection.reason === 'wrong-actor');
+});
+
+/* --------------------------------------------------------- booting the page */
+
+/* Task 12 shipped a blank screen once, because two files declared the same name
+ * at the top level and classic scripts share one lexical scope. No unit test
+ * could have caught it. This is that test: the real index.html, the real
+ * scripts, a shimmed DOM, and a whole run driven through the actual buttons
+ * with only the transport replaced.
+ *
+ * It earned its keep here on the first run. `protocol.js` declared `explain`
+ * and so did the carried `api.js`; `store.js` declared `fingerprint` and so did
+ * `protocol.js`. Two blank screens, caught before the page existed. The group
+ * below that pair asserts the whole condition rather than those two names.
+ */
+
+const IDS = [...html.matchAll(/id="([^"]+)"/g)].map((m) => m[1]);
+
+class El {
+  constructor(tag = 'div') {
+    this.tagName = tag;
+    this.className = '';
+    this.children = [];
+    this.dataset = {};
+    this.attrs = {};
+    this.listeners = {};
+    this.hidden = false;
+    this.disabled = false;
+    this.value = '';
+    this.innerHTML = '';
+    this.own = '';
+  }
+
+  get textContent() {
+    return this.own + this.children.map((child) => child.textContent).join('');
+  }
+
+  set textContent(value) {
+    this.own = String(value == null ? '' : value);
+    this.children = [];
+  }
+
+  append(...kids) { this.children.push(...kids.filter(Boolean)); }
+  replaceChildren(...kids) { this.children = kids.filter(Boolean); }
+  addEventListener(type, fn) { (this.listeners[type] = this.listeners[type] || []).push(fn); }
+  setAttribute(key, value) { this.attrs[key] = value; }
+  getAttribute(key) { return this.attrs[key]; }
+  fire(type, event = {}) {
+    for (const fn of this.listeners[type] || []) fn({ preventDefault() {}, ...event });
+  }
+
+  all(predicate, into = []) {
+    if (predicate(this)) into.push(this);
+    for (const child of this.children) if (child.all) child.all(predicate, into);
+    return into;
+  }
+
+  text() { return `${this.own} ${this.innerHTML} ${this.children.map((c) => c.text()).join(' ')}`; }
+}
+
+function makeStorage(initial = {}) {
+  const map = new Map(Object.entries(initial));
+  return {
+    map,
+    getItem: (key) => (map.has(key) ? map.get(key) : null),
+    setItem: (key, value) => map.set(key, String(value)),
+    removeItem: (key) => map.delete(key),
+  };
+}
+
+function bootPage(storage = makeStorage({ 'task15.deepseek.key': 'sk-test' })) {
+  const byId = new Map(IDS.map((id) => [id, new El()]));
+  const tabs = [...html.matchAll(/data-tab="([^"]+)"/g)].map((m) => {
+    const tab = new El('button');
+    tab.className = 'tab';
+    tab.dataset.tab = m[1];
+    return tab;
+  });
+  const panes = [...html.matchAll(/data-pane="([^"]+)"/g)].map((m) => {
+    const pane = new El('section');
+    pane.className = 'pane';
+    pane.dataset.pane = m[1];
+    return pane;
+  });
+
+  const shimmed = {
+    readyState: 'complete',
+    addEventListener() {},
+    createElement: (tag) => new El(tag),
+    getElementById: (id) => byId.get(id) || null,
+    querySelectorAll: (selector) => {
+      if (selector === '.tab') return tabs;
+      if (selector === '.pane') return panes;
+      return [];
+    },
+  };
+
+  const sandbox = {
+    console, setTimeout, clearTimeout, AbortController, Date, Math, JSON, Promise, Number, String,
+    Array, Object, Set, Map, Error, RegExp, isNaN, parseInt, parseFloat,
+    localStorage: storage,
+    document: shimmed,
+  };
+  sandbox.globalThis = sandbox;
+  const context = vm.createContext(sandbox);
+  for (const file of SCRIPTS) {
+    vm.runInContext(fs.readFileSync(path.join(__dirname, file), 'utf8'), context, { filename: file });
+  }
+  return { byId, tabs, panes, context, storage };
+}
+
+const inside = (context, expression) => vm.runInContext(expression, context);
+
+function scripted(context, replies) {
+  const sent = [];
+  // `const Api = …` in a script is not a property of the sandbox object, so the
+  // transport is reached through the context and mutated in place.
+  inside(context, 'Api').send = async ({ messages, onChunk }) => {
+    sent.push(messages);
+    const text = replies.length ? replies.shift() : '{"say":"nothing scripted","move":{"type":"action","kind":"ask_user","question":"what now?"}}';
+    if (onChunk) onChunk(text);
+    return { text, usage: { promptTokens: 900, completionTokens: 40, cacheHitTokens: 800 }, elapsed: 0.1, cost: 0 };
+  };
+  return sent;
+}
+
+const delay = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
+
+async function settle(page, ms = 4000) {
+  const deadline = Date.now() + ms;
+  while (Date.now() < deadline) {
+    if (!inside(page.context, 'app').busy) return true;
+    await delay(4);
+  }
+  return false;
+}
+
+async function typeAndSend(page, text) {
+  page.byId.get('request').value = text;
+  page.byId.get('composer').fire('submit');
+  await settle(page);
+}
+
+function buttons(page, id) {
+  return page.byId.get(id).all((node) => node.tagName === 'button');
+}
+
+async function click(page, id, label) {
+  const button = buttons(page, id).find((b) => b.textContent === label);
+  if (!button) throw new Error(`no button "${label}" in #${id} — found ${buttons(page, id).map((b) => b.textContent).join(', ')}`);
+  button.fire('click');
+  await settle(page);
+  return button;
+}
+
+const say = (obj) => JSON.stringify(obj);
+const action = (kind, rest = {}) => ({ type: 'action', kind, ...rest });
+const goes = (trigger) => ({ type: 'transition', trigger });
+
+function replyPlan() {
+  return say({ say: 'Here is the plan.', move: action('propose_plan', { steps: PLAN.steps, acceptance: PLAN.acceptance }) });
+}
+function replyWork(id) {
+  return [
+    say({ say: `Working ${id}.`, move: action('attach_artifact', { step: id, artifact: `def parse_duration(text): ...  # ${id}` }) }),
+    say({ say: `${id} is done.`, move: action('complete_step', { step: id }) }),
+  ];
+}
+function replyValidate(unmet) {
+  return say({
+    say: unmet.length ? 'One criterion did not hold.' : 'All three hold now.',
+    move: action('validate', {
+      verdicts: PLAN.acceptance.map((a, i) => {
+        const id = `a${i + 1}`;
+        return {
+          id,
+          verdict: unmet.includes(id) ? 'unmet' : 'met',
+          evidence: unmet.includes(id) ? 'it returns None for "banana"' : 'the test passes',
+        };
+      }),
+    }),
+  });
+}
+
+group('the page boots, and a whole run goes through the buttons', async () => {
+  const page = bootPage();
+  ok('nothing threw on the way up', Boolean(inside(page.context, 'app')));
+  ok('every element the page asks for exists', IDS.every((id) => page.byId.has(id)));
+  ok('the edge table is on screen before anything is asked',
+    page.byId.get('edgeTable').children.length === Lifecycle.TRANSITIONS.length + 1);
+  ok('and the diagram with it', page.byId.get('diagram').textContent.includes('approve_plan'));
+  ok('the aside says the machine has not started',
+    page.byId.get('stateName').textContent === 'not started');
+  ok('what the request will cost is on screen, itemised',
+    /\d+ tokens — \d+ of rules \+ \d+ of state/.test(page.byId.get('requestMeta').textContent),
+    page.byId.get('requestMeta').textContent);
+
+  const sent = scripted(page.context, [
+    replyPlan(),
+    // The skip, attempted by the model, with the plan approved and s1 waiting.
+    say({ say: 'This is simple enough that I will just finish it.', move: { type: 'transition', to: 'done' } }),
+    ...replyWork('s1'), ...replyWork('s2'), ...replyWork('s3'),
+    say({ say: 'Sending it to be judged.', move: goes('submit') }),
+    replyValidate([]),
+    ...replyWork('s2'),
+    say({ say: 'Resubmitting.', move: goes('submit') }),
+    // Two refusals in a row end the model's turn and leave the state where the
+    // person can look at it: everything met, and the verdicts judging a
+    // revision that no longer exists.
+    say({ say: 'Back to planning then.', move: { type: 'transition', to: 'planning' } }),
+    say({ say: 'Planning, surely.', move: { type: 'transition', to: 'planning' } }),
+    replyValidate([]),
+  ]);
+
+  await typeAndSend(page, GOAL);
+  ok('one request went up for the plan', sent.length === 1);
+  ok('the state moved to planning', page.byId.get('stateName').textContent === 'planning');
+  ok('the plan is on screen', page.byId.get('planList').children.length === 3);
+  ok('the criteria are too', page.byId.get('critList').children.length === 3);
+  ok('the request carried no scrollback — only the state',
+    !sent[0][1].content.includes('Here is the plan'));
+
+  ok('approve_plan is offered to the person, and it is open',
+    page.byId.get('edgeList').text().includes('approve_plan')
+    && page.byId.get('edgeList').text().includes('open'));
+
+  /* One click, and the model runs until the turn is the person's again — which
+   * is validation, because nothing between here and there is the person's to
+   * move. */
+  await click(page, 'moves', 'approve_plan');
+
+  ok('the model tried to skip straight to done', page.byId.get('log').text().includes('no-edge'));
+  ok('and was handed the route instead',
+    page.byId.get('log').text().includes('the legal route is'));
+  ok('the refusal went back up on the retry',
+    sent.some((m) => m[1].content.includes('YOUR LAST MOVE WAS REFUSED')));
+  ok('the retry landed, and the work got done',
+    inside(page.context, 'app').log.filter((e) => e.kind === 'complete_step' && !e.rejected).length === 3);
+
+  ok('the whole run reached validation',
+    inside(page.context, 'stateNow()').state === 'validation');
+  ok('everything came back met', !page.byId.get('critList').text().includes('unmet'));
+  const accept = buttons(page, 'moves').find((b) => b.textContent === 'accept');
+  ok('so accept is live', accept && accept.disabled === false);
+
+  // The back edge, taken by the person on work that passed, through the actual
+  // control. Nothing failed; they want it done better anyway.
+  const picker = page.byId.get('moves').all((n) => n.tagName === 'select')[0];
+  const why = page.byId.get('moves').all((n) => n.tagName === 'input')[0];
+  ok('the rework control offers the closed steps', picker && picker.children.length === 3);
+  picker.value = 's2';
+  why.value = 'the tests are thinner than I want';
+  await click(page, 'moves', 'rework');
+
+  ok('the run went back to execution, redid s2, and resubmitted',
+    inside(page.context, 'stateNow()').state === 'validation');
+  ok('the round trip is counted', inside(page.context, 'stateNow()').rounds === 1);
+  ok('two refusals in a row handed the turn back',
+    inside(page.context, 'app').note.includes('the turn is back with you'));
+
+  // This is the whole task, on screen: every criterion says met, and the door
+  // is shut anyway, because those verdicts judged a revision that is gone.
+  ok('every criterion reads met', !page.byId.get('critList').text().includes('unmet'));
+  ok('and accept is shut regardless, on freshness',
+    page.byId.get('edgeList').text().includes('the validation judged the work as it now stands'));
+  ok('and freshness is the only thing shutting it',
+    same(Lifecycle.offers(inside(page.context, 'stateNow()')).transitions
+      .find((t) => t.trigger === 'accept').guards.filter((g) => !g.holds).map((g) => g.id),
+    ['validation-fresh']));
+  ok('the aside says so in one line', page.byId.get('freshLine').textContent.includes('STALE'));
+  ok('and counts the changes since',
+    /STALE — \d+ change\(s\) since/.test(page.byId.get('freshLine').textContent));
+  const shutAccept = buttons(page, 'moves').find((b) => b.textContent === 'accept');
+  ok('the button is disabled with it', shutAccept && shutAccept.disabled === true);
+
+  // The last scripted reply revalidates, which is the only thing left to do.
+  await typeAndSend(page, 'go on then');
+  ok('a fresh validation landed', !page.byId.get('freshLine').textContent.includes('STALE'));
+  const accept2 = buttons(page, 'moves').find((b) => b.textContent === 'accept');
+  ok('and accept is live', accept2 && accept2.disabled === false);
+
+  await click(page, 'moves', 'accept');
+  ok('the task is done', inside(page.context, 'stateNow()').state === 'done');
+  ok('and accepted', inside(page.context, 'stateNow()').outcome.result === 'accepted');
+  ok('which the invariants agree was validated at its final revision',
+    Lifecycle.invariants(inside(page.context, 'stateNow()')).length === 0);
+
+  /* The reload. Same storage, a second boot, nothing else carried across. */
+  const again = bootPage(page.storage);
+  ok('the log survived', inside(again.context, 'app').log.length
+    === inside(page.context, 'app').log.length);
+  ok('and folds to the same state',
+    same(inside(again.context, 'stateNow()'), inside(page.context, 'stateNow()')));
+  ok('and the same offers, worked out again rather than restored',
+    same(Lifecycle.offers(inside(again.context, 'stateNow()')),
+      Lifecycle.offers(inside(page.context, 'stateNow()'))));
+  ok('nothing but the log is in storage',
+    [...again.storage.map.keys()].filter((k) => k.startsWith('task15.')).sort().join(',')
+      === 'task15.deepseek.key,task15.log');
+});
+
+group('a pause survives the tab being closed', async () => {
+  const page = bootPage();
+  scripted(page.context, [replyPlan()]);
+  await typeAndSend(page, GOAL);
+  page.byId.get('pauseRun').fire('click');
+  await settle(page);
+
+  ok('the machine is paused', inside(page.context, 'stateNow()').paused === true);
+  ok('the button now offers to resume',
+    page.byId.get('pauseRun').textContent === 'resume');
+  ok('and nothing is yours to move', page.byId.get('moves').text().includes('nothing is yours'));
+
+  const again = bootPage(page.storage);
+  ok('it comes back paused', inside(again.context, 'stateNow()').paused === true);
+  ok('at the same state', inside(again.context, 'stateNow()').state === 'planning');
+  ok('with the plan intact', again.byId.get('planList').children.length === 3);
+
+  again.byId.get('pauseRun').fire('click');
+  await settle(again);
+  ok('and resuming opens the same edge that was open before',
+    again.byId.get('edgeList').text().includes('approve_plan'));
+  ok('with no branch in the code for having been away',
+    !fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8').includes('restore'));
+});
+
+group('no two scripts declare the same name at the top level', () => {
+  const declared = new Map();
+  const clashes = [];
+  for (const file of SCRIPTS) {
+    const source = fs.readFileSync(path.join(__dirname, file), 'utf8');
+    for (const match of source.matchAll(/^(?:const|let|var|function|async function|class)\s+([A-Za-z_$][\w$]*)/gm)) {
+      const name = match[1];
+      if (declared.has(name)) clashes.push(`${name}: ${declared.get(name)} and ${file}`);
+      else declared.set(name, file);
+    }
+  }
+  ok('classic scripts share one scope, and nothing in it collides',
+    clashes.length === 0, clashes.join(' | '));
+  ok('and there is something to collide', declared.size > 60);
+});
+
+group('every class the page asks for is styled, and every rule is used', () => {
+  const css = fs.readFileSync(path.join(__dirname, 'styles.css'), 'utf8');
+  const markup = html + fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
+
+  const used = new Set();
+  for (const match of markup.matchAll(/class="([^"]+)"/g)) {
+    for (const name of match[1].split(/\s+/)) if (name) used.add(name);
+  }
+  for (const match of markup.matchAll(/tag\('[a-z]+', '([^']+)'/g)) {
+    for (const name of match[1].split(/\s+/)) if (name) used.add(name);
+  }
+  for (const match of markup.matchAll(/className = '([^']+)'/g)) {
+    for (const name of match[1].split(/\s+/)) if (name) used.add(name);
+  }
+  // The literal half of a computed class — `edge ${open ? … : …}` contributes
+  // `edge`, and the branches are left alone rather than guessed at.
+  for (const match of markup.matchAll(/tag\('[a-z]+', `([^`$]*)/g)) {
+    for (const name of match[1].trim().split(/\s+/)) if (name) used.add(name);
+  }
+  for (const match of markup.matchAll(/className = `([^`$]*)/g)) {
+    for (const name of match[1].trim().split(/\s+/)) if (name) used.add(name);
+  }
+
+  const styled = new Set();
+  for (const match of css.matchAll(/\.([a-zA-Z][\w-]*)/g)) styled.add(match[1]);
+
+  const unstyled = [...used].filter((name) => !styled.has(name));
+  ok('nothing on the page is dressed in a class the stylesheet never heard of',
+    unstyled.length === 0, unstyled.join(', '));
 });
 
 /* -------------------------------------------------------------- the closed set */
