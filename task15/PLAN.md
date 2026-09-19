@@ -65,7 +65,7 @@ Six edges, and they are a value in a file rather than a shape in a reducer.
 | `open` | `null` | `planning` | `start` | user | `goal-stated` |
 | `build` | `planning` | `execution` | `approve_plan` | **user** | `plan-proposed`, `criteria-fixed` |
 | `submit` | `execution` | `validation` | `submit` | model | `every-step-closed` |
-| `rework` | `validation` | `execution` | `rework` | model | `validation-fresh`, `some-criterion-unmet` |
+| `rework` | `validation` | `execution` | `rework` | **user** | `validation-fresh`, `some-criterion-unmet` |
 | `finish` | `validation` | `done` | `accept` | **user** | `validation-fresh`, `every-criterion-met` |
 | `abandon` | `validation` | `done` | `abandon` | **user** | `reason-given` |
 
@@ -84,9 +84,15 @@ Two things this table says that task 13's reducer could not:
   edge into `execution` from `planning` is one the **user** takes. Approving
   *is* the edge. The model cannot discharge it by being persuasive, because it
   is not the model's move to make.
-- **No edge leaves `validation` on stale evidence.** Both `rework` and `finish`
-  carry `validation-fresh`, so arriving back in validation after a fix leaves
-  exactly one legal act: validate again.
+- **No edge that claims an outcome leaves `validation` on stale evidence.**
+  Both `rework` and `finish` carry `validation-fresh`, so arriving back in
+  validation after a fix leaves exactly one useful act: validate again.
+  `abandon` is the exception and carries no guard at all, because giving up
+  needs no proof — and it closes the task as `abandoned`, never `accepted`.
+
+All three exits from `validation` are the person's. The model's job there is an
+honest verdict; what a failed verdict *means* — send it back, or stop — is not
+its call to make.
 
 ## Guards are named, owned, and carry a remedy
 
@@ -104,14 +110,19 @@ assembled from it rather than composed by a model.
 
 | guard | holds when | who can discharge it |
 | --- | --- | --- |
-| `goal-stated` | a non-empty goal was given | user |
 | `plan-proposed` | at least one step exists | model |
 | `criteria-fixed` | at least one acceptance criterion exists | model |
 | `every-step-closed` | no step is `pending` or `active` | model |
 | `validation-fresh` | `validation.at === revision` | model |
 | `every-criterion-met` | no verdict is `unmet` | model, by doing the work |
 | `some-criterion-unmet` | at least one verdict is `unmet` | — |
-| `reason-given` | the abandon carries a reason | user |
+
+Six guards, and every one of them is a predicate over the **state alone**.
+Whether a move carries the fields it needs — a goal on `start`, a reason on
+`abandon`, a step on `rework` — is a different question with a different answer,
+and it refuses as `malformed` rather than `guard-unmet`. Keeping the two apart
+is what lets `offers()` evaluate every guard honestly without inventing a move
+to test them against.
 
 `owner` is the field that makes a refusal actionable. "You cannot go there" is a
 wall; "you cannot go there, `every-step-closed` is shut, and it is yours to
@@ -143,6 +154,12 @@ Actions, by the state they belong to:
 | `answer` | any working state | user | `text` |
 | `pause` / `resume` | any working state | user | — |
 
+One consequence of the split, and it is the visible difference from task 13:
+closing the last step no longer lands you in validation. Task 13 advanced by
+itself; here `submit` is an edge somebody has to take, and until they do, the
+machine sits in `execution` with nothing left open. That is what it means for a
+transition to be explicit.
+
 `revision` is a counter, not a clock. Every action that changes the work
 increments it; `validate` records `validation = { at: revision, verdicts }`.
 Freshness is then integer equality, which is exact, cheap, and impossible to
@@ -151,8 +168,8 @@ fudge with a timestamp granularity argument.
 ## Adjudication, and a closed set of refusals
 
 `adjudicate(state, move)` returns `{ ok, rejection, state }` and is the only way
-anything moves. Every refusal it can produce is one of twelve, so the README has
-rows to print and the tests have exact strings to assert.
+anything moves. Every refusal it can produce is one of fourteen, so the README
+has rows to print and the tests have exact strings to assert.
 
 | reason | means |
 | --- | --- |
@@ -161,6 +178,7 @@ rows to print and the tests have exact strings to assert.
 | `guard-unmet` | the edge exists and is shut; the failing guards are attached |
 | `wrong-actor` | the edge is there, it is open, and it is the other party's to take |
 | `wrong-state` | the action does not belong to the state the machine is in |
+| `question-open` | the assistant asked something and is waiting to be answered |
 | `paused` | the machine is paused and only `resume` moves it |
 | `terminal` | `done` is closed |
 | `malformed` | the move is missing something it cannot do without |
@@ -252,7 +270,7 @@ deliberate failure, because a passing run never reaches either new idea:
 | 2 | ask for `execution` before approving | `wrong-actor` — approval is the user's edge |
 | 3 | approve → work the three steps → `submit` | the ordinary path |
 | 4 | `validate` | the third criterion comes back `unmet` |
-| 5 | `rework` | the back edge, which task 13 did not have |
+| 5 | the person sends s3 back | the back edge, which task 13 did not have |
 | 6 | fix the step | `revision` moves; `validation.at` does not |
 | 7 | ask for `done` | `guard-unmet: validation-fresh` — **the stale verdict** |
 | 8 | `validate` again → `finish` | the door opens |
@@ -332,7 +350,7 @@ enumerated rather than asked for does not need the network.
 | # | stage | ships |
 | --- | --- | --- |
 | 1 | the graph | states, the edge table, guards with owners and remedies, actions, `revision`, `adjudicate`, `offers`, `route`, the reducer, the fuzz |
-| 2 | the protocol | `compile(state)`, the envelope, the closed set of twelve, parse + validate, one retry, the refusal renderer |
+| 2 | the protocol | `compile(state)`, the envelope, the closed set of fourteen, parse + validate, one retry, the refusal renderer |
 | 3 | the run | the store, the task tab, the graph tab with the route explorer, pause, survives a reload, export/import |
 | 4 | the ladder | five rungs, three stations, two arms, the three rates |
 | 5 | the writing | README, and pruning the stylesheet down to what the page uses |
@@ -342,7 +360,7 @@ enumerated rather than asked for does not need the network.
 - `index.html`, `styles.css` — the page; three tabs
 - `lifecycle.js` — states, the edge table, the guards, the actions, `adjudicate()`, `offers()`, `route()`, the reducer, the invariants
 - `store.js` — the log in `localStorage` under `task15.*`, snapshot, export, import
-- `protocol.js` — `compile(state)`, the envelope, the twelve rejection reasons, the refusal renderer
+- `protocol.js` — `compile(state)`, the envelope, the fourteen rejection reasons, the refusal renderer
 - `skips.js` — the ladder: rungs, stations, arms, the three rates
 - `api.js` — the DeepSeek transport, carried from task 14
 - `app.js` — the task tab, the graph tab, the ladder tab
