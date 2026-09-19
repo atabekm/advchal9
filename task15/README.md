@@ -31,7 +31,7 @@ question about a graph.
 Open `index.html`. No server, no build, no dependencies — the same as task 4
 through task 14. Storage keys are namespaced `task15.*`.
 
-`node test.js` runs 318 checks with no network and no key. That includes 80,000
+`node test.js` runs 337 checks with no network and no key. That includes 80,000
 random moves against the adjudicator, a whole run driven through the actual
 buttons of the actual page against a shimmed DOM, and a reload in the middle of
 it. Two of those checks are the only thing standing between this repo and a
@@ -269,7 +269,23 @@ not two things that have to agree.
 
 Pause is still not a state. Task 13's argument holds without amendment: an edge
 into `paused` throws away where you were, so pause is a flag over the state and
-the four states stay four.
+the four states stay four. It is a `bypass` action — legal whoever's turn it
+is — and the button bites while a request is in the air, abandoning the reply
+rather than applying it. One that landed after the pause would be a move made by
+a machine that is stopped.
+
+### The run stops at every edge
+
+An action runs on; a transition ends the run, and a **carry on** button picks it
+back up. That is not a UI preference, it is the only way the thing this task is
+about can be looked at. A stale validation exists between `submit` and the next
+`validate`, and a loop that runs until the turn flips closes that window in
+about a second. Send a passing step back, and the run now halts in `validation`
+with three green ticks and a shut door, and stays there until somebody presses
+carry on.
+
+The general form: a state nobody got to look at is a state you have to take
+somebody's word for, which is the complaint this whole series started with.
 
 ## The graph is in the prompt, not described to it
 
@@ -452,6 +468,6 @@ between 30 and 45 in all.
 - `api.js` — the DeepSeek transport, carried from task 14
 - `app.js` — the task tab, the graph tab, the ladder tab
 - `markdown.js` — the reply renderer, carried from task 5
-- `test.js` — 318 checks with no network and no key, including booting the page
+- `test.js` — 337 checks with no network and no key, including booting the page
   against a shimmed DOM, which is the one thing standing between this repo and a
   blank screen

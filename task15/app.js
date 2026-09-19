@@ -18,7 +18,7 @@
 const el = (id) => document.getElementById(id);
 
 const ATTEMPTS = 2;   // the first, and one retry
-const MOVES = 14;     // the most accepted model moves one send will drive
+const MOVES = 14;     // a backstop, in case a run finds no edge to stop at
 
 const app = {
   log: [],
@@ -69,6 +69,7 @@ async function runModel() {
     while (Lifecycle.turn(stateNow()) === 'model' && moved < MOVES) {
       let rejection = null;
       let landed = false;
+      let took = null;
 
       for (let attempt = 0; attempt < ATTEMPTS; attempt += 1) {
         app.streaming = '';
@@ -96,7 +97,12 @@ async function runModel() {
         }
 
         const result = commit(parsed.move, parsed.say);
-        if (result.ok) { landed = true; moved += 1; break; }
+        if (result.ok) {
+          landed = true;
+          moved += 1;
+          took = parsed.move.type === 'transition' ? parsed.move : null;
+          break;
+        }
         rejection = result.rejection;
       }
 
@@ -104,16 +110,55 @@ async function runModel() {
         app.note = 'two attempts, both refused — the turn is back with you';
         break;
       }
+
+      /* Actions run on; an edge stops the run. A transition is the only kind of
+       * move that changes where the machine is, and a state you never got to
+       * look at is a state you have to take somebody's word for. This is also
+       * the only way to see a stale validation: it exists between `submit` and
+       * the next `validate`, and a loop that runs until the turn flips closes
+       * that window before anyone can read it. */
+      if (took) {
+        const edge = Lifecycle.edgeByTrigger(took.trigger) || { to: took.to };
+        app.note = `it took ${took.trigger || `the edge to ${took.to}`} — stopped in ${edge.to} so you can look`;
+        break;
+      }
     }
-    if (moved >= MOVES) app.note = `${MOVES} moves in one go — stopping so you can look`;
+    if (moved >= MOVES) app.note = `${MOVES} moves and no edge — stopping so you can look`;
   } catch (error) {
-    app.note = error.name === 'AbortError' ? 'stopped' : error.message;
+    app.note = error.name === 'AbortError'
+      ? (stateNow().paused ? 'paused — the reply in flight was abandoned' : 'stopped')
+      : error.message;
   } finally {
     app.busy = false;
     app.streaming = '';
     app.abort = null;
     render();
   }
+}
+
+/* Picking the run back up. It is a separate button rather than a hidden meaning
+ * of `send`, because "carry on" and "here is something I want to say" are two
+ * different things and collapsing them is how a person ends up unable to do the
+ * first without doing the second. */
+async function carryOn() {
+  if (app.busy) return;
+  if (Lifecycle.turn(stateNow()) !== 'model') return;
+  app.busy = true;
+  app.note = '';
+  render();
+  await runModel();
+}
+
+/* Pause is legal whoever's turn it is — that is what `bypass` means on the
+ * action — so the button has to bite while a request is in flight. The reply is
+ * abandoned before the flag goes down: one that landed after the pause would be
+ * a move made by a machine that is stopped. */
+function togglePause() {
+  if (stateNow().paused) { take({ type: 'action', actor: 'user', kind: 'resume' }); return; }
+  if (app.abort) app.abort.abort();
+  const result = commit({ type: 'action', actor: 'user', kind: 'pause' });
+  app.note = result.ok ? 'paused' : `${result.rejection.reason} — ${result.rejection.detail}`;
+  render();
 }
 
 async function send() {
@@ -573,6 +618,7 @@ function render() {
   el('stop').hidden = !app.busy;
   el('pauseRun').textContent = state.paused ? 'resume' : 'pause';
   el('pauseRun').disabled = state.state === null || state.state === 'done';
+  el('carryOn').hidden = app.busy || Lifecycle.turn(state) !== 'model';
   el('keyNote').textContent = Api.getKey() ? '' : Api.ready();
 }
 
@@ -602,10 +648,8 @@ function boot() {
   });
   el('stop').addEventListener('click', () => { if (app.abort) app.abort.abort(); });
 
-  el('pauseRun').addEventListener('click', () => {
-    const paused = stateNow().paused;
-    take({ type: 'action', actor: 'user', kind: paused ? 'resume' : 'pause' });
-  });
+  el('pauseRun').addEventListener('click', togglePause);
+  el('carryOn').addEventListener('click', carryOn);
 
   el('clearRun').addEventListener('click', () => {
     app.log = Store.clear();

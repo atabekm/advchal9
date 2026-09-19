@@ -1082,11 +1082,6 @@ group('the page boots, and a whole run goes through the buttons', async () => {
     replyValidate([]),
     ...replyWork('s2'),
     say({ say: 'Resubmitting.', move: goes('submit') }),
-    // Two refusals in a row end the model's turn and leave the state where the
-    // person can look at it: everything met, and the verdicts judging a
-    // revision that no longer exists.
-    say({ say: 'Back to planning then.', move: { type: 'transition', to: 'planning' } }),
-    say({ say: 'Planning, surely.', move: { type: 'transition', to: 'planning' } }),
     replyValidate([]),
   ]);
 
@@ -1102,9 +1097,9 @@ group('the page boots, and a whole run goes through the buttons', async () => {
     page.byId.get('edgeList').text().includes('approve_plan')
     && page.byId.get('edgeList').text().includes('open'));
 
-  /* One click, and the model runs until the turn is the person's again — which
-   * is validation, because nothing between here and there is the person's to
-   * move. */
+  /* One click, and the model works the three steps — and then stops, because
+   * `submit` is an edge and an edge ends the run. A state nobody got to look at
+   * is a state you have to take somebody's word for. */
   await click(page, 'moves', 'approve_plan');
 
   ok('the model tried to skip straight to done', page.byId.get('log').text().includes('no-edge'));
@@ -1115,11 +1110,20 @@ group('the page boots, and a whole run goes through the buttons', async () => {
   ok('the retry landed, and the work got done',
     inside(page.context, 'app').log.filter((e) => e.kind === 'complete_step' && !e.rejected).length === 3);
 
-  ok('the whole run reached validation',
-    inside(page.context, 'stateNow()').state === 'validation');
+  ok('the run stopped on the edge it took', inside(page.context, 'stateNow()').state === 'validation');
+  ok('and said where it stopped', inside(page.context, 'app').note.includes('stopped in validation'));
+  ok('nothing has been validated yet', inside(page.context, 'stateNow()').validation === null);
+  ok('so the turn is still the model\'s', Lifecycle.turn(inside(page.context, 'stateNow()')) === 'model');
+  ok('and carry on is offered', page.byId.get('carryOn').hidden === false);
+
+  page.byId.get('carryOn').fire('click');
+  await settle(page);
+  ok('carrying on validates', inside(page.context, 'stateNow()').validation !== null);
   ok('everything came back met', !page.byId.get('critList').text().includes('unmet'));
+  ok('the turn is the person\'s now, so carry on goes away',
+    page.byId.get('carryOn').hidden === true);
   const accept = buttons(page, 'moves').find((b) => b.textContent === 'accept');
-  ok('so accept is live', accept && accept.disabled === false);
+  ok('and accept is live', accept && accept.disabled === false);
 
   // The back edge, taken by the person on work that passed, through the actual
   // control. Nothing failed; they want it done better anyway.
@@ -1133,11 +1137,13 @@ group('the page boots, and a whole run goes through the buttons', async () => {
   ok('the run went back to execution, redid s2, and resubmitted',
     inside(page.context, 'stateNow()').state === 'validation');
   ok('the round trip is counted', inside(page.context, 'stateNow()').rounds === 1);
-  ok('two refusals in a row handed the turn back',
-    inside(page.context, 'app').note.includes('the turn is back with you'));
+  ok('and stopped on the edge again, before revalidating',
+    inside(page.context, 'stateNow()').validation.at !== inside(page.context, 'stateNow()').revision);
 
-  // This is the whole task, on screen: every criterion says met, and the door
-  // is shut anyway, because those verdicts judged a revision that is gone.
+  // This is the whole task, on screen, and it stays on screen: every criterion
+  // says met, and the door is shut anyway, because those verdicts judged a
+  // revision that is gone. Before the run stopped at each edge this state
+  // existed for about a second and nobody could read it.
   ok('every criterion reads met', !page.byId.get('critList').text().includes('unmet'));
   ok('and accept is shut regardless, on freshness',
     page.byId.get('edgeList').text().includes('the validation judged the work as it now stands'));
@@ -1152,7 +1158,8 @@ group('the page boots, and a whole run goes through the buttons', async () => {
   ok('the button is disabled with it', shutAccept && shutAccept.disabled === true);
 
   // The last scripted reply revalidates, which is the only thing left to do.
-  await typeAndSend(page, 'go on then');
+  page.byId.get('carryOn').fire('click');
+  await settle(page);
   ok('a fresh validation landed', !page.byId.get('freshLine').textContent.includes('STALE'));
   const accept2 = buttons(page, 'moves').find((b) => b.textContent === 'accept');
   ok('and accept is live', accept2 && accept2.disabled === false);
@@ -1200,6 +1207,62 @@ group('a pause survives the tab being closed', async () => {
     again.byId.get('edgeList').text().includes('approve_plan'));
   ok('with no branch in the code for having been away',
     !fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8').includes('restore'));
+});
+
+group('pause bites while a request is in the air', async () => {
+  const page = bootPage();
+  /* A transport that never answers until it is aborted. This is the only shape
+   * the test can take: the claim is about what happens *during* a request, and
+   * a request that has already returned cannot be interrupted. */
+  inside(page.context, 'Api').send = ({ signal }) => new Promise((resolve, reject) => {
+    signal.addEventListener('abort', () => {
+      const error = new Error('aborted');
+      error.name = 'AbortError';
+      reject(error);
+    });
+  });
+
+  page.byId.get('request').value = GOAL;
+  page.byId.get('composer').fire('submit');
+  await delay(10);
+
+  ok('the page is waiting on a reply', inside(page.context, 'app').busy === true);
+  ok('and the goal already landed', inside(page.context, 'stateNow()').state === 'planning');
+  ok('pause is not disabled while it waits', page.byId.get('pauseRun').disabled === false);
+
+  page.byId.get('pauseRun').fire('click');
+  await settle(page);
+
+  ok('the pause landed anyway', inside(page.context, 'stateNow()').paused === true);
+  ok('the reply in flight was abandoned rather than applied',
+    inside(page.context, 'app').note.includes('abandoned'));
+  ok('nothing the model was about to say reached the log',
+    inside(page.context, 'app').log.every((entry) => entry.actor !== 'model'));
+  ok('and only resume is offered',
+    same(Lifecycle.offers(inside(page.context, 'stateNow()')).actions.map((a) => a.kind), ['resume']));
+  ok('carry on is not offered to a stopped machine', page.byId.get('carryOn').hidden === true);
+});
+
+group('two refusals in a row hand the turn back', async () => {
+  const page = bootPage();
+  scripted(page.context, [
+    replyPlan(),
+    say({ say: 'straight to done, surely', move: { type: 'transition', to: 'done' } }),
+    say({ say: 'done, I said', move: { type: 'transition', to: 'done' } }),
+  ]);
+
+  await typeAndSend(page, GOAL);
+  await click(page, 'moves', 'approve_plan');
+
+  ok('the turn came back to the person',
+    inside(page.context, 'app').note.includes('the turn is back with you'));
+  ok('after exactly two attempts, not three',
+    inside(page.context, 'app').log.filter((entry) => entry.rejected).length === 2);
+  ok('and nothing moved', inside(page.context, 'stateNow()').state === 'execution');
+  ok('both refusals are in the log where they can be read',
+    (page.byId.get('log').text().match(/no-edge/g) || []).length === 2);
+  ok('and carry on is still offered, because it is still the model\'s turn',
+    page.byId.get('carryOn').hidden === false);
 });
 
 group('no two scripts declare the same name at the top level', () => {
