@@ -1,15 +1,21 @@
-/* Carried over from task 13, because the series should look like a series.
+/* Carried over from task 14, because the series should look like a series.
  *
  * The layout is task 12's: a chat column with the composer at the bottom, and
  * an aside holding whatever goes up with every request. There it was the
- * profile; here it is the invariants, and having them beside the conversation
- * is an argument rather than a decoration — a refusal that cites INV-2 has
- * explained nothing if INV-2 is on another screen.
+ * profile, then the invariants; here it is the edges out of the state the
+ * machine is in, with each guard ticked or crossed against the state as it
+ * stands. Having them beside the conversation is an argument rather than a
+ * decoration — a refusal that names a shut guard has explained nothing if the
+ * guard is on another screen.
  *
- * Rules that task 13 needed and this page does not are deleted rather than
- * carried, and a test refuses any selector the markup never uses. A stylesheet
- * full of rules for elements that no longer exist is how a page ends up with a
- * class that looks styled and is not. */
+ * The person's buttons are rendered from that same list, so a disabled button
+ * and a crossed guard are one fact drawn twice rather than two things that have
+ * to agree.
+ *
+ * Rules that task 14 needed and this page does not are deleted rather than
+ * carried, and a test refuses a selector the markup never uses in either
+ * direction. A stylesheet full of rules for elements that no longer exist is
+ * how a page ends up with a class that looks styled and is not. */
 
 :root {
   --bg: #f7f6f3;
@@ -114,11 +120,6 @@ main { flex: 1; min-height: 0; display: flex; }
   background: var(--panel);
   font-size: 12px;
 }
-.chatbar select {
-  font: inherit; font-size: 12.5px; padding: 4px 7px;
-  border: 1px solid var(--line); border-radius: 6px;
-  background: var(--bg); color: var(--ink);
-}
 .chatbar button {
   margin-left: auto;
   font: inherit; font-size: 12px; padding: 4px 10px;
@@ -129,20 +130,12 @@ main { flex: 1; min-height: 0; display: flex; }
 
 .log { flex: 1; overflow-y: auto; padding: 16px; }
 
-.turn { max-width: 760px; margin-bottom: 14px; }
-.turn.user { margin-left: auto; }
-
 .bubble {
   padding: 9px 13px;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--panel);
 }
-.turn.user .bubble {
-  border-bottom-right-radius: 3px;
-  background: color-mix(in srgb, var(--accent) 9%, var(--panel));
-}
-.turn.refused .bubble { border-left: 3px solid var(--bad); }
 .bubble p:first-child { margin-top: 0; }
 .bubble p:last-child { margin-bottom: 0; }
 .bubble pre {
@@ -151,40 +144,6 @@ main { flex: 1; min-height: 0; display: flex; }
   white-space: pre-wrap; word-break: break-word;
 }
 .bubble code { font-family: var(--mono); font-size: 12.5px; }
-
-.byline {
-  display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap;
-  margin-bottom: 4px;
-  font-size: 11.5px; color: var(--dim);
-}
-.move {
-  font-family: var(--mono);
-  padding: 1px 7px; border-radius: 999px;
-  border: 1px solid var(--line); color: var(--ink);
-}
-
-/* A violation is one fact, and one fact does not need a panel to be read. */
-.pills { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 5px; }
-.pill {
-  display: inline-flex; gap: 5px; align-items: baseline;
-  padding: 2px 8px; border-radius: 999px;
-  border: 1px solid var(--line); background: var(--panel);
-  font-size: 11.5px;
-}
-.pill b { font-family: var(--mono); font-weight: 600; }
-.pill .why { color: var(--dim); }
-.pill.pass { color: var(--good); border-color: color-mix(in srgb, var(--good) 40%, var(--line)); }
-.pill.fail { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 50%, var(--line)); }
-.pill.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 50%, var(--line)); }
-
-.declared {
-  display: flex; gap: 10px; flex-wrap: wrap; align-items: baseline;
-  margin-top: 6px; font-size: 11.5px;
-}
-.facet { display: inline-flex; gap: 5px; align-items: baseline; }
-.facet b { font-family: var(--mono); font-weight: 600; color: var(--dim); }
-
-.aside-note { margin-top: 6px; font-size: 12.5px; color: var(--dim); }
 
 .stream {
   margin: 0 16px 10px;
@@ -243,32 +202,8 @@ main { flex: 1; min-height: 0; display: flex; }
 .asidehead { margin-bottom: 10px; }
 .asidehead strong { display: block; font-size: 13px; }
 .asidehead .dim { font-size: 11.5px; }
-.asidefoot { margin-top: 12px; font-size: 11.5px; line-height: 1.5; }
 
-.invlist { display: flex; flex-direction: column; gap: 5px; }
-.inv {
-  padding: 6px 8px;
-  border: 1px solid var(--line); border-left: 3px solid var(--line);
-  border-radius: 7px;
-  background: var(--bg);
-}
-.inv.pass { border-left-color: var(--good); }
-.inv.fail { border-left-color: var(--bad); background: color-mix(in srgb, var(--bad) 7%, var(--bg)); }
-.inv.warn { border-left-color: var(--warn); }
-.invhead { display: flex; gap: 7px; align-items: baseline; }
 .mark { margin-left: auto; font-size: 11px; color: var(--dim); }
-.inv.pass .mark { color: var(--good); }
-.inv.fail .mark { color: var(--bad); font-weight: 600; }
-.inv.warn .mark { color: var(--warn); }
-.invtext { margin-top: 2px; font-size: 12.5px; }
-.invrule { margin-top: 2px; font-family: var(--mono); font-size: 11px; color: var(--dim); }
-
-.pending {
-  margin-bottom: 12px; padding: 9px 10px;
-  border: 1px solid color-mix(in srgb, var(--warn) 55%, var(--line));
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--warn) 10%, var(--panel));
-}
 
 /* -------------------------------------- the invariants tab, and pressure */
 
@@ -279,38 +214,7 @@ main { flex: 1; min-height: 0; display: flex; }
   text-transform: lowercase; letter-spacing: 0.02em;
 }
 
-.step {
-  display: flex; flex-direction: column; gap: 2px;
-  padding: 7px 9px; margin-bottom: 5px;
-  border: 1px solid var(--line); border-radius: 7px;
-  background: var(--bg); font-size: 13px;
-}
-.stepbody { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
 .stepid { font-family: var(--mono); font-size: 11.5px; color: var(--dim); }
-.kind { font-family: var(--mono); font-size: 11.5px; color: var(--dim); }
-.stepstatus { margin-left: auto; font-size: 11px; color: var(--dim); }
-.stepnote { margin-top: 2px; font-size: 12px; color: var(--dim); }
-.prose { margin-top: 3px; }
-
-.row {
-  display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap;
-  padding: 4px 8px; margin-bottom: 3px;
-  border: 1px solid var(--line); border-radius: 6px;
-  background: var(--bg); font-size: 12.5px;
-}
-.code {
-  font-family: var(--mono); font-size: 11px;
-  padding: 1px 6px; border-radius: 999px;
-  color: var(--panel); background: var(--bad);
-}
-.who {
-  font-family: var(--mono); font-size: 11px;
-  padding: 1px 6px; border-radius: 999px;
-  border: 1px solid var(--line); color: var(--dim);
-}
-.detail { flex: 1; min-width: 0; font-size: 12px; color: var(--dim); }
-.good { color: var(--good); }
-.bad { color: var(--bad); }
 
 .runner { flex: 1; min-width: 0; overflow-y: auto; padding: 16px; }
 .runnerhead { display: flex; gap: 20px; justify-content: space-between; flex-wrap: wrap; margin-bottom: 12px; }
@@ -319,8 +223,7 @@ main { flex: 1; min-height: 0; display: flex; }
 .status { margin: 10px 0; font-size: 12.5px; color: var(--dim); }
 .narrow { max-width: 68ch; font-size: 13px; }
 
-.buttonrow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
-.buttonrow button, .runnerbuttons button, .composer button {
+.runnerbuttons button, .composer button {
   font: inherit; font-size: 13px;
   padding: 6px 13px;
   border: 1px solid var(--line); border-radius: 7px;
@@ -329,14 +232,7 @@ main { flex: 1; min-height: 0; display: flex; }
 .runnerbuttons button:first-child, .composer button {
   border-color: var(--accent); background: var(--accent); color: #fff;
 }
-.buttonrow button:hover, .runnerbuttons button:hover, .composer button:hover { border-color: var(--accent); }
-
-.turnhead { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; margin-bottom: 4px; }
-.stagechip {
-  padding: 2px 8px; border-radius: 999px;
-  border: 1px solid var(--line); font-size: 11.5px; color: var(--dim);
-}
-.question { margin: 0 0 6px; font-size: 13px; font-weight: 500; }
+.runnerbuttons button:hover, .composer button:hover { border-color: var(--accent); }
 
 .logtable { width: 100%; margin-bottom: 18px; border-collapse: collapse; font-size: 12.5px; }
 .logtable th {
@@ -344,8 +240,6 @@ main { flex: 1; min-height: 0; display: flex; }
   padding: 5px 8px; border-bottom: 1px solid var(--line);
 }
 .logtable td { padding: 5px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
-.logtable .num { text-align: right; font-family: var(--mono); color: var(--dim); }
-.logtable .stepid { font-family: var(--mono); }
 
 .logjson {
   width: 100%; margin-top: 12px;
@@ -480,3 +374,13 @@ main { flex: 1; min-height: 0; display: flex; }
 .armline.legal b { color: var(--good); }
 .armline.skip b { color: var(--bad); }
 .armline.unreadable b { color: var(--warn); }
+
+/* A transition is the only kind of move that changes where the machine is, so
+ * it is the only kind that gets a colour. An action is work, and work is the
+ * quiet part. */
+.chip.action { color: var(--dim); }
+.bubble.model { border-left: 2px solid color-mix(in srgb, var(--model) 60%, var(--line)); }
+
+.step.pending .status, .crit.unknown .status { color: var(--dim); opacity: 0.7; }
+.step.skipped .status { color: var(--warn); }
+.step.skipped .what { text-decoration: line-through; text-decoration-color: var(--line); }

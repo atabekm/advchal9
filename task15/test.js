@@ -1220,7 +1220,8 @@ group('no two scripts declare the same name at the top level', () => {
 
 group('every class the page asks for is styled, and every rule is used', () => {
   const css = fs.readFileSync(path.join(__dirname, 'styles.css'), 'utf8');
-  const markup = html + fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
+  const source = fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8');
+  const markup = html + source;
 
   const used = new Set();
   for (const match of markup.matchAll(/class="([^"]+)"/g)) {
@@ -1233,7 +1234,7 @@ group('every class the page asks for is styled, and every rule is used', () => {
     for (const name of match[1].split(/\s+/)) if (name) used.add(name);
   }
   // The literal half of a computed class — `edge ${open ? … : …}` contributes
-  // `edge`, and the branches are left alone rather than guessed at.
+  // `edge`, and the branches are named below rather than guessed at.
   for (const match of markup.matchAll(/tag\('[a-z]+', `([^`$]*)/g)) {
     for (const name of match[1].trim().split(/\s+/)) if (name) used.add(name);
   }
@@ -1241,12 +1242,37 @@ group('every class the page asks for is styled, and every rule is used', () => {
     for (const name of match[1].trim().split(/\s+/)) if (name) used.add(name);
   }
 
+  /* The composed half, written out rather than pattern-matched — and taken
+   * from the lifecycle's own vocabularies where there is one, so that adding a
+   * step status or a verdict and forgetting to style it is a failing test
+   * rather than a grey word on a page. */
+  const composed = [
+    ...Lifecycle.STEP_STATUS,          // .step.active, .step.done, …
+    ...Lifecycle.VERDICTS,             // .crit.met, .crit.unmet, …
+    ...Lifecycle.ACTORS,               // .bubble.user, .bubble.model
+    'transition', 'action',            // .chip.transition
+    'open', 'shut', 'holds',           // .edge.open, .guard.shut
+    'ok', 'stale',                     // .fresh.ok, .fresh.stale
+    'refused', 'here', 'head', 'on',   // table rows and the route buttons
+    'legal', 'skip', 'unreadable',     // .armline, from Skips.grade
+  ];
+  for (const name of composed) used.add(name);
+
   const styled = new Set();
   for (const match of css.matchAll(/\.([a-zA-Z][\w-]*)/g)) styled.add(match[1]);
 
   const unstyled = [...used].filter((name) => !styled.has(name));
   ok('nothing on the page is dressed in a class the stylesheet never heard of',
-    unstyled.length === 0, unstyled.join(', '));
+    unstyled.length === 0, unstyled.sort().join(', '));
+
+  const unused = [...styled].filter((name) => !used.has(name));
+  ok('and no rule is left over from a page this one is not',
+    unused.length === 0, unused.sort().join(', '));
+
+  ok('every verdict Skips.grade can return has a colour',
+    ['legal', 'skip', 'unreadable'].every((name) => css.includes(`.armline.${name}`)));
+  ok('every step status has one too',
+    Lifecycle.STEP_STATUS.every((name) => used.has(name)));
 });
 
 /* -------------------------------------------------------------- the closed set */
