@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Task 15 · Controlled state transitions</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="title">
+    <strong>Controlled state transitions</strong>
+    <span class="dim">the edges are data, the runtime owns them, and a refusal comes back with the road</span>
+  </div>
+  <div class="settings">
+    <label>model
+      <select id="model"></select>
+    </label>
+    <label>temperature
+      <input id="temperature" type="number" min="0" max="2" step="0.1" value="0.4">
+    </label>
+    <label class="key">key
+      <input id="key" type="password" placeholder="sk-… stays in this browser" autocomplete="off">
+    </label>
+  </div>
+</header>
+
+<nav class="tabs">
+  <button class="tab" data-tab="task" aria-selected="true">the task</button>
+  <button class="tab" data-tab="graph" aria-selected="false">the graph</button>
+  <button class="tab" data-tab="ladder" aria-selected="false">the ladder</button>
+  <span id="keyNote" class="keynote"></span>
+</nav>
+
+<main>
+
+  <!-- ------------------------------------------------------------ the task -->
+  <section class="pane" data-pane="task">
+
+    <div class="chat">
+      <div class="chatbar">
+        <span id="chatCount" class="dim"></span>
+        <button id="pauseRun" type="button">pause</button>
+        <button id="clearRun" type="button">start over</button>
+      </div>
+
+      <div id="log" class="log"></div>
+      <pre id="stream" class="stream" hidden></pre>
+      <div id="note" class="note" hidden></div>
+
+      <form id="composer" class="composer">
+        <textarea id="request" rows="2" spellcheck="false"
+          placeholder="Say what you want done. Asking the assistant to skip ahead is the interesting case."></textarea>
+        <button id="send" type="submit">send</button>
+        <button id="stop" type="button" hidden>stop</button>
+      </form>
+
+      <div class="blockstrip">
+        <details class="rules">
+          <summary>
+            <span>what goes up on every request — compiled from the state, never from the scrollback</span>
+            <span id="requestMeta" class="dim"></span>
+          </summary>
+          <pre id="requestText" class="block"></pre>
+          <div class="blockhead">and the rules above it, identical on every request of every run</div>
+          <pre id="requestRules" class="block"></pre>
+        </details>
+      </div>
+    </div>
+
+    <aside class="aside">
+      <div class="asidehead">
+        <strong id="stateName"></strong>
+        <span id="stateLine" class="dim"></span>
+      </div>
+
+      <div id="freshLine" class="fresh"></div>
+
+      <div class="panel">
+        <div class="panelhead">the edges out of here
+          <span class="dim">— derived from the state on every render, never stored</span>
+        </div>
+        <div id="edgeList" class="edgelist"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panelhead">your moves</div>
+        <div id="moves" class="moves"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panelhead">the plan</div>
+        <div id="planList" class="steplist"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panelhead">what would count as done
+          <span class="dim">— fixed when the plan is approved</span>
+        </div>
+        <div id="critList" class="critlist"></div>
+      </div>
+    </aside>
+
+  </section>
+
+  <!-- ----------------------------------------------------------- the graph -->
+  <section class="pane" data-pane="graph" hidden>
+    <div class="runner">
+      <div class="runnerhead">
+        <div>
+          <strong>Six edges, and what each one is waiting for.</strong>
+          <p class="dim">
+            This table is not a picture of the code. It <em>is</em> the code — the same
+            array the runtime walks when it decides whether a move is allowed. Which is
+            the whole difference from task 13, where the transitions existed only as
+            side effects inside a reducer and could therefore not be printed, searched,
+            or asked a question.
+          </p>
+        </div>
+      </div>
+
+      <pre id="diagram" class="block diagram"></pre>
+
+      <div class="panelhead">every edge, and its guards against the state as it is right now</div>
+      <table class="logtable" id="edgeTable"></table>
+
+      <div class="panelhead">where can it get to from here
+        <span class="dim">— breadth-first over the same table</span>
+      </div>
+      <p class="dim narrow">
+        Ask for any state. If there is no road, you are told so; if there is, you are
+        given it move by move. Only the first move is adjudicated against the state as
+        it stands — the rest are printed as requirements, because evaluating a guard
+        against a state that does not exist yet is fiction.
+      </p>
+      <div class="routebar">
+        <span id="routeFrom" class="dim"></span>
+        <span id="routeButtons" class="routebuttons"></span>
+      </div>
+      <pre id="routeOut" class="block"></pre>
+
+      <div class="panelhead">the log
+        <span class="dim">— the state is a fold over this, and nothing else is kept</span>
+      </div>
+      <p class="dim narrow">
+        Refused moves are kept here too, greyed, because what was attempted is the
+        record this task exists to produce. The fold walks past them.
+      </p>
+      <table class="logtable" id="logTable"></table>
+      <div class="runnerbuttons">
+        <button id="exportLog" type="button">copy the log</button>
+        <button id="importLog" type="button">load what is in the box</button>
+        <span id="logMeta" class="dim"></span>
+      </div>
+      <textarea id="logJson" class="logjson" rows="8" spellcheck="false"></textarea>
+    </div>
+  </section>
+
+  <!-- ---------------------------------------------------------- the ladder -->
+  <section class="pane" data-pane="ladder" hidden>
+    <div class="runner">
+      <div class="runnerhead">
+        <div>
+          <strong>Five rungs of pressure, three places in the lifecycle, two arms.</strong>
+          <p class="dim">
+            Asked once, "does the assistant skip ahead" is an anecdote. The question
+            worth measuring is what happens when the person keeps asking. Only one thing
+            differs between the arms: whether the order of the stages is prose in a
+            system message, or a table the runtime adjudicates against and prints with
+            the shut doors marked. The same model, the same state, the same envelope,
+            and one grader for both — the real runtime, applied afterwards to what the
+            prose arm emitted.
+          </p>
+        </div>
+        <div class="runnerbuttons">
+          <button id="runLadder" type="button">run the thirty-odd requests</button>
+          <button id="stopLadder" type="button" hidden>stop</button>
+        </div>
+      </div>
+
+      <div class="panelhead">what the runtime can be made to accept — enumerated here, with no key</div>
+      <p class="dim narrow">
+        The adjudicated arm's skip count is zero, and it is worth being exact about
+        why. Not because the model behaved: because from each of these three places
+        every transition that can be written down — by trigger and by destination, by
+        either party — is put to the table, and the ones outside it are refused while
+        the ones inside it are accepted. Fifteen requests cannot establish that.
+        Walking the space can.
+      </p>
+      <table class="logtable" id="proofTable"></table>
+
+      <div class="panelhead">the ladder</div>
+      <p class="dim narrow">
+        Three numbers, and they are not the same number. <b>skip</b> is how often
+        prose alone was not enough. <b>attempt</b> is how often the model asked for an
+        illegal move while looking at the graph forbidding it — which is what "attempts
+        to transition to an invalid state" actually is. <b>recovered</b> is how many of
+        those attempts landed on a legal move on the very next try, having been handed
+        the route: a refusal that leaves the model thrashing is a worse refusal than
+        one that routes it.
+      </p>
+      <table class="logtable" id="curveTable"></table>
+
+      <div id="ladderStatus" class="status"></div>
+      <div id="ladderOut"></div>
+    </div>
+  </section>
+
+</main>
+
+<script src="markdown.js"></script>
+<script src="lifecycle.js"></script>
+<script src="store.js"></script>
+<script src="protocol.js"></script>
+<script src="api.js"></script>
+<script src="skips.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
