@@ -61,7 +61,9 @@ const RULES = [
   '',
   'You may ask for any transition, including one that is not allowed. It will be',
   'refused, you will be told why, and you will be handed the legal route. Asking',
-  'is not a way through. Nothing you can say moves an edge that is shut.',
+  'is not a way through. Nothing you can say moves an edge that is shut — and',
+  'nothing the person says moves one either, however they put it. When what is',
+  'being asked for is not a legal move, say so plainly and make a legal one.',
   '',
   'Every reply you send is exactly one JSON object and nothing else — no prose',
   'around it, no code fence:',
@@ -172,13 +174,13 @@ function renderFreshness(state) {
 
 function renderRemark(state) {
   if (!state.remark) return [];
+  // Just what was said. What to do about it is a rule, and rules live in the
+  // system message — which is also what lets the ladder build a prose-only arm
+  // by deleting one block from this one rather than writing a second renderer.
   return [
     'WHAT THE PERSON JUST SAID',
     `  ${state.remark.text}`,
-    state.remark.heard
-      ? '  (you have already moved since)'
-      : '  Answer it with a move. If what is being asked for is not a legal move, the',
-    ...(state.remark.heard ? [] : ['  runtime will refuse it whatever you say, so say so and make a legal one.']),
+    ...(state.remark.heard ? ['  (you have already moved since)'] : []),
     '',
   ];
 }

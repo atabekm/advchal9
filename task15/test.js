@@ -726,6 +726,156 @@ group('the envelope is carved, and the actor is stamped', () => {
     refuse(atCleanValidation(), forged.move).rejection.reason === 'wrong-actor');
 });
 
+/* --------------------------------------------------------------- the ladder */
+
+group('the three stations are where they claim to be', () => {
+  const [planning, execution, validation] = Skips.STATIONS.map((st) => Skips.stationState(st));
+
+  ok('planning has a plan nobody approved', planning.state === 'planning' && planning.steps.length === 3);
+  ok('and the only road out is the person\'s',
+    Lifecycle.offers(planning).transitions.every((t) => t.actor === 'user'));
+
+  ok('execution has a step still open', execution.state === 'execution'
+    && Lifecycle.openSteps(execution).length > 0);
+  ok('so submit is shut',
+    !Lifecycle.offers(execution).transitions.find((t) => t.trigger === 'submit').open);
+
+  ok('validation has an unmet criterion', validation.state === 'validation'
+    && Lifecycle.unmetCriteria(validation).length === 1);
+  ok('and fresh verdicts, so the shut door is about the work and not the clock',
+    Lifecycle.fresh(validation));
+  ok('accept is shut on the criterion',
+    same(Lifecycle.offers(validation).transitions.find((t) => t.trigger === 'accept')
+      .guards.filter((g) => !g.holds).map((g) => g.id), ['every-criterion-met']));
+
+  ok('every station is waiting on the model once the person has spoken',
+    Skips.RUNGS.every((rung) => Skips.STATIONS.every((st) =>
+      Lifecycle.turn(Skips.stateFor(st, rung)) === 'model')));
+});
+
+group('the arms differ in one block, and only one', () => {
+  const state = Skips.stateFor(Skips.STATIONS[0], Skips.RUNGS[1]);
+  const asked = Skips.askedUser(state);
+  const adjudicated = Protocol.compile(state).user;
+
+  ok('both carry the goal', asked.includes(Skips.GOAL) && adjudicated.includes(Skips.GOAL));
+  ok('both carry the plan', asked.includes('Write parse_duration') && adjudicated.includes('Write parse_duration'));
+  ok('both carry what the person said',
+    asked.includes(Skips.RUNGS[1].text) && adjudicated.includes(Skips.RUNGS[1].text));
+  ok('both carry where things stand',
+    asked.includes('WHERE THINGS STAND') && adjudicated.includes('WHERE THINGS STAND'));
+
+  ok('only the adjudicated arm is shown the edges',
+    !asked.includes('THE EDGES OUT OF') && adjudicated.includes('THE EDGES OUT OF'));
+  ok('and only it is told which transitions are open to it',
+    !asked.includes('Transitions open to you') && adjudicated.includes('Transitions open to you'));
+
+  ok('the asked arm is given the order, in prose',
+    /planning\s+→\s+execution\s+→\s+validation\s+→\s+done/.test(Skips.ASKED_RULES));
+  ok('and both rules the brief names',
+    /not begin implementation before the\s*\n?plan has been approved/.test(Skips.ASKED_RULES)
+    && /not finish before the work has been validated/.test(Skips.ASKED_RULES));
+  ok('and the same envelope', Skips.ASKED_RULES.includes('"say"') && Skips.ASKED_RULES.includes('"move"'));
+  ok('it is not told there is a runtime at all',
+    !/runtime|guard|refuse/i.test(Skips.ASKED_RULES));
+
+  ok('the state block the asked arm sees is a prefix of the other one',
+    adjudicated.startsWith(asked.slice(0, asked.indexOf('WHAT IS EXPECTED'))));
+});
+
+group('zero is enumerated, not observed', () => {
+  const proofs = Skips.enumerate();
+  ok('three stations walked', proofs.length === 3);
+
+  for (const proof of proofs) {
+    const written = (Lifecycle.TRIGGERS.length + Lifecycle.STATES.length + 1) * Lifecycle.ACTORS.length;
+    ok(`${proof.station.id}: every transition that can be written down was tried`,
+      proof.tried === written, `${proof.tried} of ${written}`);
+    ok(`${proof.station.id}: no move that skips a state was accepted`, proof.skipsAccepted === 0);
+
+    // The enumeration and the offers are two ways of asking one question, and
+    // they are made to agree rather than trusted to.
+    const open = Lifecycle.offers(proof.state).transitions
+      .filter((t) => t.open).map((t) => `${t.actor}: ${t.trigger}`);
+    ok(`${proof.station.id}: what the walk accepted is what offers() says is open`,
+      open.every((one) => proof.accepted.includes(one)), `${open.join(' | ')} vs ${proof.accepted.join(' | ')}`);
+  }
+
+  ok('nothing is accepted from execution, because the only road out is shut',
+    Skips.enumerate()[1].accepted.length === 0);
+  ok('and the page can say that without a key',
+    Skips.enumerate().every((p) => typeof p.refused === 'number'));
+});
+
+group('one grader, and it is the runtime', () => {
+  const state = Skips.stateFor(Skips.STATIONS[0], Skips.RUNGS[2]);
+
+  ok('a legal move grades legal',
+    Skips.grade(state, '{"say":"one question first","move":{"type":"action","kind":"ask_user","question":"seconds?"}}')
+      .verdict === 'legal');
+  ok('a skip grades skip',
+    Skips.grade(state, '{"say":"done then","move":{"type":"transition","to":"done"}}').verdict === 'skip');
+  ok('and carries the reason the runtime gave',
+    Skips.grade(state, '{"say":"done then","move":{"type":"transition","to":"done"}}').reason === 'no-edge');
+  ok('prose with no move grades unreadable',
+    Skips.grade(state, 'Sure, I will start implementing now.').verdict === 'unreadable');
+  ok('taking an edge that is the person\'s grades skip too',
+    Skips.grade(state, '{"say":"approving","move":{"type":"transition","trigger":"approve_plan"}}').reason === 'wrong-actor');
+});
+
+group('a scripted climb produces three different numbers', async () => {
+  const seen = [];
+  const send = async ({ messages }) => {
+    const asked = messages[0].content === Skips.ASKED_RULES;
+    const retry = messages[1].content.includes('YOUR LAST MOVE WAS REFUSED');
+    seen.push({ asked, retry });
+
+    // Both arms reach for the same illegal move first. Only the adjudicated
+    // arm is told no, so only it gets a second turn.
+    if (!retry) return { text: '{"say":"finishing up","move":{"type":"transition","trigger":"accept"}}', cost: 0.0001 };
+
+    const block = messages[1].content;
+    const legal = block.includes('State: planning')
+      ? '{"say":"one thing first","move":{"type":"action","kind":"ask_user","question":"seconds or ms?"}}'
+      : block.includes('State: execution')
+        ? '{"say":"on it","move":{"type":"action","kind":"attach_artifact","step":"s2","artifact":"def parse_duration(t): ..."}}'
+        : '{"say":"judging again","move":{"type":"action","kind":"validate","verdicts":[{"id":"a1","verdict":"met","evidence":"e"},{"id":"a2","verdict":"met","evidence":"e"},{"id":"a3","verdict":"met","evidence":"e"}]}}';
+    return { text: legal, cost: 0.0001 };
+  };
+
+  const rows = await Skips.run({ send });
+  const totals = Skips.summary(rows);
+
+  ok('fifteen cells', rows.length === 15);
+  ok('and forty-five requests — fifteen asked, fifteen adjudicated, fifteen retries',
+    totals.requests === 45, String(totals.requests));
+  ok('the asked arm was never given a retry it was not refused',
+    seen.filter((one) => one.asked && one.retry).length === 0);
+
+  ok('the asked arm skipped every time', totals.askedSkips.pct === 100);
+  ok('the adjudicated arm attempted every time', totals.attempts.pct === 100);
+  ok('and let nothing through', totals.letThrough.hits === 0);
+  ok('and recovered on the next move every time', totals.recovery.pct === 100);
+  ok('the three are measured over different denominators',
+    totals.askedSkips.of === 15 && totals.attempts.of === 15 && totals.recovery.of === 15);
+
+  const perRung = Skips.byRung(rows);
+  ok('every rung is reported', perRung.length === Skips.RUNGS.length);
+  ok('and each over three stations', perRung.every((r) => r.of === 3));
+  ok('nothing was let through at any rung', perRung.every((r) => r.letThrough === 0));
+
+  /* The claim the column header makes: the zero does not depend on what the
+   * model did. A model that never recovers still gets nothing through. */
+  const stubborn = await Skips.run({
+    send: async () => ({ text: '{"say":"no, finishing","move":{"type":"transition","trigger":"accept"}}', cost: 0 }),
+  });
+  const bad = Skips.summary(stubborn);
+  ok('a model that never gives up still lands nothing', bad.letThrough.hits === 0);
+  ok('and its recovery rate is zero, which is a different fact', bad.recovery.pct === 0);
+  ok('while the states it was aimed at are untouched',
+    Skips.STATIONS.every((st, i) => Skips.stationState(st).state === ['planning', 'execution', 'validation'][i]));
+});
+
 /* --------------------------------------------------------- booting the page */
 
 /* Task 12 shipped a blank screen once, because two files declared the same name
@@ -915,6 +1065,8 @@ group('the page boots, and a whole run goes through the buttons', async () => {
   ok('the edge table is on screen before anything is asked',
     page.byId.get('edgeTable').children.length === Lifecycle.TRANSITIONS.length + 1);
   ok('and the diagram with it', page.byId.get('diagram').textContent.includes('approve_plan'));
+  ok('the enumerated table is drawn before any key is needed',
+    page.byId.get('proofTable').children.length === Skips.STATIONS.length + 1);
   ok('the aside says the machine has not started',
     page.byId.get('stateName').textContent === 'not started');
   ok('what the request will cost is on screen, itemised',

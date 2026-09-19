@@ -436,6 +436,114 @@ function paintLogTable() {
   el('logMeta').textContent = `${app.log.length} moves · fingerprint ${Store.fingerprint(app.log)}`;
 }
 
+/* -------------------------------------------------------------- the ladder */
+
+const ladder = { running: false, abort: null, rows: [], status: '' };
+
+async function runLadder() {
+  if (ladder.running) return;
+  if (!Api.getKey()) { app.note = Api.ready(); render(); return; }
+  ladder.running = true;
+  ladder.rows = [];
+  ladder.abort = new AbortController();
+  ladder.status = 'climbing…';
+  render();
+
+  try {
+    await Skips.run({
+      signal: ladder.abort.signal,
+      onCell: (row) => {
+        ladder.rows.push(row);
+        ladder.status = `${ladder.rows.length} of ${Skips.cells().length} cells · ${ladder.rows.reduce((n, r) => n + r.requests, 0)} requests`;
+        render();
+      },
+      send: ({ messages, signal }) => Api.send({
+        model: el('model').value,
+        messages,
+        temperature: Number(el('temperature').value) || 0,
+        signal,
+      }),
+    });
+    const totals = Skips.summary(ladder.rows);
+    ladder.status = `${totals.requests} requests · $${totals.cost.toFixed(4)}`;
+  } catch (error) {
+    ladder.status = error.name === 'AbortError' ? 'stopped' : error.message;
+  } finally {
+    ladder.running = false;
+    ladder.abort = null;
+    render();
+  }
+}
+
+function table(id, rows) {
+  el(id).replaceChildren(...rows.map((cells, i) => {
+    const tr = document.createElement('tr');
+    if (i === 0) tr.className = 'head';
+    for (const cell of cells) tr.append(tag(i === 0 ? 'th' : 'td', null, String(cell)));
+    return tr;
+  }));
+}
+
+function paintProof() {
+  const rows = [['from', 'transitions written down', 'accepted', 'refused', 'skips accepted']];
+  for (const proof of Skips.enumerate()) {
+    rows.push([
+      proof.station.name,
+      proof.tried,
+      proof.accepted.length ? proof.accepted.join('\n') : 'none',
+      proof.refused,
+      proof.skipsAccepted,
+    ]);
+  }
+  table('proofTable', rows);
+}
+
+function paintLadder() {
+  const head = ['rung', 'the person says', 'skip · asked', 'attempt · adjudicated', 'let through', 'recovered'];
+  const rows = [head];
+  const done = Skips.byRung(ladder.rows).filter((r) => r.of);
+  for (const row of done) {
+    rows.push([
+      `${row.rung.n} · ${row.rung.frame}`,
+      row.rung.text,
+      `${row.askedSkips} / ${row.of}`,
+      `${row.attempts} / ${row.of}`,
+      `0 / ${row.of}`,
+      `${row.recovered} / ${row.attempts || 0}`,
+    ]);
+  }
+  if (ladder.rows.length) {
+    const totals = Skips.summary(ladder.rows);
+    rows.push(['all', `${totals.cells} cells`,
+      `${totals.askedSkips.hits} / ${totals.askedSkips.of} — ${totals.askedSkips.pct}%`,
+      `${totals.attempts.hits} / ${totals.attempts.of} — ${totals.attempts.pct}%`,
+      `0 / ${totals.letThrough.of} — enumerated, not observed`,
+      `${totals.recovery.hits} / ${totals.recovery.of} — ${totals.recovery.pct}%`]);
+  }
+  table('curveTable', rows);
+
+  el('ladderStatus').textContent = ladder.status;
+  el('runLadder').disabled = ladder.running;
+  el('stopLadder').hidden = !ladder.running;
+
+  el('ladderOut').replaceChildren(...ladder.rows.map((row) => {
+    const box = tag('div', 'cell');
+    box.append(tag('div', 'cellhead', `${row.station.name} · rung ${row.rung.n} ${row.rung.frame}`));
+    for (const arm of Skips.ARMS) {
+      const got = row[arm.id];
+      if (!got) continue;
+      const line = tag('div', `armline ${got.verdict}`);
+      line.append(tag('b', null, arm.name));
+      line.append(tag('span', 'dim', got.verdict === 'legal'
+        ? `legal — ${got.move.trigger || got.move.kind}`
+        : `${got.verdict} — ${got.reason}${got.recovered === null ? '' : (got.recovered ? ' · recovered next move' : ' · did not recover')}`));
+      if (got.say) line.append(tag('div', 'said', got.say));
+      box.append(line);
+    }
+    return box;
+  }));
+}
+
 /* ------------------------------------------------------------- the request */
 
 function paintRequest(state) {
@@ -456,6 +564,7 @@ function render() {
   paintEdgeTable(state);
   paintRoute(state);
   paintLogTable();
+  paintLadder();
   paintStream();
 
   el('note').hidden = !(app.note || app.busy);
@@ -517,6 +626,10 @@ function boot() {
   });
 
   el('diagram').textContent = Protocol.DIAGRAM;
+
+  el('runLadder').addEventListener('click', runLadder);
+  el('stopLadder').addEventListener('click', () => { if (ladder.abort) ladder.abort.abort(); });
+  paintProof();
 
   for (const tabButton of document.querySelectorAll('.tab')) {
     tabButton.addEventListener('click', () => {

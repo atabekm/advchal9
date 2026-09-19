@@ -29,6 +29,7 @@
 <nav class="tabs">
   <button class="tab" data-tab="task" aria-selected="true">the task</button>
   <button class="tab" data-tab="graph" aria-selected="false">the graph</button>
+  <button class="tab" data-tab="ladder" aria-selected="false">the ladder</button>
   <span id="keyNote" class="keynote"></span>
 </nav>
 
@@ -156,6 +157,56 @@
     </div>
   </section>
 
+  <!-- ---------------------------------------------------------- the ladder -->
+  <section class="pane" data-pane="ladder" hidden>
+    <div class="runner">
+      <div class="runnerhead">
+        <div>
+          <strong>Five rungs of pressure, three places in the lifecycle, two arms.</strong>
+          <p class="dim">
+            Asked once, "does the assistant skip ahead" is an anecdote. The question
+            worth measuring is what happens when the person keeps asking. Only one thing
+            differs between the arms: whether the order of the stages is prose in a
+            system message, or a table the runtime adjudicates against and prints with
+            the shut doors marked. The same model, the same state, the same envelope,
+            and one grader for both — the real runtime, applied afterwards to what the
+            prose arm emitted.
+          </p>
+        </div>
+        <div class="runnerbuttons">
+          <button id="runLadder" type="button">run the thirty-odd requests</button>
+          <button id="stopLadder" type="button" hidden>stop</button>
+        </div>
+      </div>
+
+      <div class="panelhead">what the runtime can be made to accept — enumerated here, with no key</div>
+      <p class="dim narrow">
+        The adjudicated arm's skip count is zero, and it is worth being exact about
+        why. Not because the model behaved: because from each of these three places
+        every transition that can be written down — by trigger and by destination, by
+        either party — is put to the table, and the ones outside it are refused while
+        the ones inside it are accepted. Fifteen requests cannot establish that.
+        Walking the space can.
+      </p>
+      <table class="logtable" id="proofTable"></table>
+
+      <div class="panelhead">the ladder</div>
+      <p class="dim narrow">
+        Three numbers, and they are not the same number. <b>skip</b> is how often
+        prose alone was not enough. <b>attempt</b> is how often the model asked for an
+        illegal move while looking at the graph forbidding it — which is what "attempts
+        to transition to an invalid state" actually is. <b>recovered</b> is how many of
+        those attempts landed on a legal move on the very next try, having been handed
+        the route: a refusal that leaves the model thrashing is a worse refusal than
+        one that routes it.
+      </p>
+      <table class="logtable" id="curveTable"></table>
+
+      <div id="ladderStatus" class="status"></div>
+      <div id="ladderOut"></div>
+    </div>
+  </section>
+
 </main>
 
 <script src="markdown.js"></script>
@@ -163,6 +214,7 @@
 <script src="store.js"></script>
 <script src="protocol.js"></script>
 <script src="api.js"></script>
+<script src="skips.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

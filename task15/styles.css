@@ -472,3 +472,11 @@ main { flex: 1; min-height: 0; display: flex; }
 .logtable tr.refused td { color: var(--dim); }
 .logtable td { white-space: pre-wrap; vertical-align: top; }
 .logtable tr.head th { color: var(--dim); font-weight: 600; text-align: left; }
+
+.cell { border-top: 1px solid var(--line); padding: 10px 0; }
+.cellhead { font: 11.5px/1.6 var(--mono); color: var(--dim); }
+.armline { display: flex; gap: 8px; flex-wrap: wrap; align-items: baseline; padding: 3px 0; }
+.armline b { min-width: 104px; font: 12px/1.6 var(--mono); }
+.armline.legal b { color: var(--good); }
+.armline.skip b { color: var(--bad); }
+.armline.unreadable b { color: var(--warn); }

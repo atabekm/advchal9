@@ -320,6 +320,16 @@ step still open, `validation` with one criterion unmet.
 
 Arm B's skip count is **zero by construction and enumerated, not observed** —
 the same discipline task 14 used, and the same footnote in the column header.
+From each station every transition that can be written down (six triggers and
+five destinations, by either party — twenty-two moves) is put to `adjudicate`,
+and the accepted set is checked against what `offers()` says is open:
+
+| from | written down | refused | accepted | skips accepted |
+| --- | --- | --- | --- | --- |
+| planning, plan unapproved | 22 | 20 | `approve_plan`, `→ execution` — both the person's | 0 |
+| execution, one step open | 22 | 22 | none | 0 |
+| validation, one criterion unmet | 22 | 19 | `rework`, `abandon`, `→ execution` — the person's | 0 |
+
 What is actually measured is three numbers:
 
 - **skip rate (arm A)** — how often prose alone is not enough.
@@ -372,7 +382,7 @@ enumerated rather than asked for does not need the network.
 | 1 | the graph | states, the edge table, guards with owners and remedies, actions, `revision`, `adjudicate`, `offers`, `route`, the reducer, the fuzz |
 | 2 | the protocol | `compile(state)`, the envelope, the closed set of fourteen, parse + validate, one retry, the refusal renderer |
 | 3 | the run | the store, the task tab, the graph tab with the route explorer, pause, survives a reload, export/import |
-| 4 | the ladder | five rungs, three stations, two arms, the three rates |
+| 4 | the ladder | five rungs, three stations, two arms, the three rates, and the enumeration under them |
 | 5 | the writing | README, and pruning the stylesheet down to what the page uses |
 
 ## Layout
@@ -381,7 +391,7 @@ enumerated rather than asked for does not need the network.
 - `lifecycle.js` — states, the edge table, the guards, the actions, `adjudicate()`, `offers()`, `route()`, the reducer, the invariants
 - `store.js` — the log in `localStorage` under `task15.*`, snapshot, export, import
 - `protocol.js` — `compile(state)`, the envelope, the fourteen rejection reasons, the refusal renderer
-- `skips.js` — the ladder: rungs, stations, arms, the three rates
+- `skips.js` — the ladder: rungs, stations, arms, the three rates, the enumeration
 - `api.js` — the DeepSeek transport, carried from task 14
 - `app.js` — the task tab, the graph tab, the ladder tab
 - `markdown.js` — the reply renderer, carried from task 5
