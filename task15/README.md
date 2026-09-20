@@ -31,7 +31,7 @@ question about a graph.
 Open `index.html`. No server, no build, no dependencies — the same as task 4
 through task 14. Storage keys are namespaced `task15.*`.
 
-`node test.js` runs 374 checks with no network and no key. That includes 80,000
+`node test.js` runs 390 checks with no network and no key. That includes 80,000
 random moves against the adjudicator, a whole run driven through the actual
 buttons of the actual page against a shimmed DOM, and a reload in the middle of
 it. Two of those checks are the only thing standing between this repo and a
@@ -265,6 +265,15 @@ after a reload and comparing bytes; that proof is carried and still passes. This
 one adds the stronger one: hand the same fold a log that grew while you were
 away, and the offers come back **different — correctly different** — because
 nothing was remembered.
+
+The rail across the top of the conversation is the same argument in miniature.
+Task 13 had one, and there it was four chips and three arrows — honest, because
+task 13 was a line. Here the hops are read off `TRANSITIONS`, so a trigger
+renamed in `lifecycle.js` cannot leave a stale word on the rail; each trigger is
+lit only while that edge is open **right now**; both roads to `done` are shown
+rather than only the flattering one; and the back edge is drawn underneath with
+the round trips counted. A picture of the lifecycle that cannot disagree with
+the lifecycle.
 
 The page is the same argument. The aside is the edges out of the current state,
 with each guard ticked or crossed, and the person's buttons are rendered from
@@ -507,6 +516,6 @@ between 30 and 45 in all.
 - `api.js` — the DeepSeek transport, carried from task 14
 - `app.js` — the task tab, the graph tab, the ladder tab
 - `markdown.js` — the reply renderer, carried from task 5
-- `test.js` — 374 checks with no network and no key, including booting the page
+- `test.js` — 390 checks with no network and no key, including booting the page
   against a shimmed DOM, which is the one thing standing between this repo and a
   blank screen

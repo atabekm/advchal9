@@ -292,6 +292,80 @@ function paintLog() {
   el('chatCount').textContent = `${app.log.length} moves · ${app.log.filter((e) => e.rejected).length} refused · log ${Store.fingerprint(app.log)}`;
 }
 
+/* --------------------------------------------------------------- the rail
+ *
+ * Task 13 had one of these and it was a line of four chips, which was honest
+ * about task 13 and would be a lie here. The hops are read off the same table
+ * the runtime walks, so the rail cannot drift from it; each trigger is lit only
+ * when that edge is open right now; and the back edge is drawn, because it is
+ * the whole difference between this and a counter.
+ */
+
+function hopsBetween(from, to) {
+  return Lifecycle.TRANSITIONS.filter((edge) => edge.from === from && edge.to === to);
+}
+
+function backEdges() {
+  return Lifecycle.TRANSITIONS.filter((edge) =>
+    Lifecycle.STATES.indexOf(edge.from) > Lifecycle.STATES.indexOf(edge.to));
+}
+
+function triggerSpan(trigger, open) {
+  return tag('span', `hoplabel ${open ? 'open' : 'shut'}`, trigger);
+}
+
+function paintRail(state) {
+  const offered = Lifecycle.offers(state);
+  const openNow = new Set(offered.transitions.filter((t) => t.open).map((t) => t.trigger));
+  const at = Lifecycle.STATES.indexOf(state.state);
+  const nodes = [];
+
+  Lifecycle.STATES.forEach((name, i) => {
+    if (i > 0) {
+      const hop = tag('span', 'hop');
+      hop.append(tag('span', 'arrowhead', '→'));
+      hopsBetween(Lifecycle.STATES[i - 1], name).forEach((edge, n) => {
+        if (n) hop.append(tag('span', 'hopor', '/'));
+        hop.append(triggerSpan(edge.trigger, openNow.has(edge.trigger)));
+      });
+      nodes.push(hop);
+    }
+    const past = at !== -1 && i < at;
+    const here = i === at;
+    const chip = tag('span', `railchip${here ? ' here' : ''}${past ? ' past' : ''}`, name);
+    if (here && state.outcome) chip.append(tag('span', 'outcome', ` · ${state.outcome.result}`));
+    nodes.push(chip);
+  });
+
+  const line = tag('div', 'railline');
+  line.append(...nodes);
+
+  const flag = tag('span', 'pausedflag', 'paused');
+  flag.hidden = !state.paused;
+  line.append(flag);
+
+  const whose = Lifecycle.turn(state);
+  line.append(tag('span', 'railturn', whose === null
+    ? 'closed'
+    : `waiting on ${whose === 'user' ? 'you' : 'the assistant'}`));
+
+  const rows = [line];
+
+  for (const edge of backEdges()) {
+    const open = openNow.has(edge.trigger);
+    const row = tag('div', `railback ${open ? 'open' : 'shut'}`);
+    row.append(tag('span', 'arrowhead', '↩'));
+    row.append(tag('span', 'hoplabel', edge.trigger));
+    // The edge's own note belongs on the graph tab; the rail has room for
+    // where it goes and nothing else.
+    row.append(tag('span', 'dim', `back to ${edge.to}`));
+    if (state.rounds) row.append(tag('span', 'rounds', `×${state.rounds}`));
+    rows.push(row);
+  }
+
+  el('rail').replaceChildren(...rows);
+}
+
 /* ------------------------------------------------------------- the aside */
 
 function paintHead(state) {
@@ -633,6 +707,7 @@ function paintRequest(state) {
 
 function render() {
   const state = stateNow();
+  paintRail(state);
   paintHead(state);
   paintEdges(state);
   paintMoves(state);

@@ -1349,6 +1349,65 @@ group('a move carries a file, so the reply is given room for one', async () => {
   ok('nothing of it reached the state', inside(page2.context, 'stateNow()').steps.length === 0);
 });
 
+group('the rail is read off the table, not drawn beside it', async () => {
+  const page = bootPage();
+  scripted(page.context, [
+    replyPlan(),
+    ...replyWork('s1'), ...replyWork('s2'), ...replyWork('s3'),
+    say({ say: 'judging.', move: goes('submit') }),
+    replyValidate([]),
+  ]);
+
+  const railText = () => page.byId.get('rail').text();
+  const chips = () => page.byId.get('rail').all((n) => n.className.startsWith('railchip'));
+
+  ok('every state is a chip', chips().length === Lifecycle.STATES.length);
+  ok('and they are the states, in order',
+    same(chips().map((c) => c.textContent), Lifecycle.STATES));
+
+  /* The hops are the table's, so a trigger renamed in lifecycle.js cannot leave
+   * a stale word on the rail. */
+  // Every forward edge between two states. `start` is left off: it comes from
+  // before the first state, and the rail begins at the first state.
+  const forward = Lifecycle.TRANSITIONS.filter((e) => e.from !== null
+    && Lifecycle.STATES.indexOf(e.to) === Lifecycle.STATES.indexOf(e.from) + 1);
+  ok('every forward trigger is on the rail',
+    forward.every((edge) => railText().includes(edge.trigger)), forward.map((e) => e.trigger).join(','));
+  ok('both roads to done are shown, not just the flattering one',
+    railText().includes('accept') && railText().includes('abandon'));
+  ok('and the back edge is drawn, which task 13 had nothing to draw',
+    railText().includes('rework'));
+
+  await typeAndSend(page, GOAL);
+  ok('planning is where it is', chips()[0].className.includes('here'));
+  ok('and nothing is behind it yet', chips().every((c) => !c.className.includes('past')));
+  ok('approve_plan is lit because it is open',
+    page.byId.get('rail').all((n) => n.textContent === 'approve_plan')[0].className.includes('open'));
+  ok('submit is not, because it is two states away',
+    page.byId.get('rail').all((n) => n.textContent === 'submit')[0].className.includes('shut'));
+  ok('the rail says who has the move', railText().includes('waiting on you'));
+
+  await click(page, 'moves', 'approve_plan');
+  ok('validation is where it stopped', chips()[2].className.includes('here'));
+  ok('planning and execution are behind it',
+    chips()[0].className.includes('past') && chips()[1].className.includes('past'));
+  ok('rework is shut on a validation that has not happened',
+    page.byId.get('rail').all((n) => n.className === 'railback shut').length === 1);
+
+  page.byId.get('carryOn').fire('click');
+  await settle(page);
+  ok('and open once the verdicts are in',
+    page.byId.get('rail').all((n) => n.className === 'railback open').length === 1);
+
+  page.byId.get('pauseRun').fire('click');
+  await settle(page);
+  ok('a paused machine flies the flag',
+    page.byId.get('rail').all((n) => n.className === 'pausedflag')[0].hidden === false);
+  ok('and nothing on the rail is lit while it is stopped',
+    page.byId.get('rail').all((n) => n.className.includes('hoplabel'))
+      .every((n) => !n.className.includes(' open')));
+});
+
 group('pause bites while a request is in the air', async () => {
   const page = bootPage();
   /* A transport that never answers until it is aborted. This is the only shape
@@ -1457,6 +1516,7 @@ group('every class the page asks for is styled, and every rule is used', () => {
     'open', 'shut', 'holds',           // .edge.open, .guard.shut
     'ok', 'stale',                     // .fresh.ok, .fresh.stale
     'refused', 'here', 'head', 'on',   // table rows and the route buttons
+    'past',                            // .railchip.past, the states already left
     'legal', 'skip', 'unreadable',     // .armline, from Skips.grade
   ];
   for (const name of composed) used.add(name);

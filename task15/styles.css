@@ -393,3 +393,44 @@ main { flex: 1; min-height: 0; display: flex; }
 }
 .askedhead { font-size: 11px; color: var(--dim); text-transform: lowercase; }
 .askedtext { font-size: 12.5px; margin: 2px 0 4px; }
+
+/* The rail. Task 13 had one and it was a line of four chips, which was true of
+ * task 13. The hops here are read off the transition table, each trigger is lit
+ * only while that edge is open, and the back edge is drawn — it is the whole
+ * difference between a graph and a counter. */
+.rail {
+  padding: 8px 16px; border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+.railline { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+
+.railchip {
+  padding: 3px 9px; border: 1px solid var(--line); border-radius: 999px;
+  font-size: 11.5px; color: var(--dim);
+}
+.railchip.past { color: var(--ink); border-color: color-mix(in srgb, var(--good) 35%, var(--line)); }
+.railchip.here {
+  color: var(--panel); background: var(--accent); border-color: var(--accent);
+  font-weight: 600;
+}
+.outcome { font-weight: 400; opacity: 0.85; }
+
+.hop { display: inline-flex; gap: 4px; align-items: baseline; }
+.arrowhead { color: var(--dim); font-size: 11px; }
+.hopor { color: var(--line); font-size: 10px; }
+.hoplabel { font: 10.5px/1.6 var(--mono); }
+.hoplabel.open { color: var(--good); }
+.hoplabel.shut { color: var(--dim); opacity: 0.55; }
+
+.railback { display: flex; gap: 6px; align-items: baseline; margin-top: 5px; font-size: 11px; }
+.railback .hoplabel { font-size: 10.5px; }
+.railback.open .hoplabel { color: var(--good); }
+.railback.shut { opacity: 0.5; }
+.rounds { font: 10.5px/1.6 var(--mono); color: var(--accent); }
+
+.pausedflag {
+  padding: 2px 8px; border-radius: 999px;
+  font-size: 11px; font-weight: 600;
+  color: var(--panel); background: var(--warn);
+}
+.railturn { margin-left: auto; font-size: 11px; color: var(--dim); }
