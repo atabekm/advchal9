@@ -20,6 +20,13 @@ const el = (id) => document.getElementById(id);
 const ATTEMPTS = 2;   // the first, and one retry
 const MOVES = 14;     // a backstop, in case a run finds no edge to stop at
 
+/* A move carries the work itself, in full, inside a JSON string — that is what
+ * `attach_artifact` is. The transport's own default is 1400, which is right for
+ * a task whose replies are a paragraph and wrong for one whose replies are a
+ * file: the reply is cut off mid-object, the envelope never closes, and the
+ * refusal reads "no JSON object" when the truth is "no room". */
+const REPLY_TOKENS = 8000;
+
 let placeholder = '';
 
 const app = {
@@ -82,6 +89,7 @@ async function runModel() {
           model: el('model').value,
           messages: Protocol.messages(state, { rejection }),
           temperature: Number(el('temperature').value) || 0,
+          maxTokens: REPLY_TOKENS,
           signal: app.abort.signal,
           onChunk: (chunk) => { app.streaming += chunk; paintStream(); },
         });
@@ -93,7 +101,7 @@ async function runModel() {
             type: 'action', actor: 'model', kind: '(unreadable)', say: parsed.say,
             rejected: true, reason: parsed.reason,
             refusal: `REFUSED — ${parsed.reason}\n  ${parsed.detail}`,
-            raw: String(reply.text || '').slice(0, 1200),
+            raw: String(reply.text || '').slice(0, 4000),
           });
           continue;
         }
@@ -246,6 +254,15 @@ function bubbleFor(entry) {
     const body = tag('div', 'said');
     body.innerHTML = renderMarkdown(String(said));
     bubble.append(body);
+  }
+  /* The one case where the raw text has to be on screen. A refusal that says
+   * "no JSON object" and then hides the reply leaves nobody able to tell a
+   * model that ignored the envelope from a model that ran out of room. */
+  if (entry.raw) {
+    const box = tag('details', 'artifact');
+    box.append(tag('summary', null, 'what it actually sent'));
+    box.append(tag('pre', 'block', entry.raw));
+    bubble.append(box);
   }
   if (entry.artifact) {
     const art = tag('details', 'artifact');
@@ -521,6 +538,7 @@ async function runLadder() {
         model: el('model').value,
         messages,
         temperature: Number(el('temperature').value) || 0,
+        maxTokens: REPLY_TOKENS,
         signal,
       }),
     });

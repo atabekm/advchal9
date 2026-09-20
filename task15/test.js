@@ -776,6 +776,17 @@ group('the envelope is carved, and the actor is stamped', () => {
   ok('no JSON at all is refused', !Protocol.parse('I have finished the task.').ok);
   ok('broken JSON is refused', !Protocol.parse('{"say":"x","move":{').ok);
   ok('an array is refused', !Protocol.parse('[1,2,3]').ok);
+
+  /* Two failures that wear the same face, and the difference is the whole of
+   * what the retry can act on. */
+  const cut = Protocol.parse('{"say":"here it is","move":{"type":"action","kind":"attach_artifact","step":"s2","artifact":"def parse_duration(text):\\n    total = 0');
+  ok('a reply cut off mid-object is refused', !cut.ok);
+  ok('and is told it was cut off, not that it forgot the JSON',
+    /cut off/.test(cut.detail));
+  ok('a reply with no brace at all is told the other thing',
+    /no JSON object/.test(Protocol.parse('I have finished the task.').detail));
+  ok('begun() is what tells them apart',
+    Protocol.begun('{"say":"…') === true && Protocol.begun('all done!') === false);
   ok('every parse failure is malformed',
     ['x', '{}', '[1]', '{"move":1}'].every((r) => Protocol.parse(r).reason === 'malformed'));
 
@@ -1049,10 +1060,13 @@ const inside = (context, expression) => vm.runInContext(expression, context);
 
 function scripted(context, replies) {
   const sent = [];
+  sent.options = [];
   // `const Api = …` in a script is not a property of the sandbox object, so the
   // transport is reached through the context and mutated in place.
-  inside(context, 'Api').send = async ({ messages, onChunk }) => {
+  inside(context, 'Api').send = async (options) => {
+    const { messages, onChunk } = options;
     sent.push(messages);
+    sent.options.push(options);
     const text = replies.length ? replies.shift() : '{"say":"nothing scripted","move":{"type":"action","kind":"ask_user","question":"what now?"}}';
     if (onChunk) onChunk(text);
     return { text, usage: { promptTokens: 900, completionTokens: 40, cacheHitTokens: 800 }, elapsed: 0.1, cost: 0 };
@@ -1304,6 +1318,35 @@ group('the session that found the jam, driven through the page', async () => {
     !JSON.stringify(inside(page.context, 'stateNow()').question || {}).includes('as soon as you approve'));
   ok('with what answered it written down',
     page.byId.get('requestText').textContent.includes('answered by taking approve_plan'));
+});
+
+group('a move carries a file, so the reply is given room for one', async () => {
+  const page = bootPage();
+  const sent = scripted(page.context, [replyPlan()]);
+  await typeAndSend(page, GOAL);
+
+  const budget = sent.options[0].maxTokens;
+  ok('the turn asks for an explicit output budget', typeof budget === 'number');
+  ok('and it is not the transport default, which is a paragraph',
+    budget > 1400, String(budget));
+
+  /* The failure this replaced: a reply cut off mid-artifact refuses as
+   * malformed, and the page has to show what was actually sent — otherwise
+   * nobody can tell a model that ignored the envelope from one that ran out
+   * of room. */
+  const page2 = bootPage();
+  scripted(page2.context, [
+    '{"say":"here is s1","move":{"type":"action","kind":"attach_artifact","step":"s1","artifact":"def parse(t):\\n    tot',
+    '{"say":"again","move":{"type":"action","kind":"attach_artifact","step":"s1","artifact":"def parse(t):\\n    tot',
+  ]);
+  await typeAndSend(page2, GOAL);
+
+  ok('the cut-off reply is refused', page2.byId.get('log').text().includes('malformed'));
+  ok('and the refusal says it was cut off', page2.byId.get('log').text().includes('cut off'));
+  ok('and what it actually sent is on screen',
+    page2.byId.get('log').text().includes('what it actually sent')
+    && page2.byId.get('log').text().includes('def parse(t)'));
+  ok('nothing of it reached the state', inside(page2.context, 'stateNow()').steps.length === 0);
 });
 
 group('pause bites while a request is in the air', async () => {

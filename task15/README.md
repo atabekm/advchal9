@@ -31,7 +31,7 @@ question about a graph.
 Open `index.html`. No server, no build, no dependencies — the same as task 4
 through task 14. Storage keys are namespaced `task15.*`.
 
-`node test.js` runs 364 checks with no network and no key. That includes 80,000
+`node test.js` runs 374 checks with no network and no key. That includes 80,000
 random moves against the adjudicator, a whole run driven through the actual
 buttons of the actual page against a shimmed DOM, and a reload in the middle of
 it. Two of those checks are the only thing standing between this repo and a
@@ -416,6 +416,22 @@ approve\_plan)"* where settled things are kept, because otherwise the machine
 strands, waiting forever for words that are not coming. A pause is not an answer
 and neither is a remark; those leave it standing.
 
+**A refusal that said the wrong thing, because of a number carried from task
+14.** `api.js` defaults to 1400 output tokens, which is the right budget for a
+task whose replies are a paragraph and the wrong one for a task whose replies
+are a *file* — `attach_artifact` carries the work itself, in full, inside a JSON
+string. The reply was cut off mid-object, the envelope never closed, and the
+runtime refused with *"the reply contained no JSON object"*, which is a lie the
+model cannot act on: it sent the same too-long reply again and the turn ended.
+
+Three fixes, and the second is the one that matters. The turn asks for a budget
+that fits an artifact. `parse` now tells a reply with no brace in it from a reply
+whose brace never closed, and says *"it was cut off — send a shorter artifact,
+or split the work across more steps"*. And an unreadable reply now shows **what
+it actually sent** on the page, because a refusal that hides the reply leaves
+nobody able to tell a model that ignored the envelope from one that ran out of
+room.
+
 **A stylesheet with rules for a page this is not.** The stylesheet is inherited
 from task 14, and a test now refuses a selector in **either** direction: a class
 the markup never uses, and a class the markup uses that has no rule. The
@@ -470,6 +486,10 @@ between 30 and 45 in all.
   inherited whole, and it is a real cost, not a feature.
 - **Fifteen cells is a small ladder** on one provider at one temperature. It is
   a demonstration with a number attached, not a benchmark.
+- **The runtime checks that an artifact exists, not that it is the right one.**
+  Nothing stops the model attaching a test suite to the step called *write the
+  parser*. The same ceiling task 14 stated for its checker: it constrains what
+  was declared, not what is true.
 - **The asked arm is one prose baseline.** A better-written prose prompt might
   do better; this one was written to be fair rather than to lose, and the file
   it lives in is the one to check that claim against.
@@ -487,6 +507,6 @@ between 30 and 45 in all.
 - `api.js` — the DeepSeek transport, carried from task 14
 - `app.js` — the task tab, the graph tab, the ladder tab
 - `markdown.js` — the reply renderer, carried from task 5
-- `test.js` — 364 checks with no network and no key, including booting the page
+- `test.js` — 374 checks with no network and no key, including booting the page
   against a shimmed DOM, which is the one thing standing between this repo and a
   blank screen

@@ -428,9 +428,23 @@ function fail(detail, say = '') {
   return { ok: false, reason: 'malformed', detail, say, move: null };
 }
 
+/* Two different failures wear the same face. A reply with no `{` in it ignored
+ * the envelope; a reply with a `{` that never closes ran out of room. Telling
+ * the model "there was no JSON object" in the second case is a lie it cannot
+ * act on, and it will send the same too-long reply again. */
+function begun(reply) {
+  const source = String(reply || '');
+  const fenced = source.match(/```(?:json)?\s*([\s\S]*?)```/);
+  return (fenced ? fenced[1] : source).indexOf('{') !== -1;
+}
+
 function parse(reply) {
   const carved = carve(reply);
-  if (!carved) return fail('the reply contained no JSON object');
+  if (!carved) {
+    return begun(reply)
+      ? fail('the reply began a JSON object and never closed it — it was cut off. Send a shorter artifact, or split the work across more steps.')
+      : fail('the reply contained no JSON object');
+  }
 
   let parsed;
   try {
@@ -479,6 +493,7 @@ const Protocol = {
   messages,
   parse,
   carve,
+  begun,
   explain: sayRefusal,
   renderRoute,
   fingerprint,
