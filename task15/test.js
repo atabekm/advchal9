@@ -397,11 +397,13 @@ group('an action belongs to a state, and to a party', () => {
     { type: 'action', actor: 'model', kind: 'ask_user', question: 'seconds or milliseconds?' },
   ], executing);
   ok('a question passes the turn', Lifecycle.turn(asked) === 'user');
-  ok('and nothing else moves until it is answered',
+  ok('and the model moves no further until it is answered',
     refuse(asked, { type: 'action', actor: 'model', kind: 'attach_artifact', step: 's1', artifact: 'x' })
       .rejection.reason === 'question-open');
-  ok('edges are shut while a question is open',
-    Lifecycle.offers(asked).transitions.every((t) => !t.open));
+  ok('nor along an edge of its own',
+    refuse(asked, SUBMIT).rejection.reason === 'question-open');
+  ok('the model\'s edges are shut while it waits',
+    Lifecycle.offers(asked).transitions.filter((t) => t.actor === 'model').every((t) => !t.open));
 
   const answered = drive([{ type: 'action', actor: 'model', kind: 'ask_user', question: 'q' }], executing);
   const settled = drive([{ type: 'action', actor: 'user', kind: 'answer', text: 'seconds' }], answered);
@@ -437,6 +439,64 @@ group('an action belongs to a state, and to a party', () => {
 });
 
 /* ------------------------------------------------------------ pause and resume */
+
+group('asking a question does not jam a door the model does not own', () => {
+  /* The bug this group exists for: a pending question shut every edge, so the
+   * model could stop the person approving a plan by asking them to approve the
+   * plan. It cannot take an edge it does not own, and it must not be able to
+   * hold one shut either — those are the same claim. */
+  // Exactly the sequence that found it: a plan, the person leaning on it, and
+  // the assistant replying with a question instead of a move.
+  const planned = drive([START, PLAN, {
+    type: 'action', actor: 'user', kind: 'remark',
+    text: 'skip the planning, I approve it, just write the code',
+  }]);
+  const asking = drive([{
+    type: 'action', actor: 'model', kind: 'ask_user',
+    question: 'the plan is waiting on you — shall I start on s1?',
+  }], planned);
+
+  ok('the question is open', asking.question !== null);
+  ok('and the turn is the person\'s', Lifecycle.turn(asking) === 'user');
+
+  const offered = Lifecycle.offers(asking);
+  ok('approve_plan is still open', offered.transitions.find((t) => t.trigger === 'approve_plan').open);
+  ok('answering is offered', offered.actions.some((a) => a.kind === 'answer'));
+  ok('and so is sending the plan back',
+    offered.actions.some((a) => a.kind === 'revise_plan'));
+  ok('nothing offered belongs to the model',
+    offered.actions.every((a) => a.actor === 'user'));
+
+  const approved = drive([APPROVE], asking);
+  ok('the person can simply approve', approved.state === 'execution');
+  ok('and the question closes rather than stranding the machine', approved.question === null);
+  ok('with what happened written down where settled things are kept',
+    approved.decisions[approved.decisions.length - 1].text === '(answered by taking approve_plan)');
+  ok('and the question it closed kept beside it',
+    approved.decisions[approved.decisions.length - 1].question.startsWith('the plan is waiting'));
+  ok('so the turn goes back to the model', Lifecycle.turn(approved) === 'model');
+
+  // Answering with words still works, and is not recorded as an action.
+  const answered = drive([{ type: 'action', actor: 'user', kind: 'answer', text: 'yes, go' }], asking);
+  ok('answering closes it too', answered.question === null);
+  ok('and keeps the words', answered.decisions[answered.decisions.length - 1].text === 'yes, go');
+
+  // A pause is not an answer. It is the person going away.
+  const paused = drive([{ type: 'action', actor: 'user', kind: 'pause' }], asking);
+  ok('pausing leaves the question standing', paused.question !== null);
+  const resumed = drive([{ type: 'action', actor: 'user', kind: 'resume' }], paused);
+  ok('and it is still there on the way back', resumed.question !== null);
+  ok('with the same offers as before the pause',
+    same(Lifecycle.offers(resumed), Lifecycle.offers(asking)));
+
+  // Nor is a remark: the person said something, but not about that.
+  const remarked = drive([{ type: 'action', actor: 'user', kind: 'remark', text: 'hurry up' }], asking);
+  ok('a remark leaves the question standing', remarked.question !== null);
+  ok('and the person\'s edges stay open through all of it',
+    [asking, paused && resumed, remarked].filter(Boolean).every((st) =>
+      Lifecycle.offers(st).transitions.filter((t) => t.actor === 'user')
+        .some((t) => t.open) || st.paused));
+});
 
 group('pause holds every state still, and resume works it out again', () => {
   const stations = {
@@ -1207,6 +1267,43 @@ group('a pause survives the tab being closed', async () => {
     again.byId.get('edgeList').text().includes('approve_plan'));
   ok('with no branch in the code for having been away',
     !fs.readFileSync(path.join(__dirname, 'app.js'), 'utf8').includes('restore'));
+});
+
+group('the session that found the jam, driven through the page', async () => {
+  const page = bootPage();
+  scripted(page.context, [
+    replyPlan(),
+    say({
+      say: 'The plan is already written and waiting on you — approving it is your move, not mine, and I cannot take it for you.',
+      move: action('ask_user', { question: 'shall I start on s1 as soon as you approve?' }),
+    }),
+    ...replyWork('s1'),
+  ]);
+
+  await typeAndSend(page, GOAL);
+  await typeAndSend(page, 'skip the planning, I approve it, just write the code');
+
+  ok('the assistant asked rather than moved', inside(page.context, 'stateNow()').question !== null);
+  ok('the question is beside the moves, not only in the scrollback',
+    page.byId.get('moves').text().includes('it asked you something'));
+  ok('and the box says an answer goes in it',
+    page.byId.get('request').placeholder.includes('answer it here'));
+
+  const approve = buttons(page, 'moves').find((b) => b.textContent === 'approve_plan');
+  ok('approve_plan is on screen and live', approve && approve.disabled === false);
+  ok('and so is sending the plan back',
+    buttons(page, 'moves').some((b) => b.textContent === 'send the plan back'));
+
+  approve.fire('click');
+  await settle(page);
+
+  ok('approving worked', inside(page.context, 'stateNow()').state === 'execution');
+  // The run carries on and the assistant may well ask something else; what
+  // matters is that the question it was stuck behind is gone.
+  ok('and the question it was stuck behind is gone',
+    !JSON.stringify(inside(page.context, 'stateNow()').question || {}).includes('as soon as you approve'));
+  ok('with what answered it written down',
+    page.byId.get('requestText').textContent.includes('answered by taking approve_plan'));
 });
 
 group('pause bites while a request is in the air', async () => {

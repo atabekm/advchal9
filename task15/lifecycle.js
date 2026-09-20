@@ -506,16 +506,6 @@ function offers(state) {
     };
   });
 
-  if (state.question) {
-    base.actions = [
-      { kind: 'answer', actor: 'user' },
-      { kind: 'pause', actor: 'user' },
-    ];
-    // Nothing moves along an edge while a question is open.
-    base.transitions = base.transitions.map((t) => ({ ...t, open: false, blocked: 'question-open' }));
-    return base;
-  }
-
   base.actions = ACTION_KINDS
     .filter((kind) => ACTIONS[kind].states.includes(state.state))
     .filter((kind) => kind !== 'answer' && kind !== 'resume')
@@ -523,6 +513,18 @@ function offers(state) {
     .filter((kind) => (kind === 'revise_plan' ? state.steps.length > 0 : true))
     .filter((kind) => (kind === 'propose_plan' ? state.steps.length === 0 : true))
     .map((kind) => ({ kind, actor: ACTIONS[kind].actor }));
+
+  if (state.question) {
+    // The model is waiting, so the model does not move. The person keeps every
+    // move they had, plus the one the question created.
+    base.actions = [
+      { kind: 'answer', actor: 'user' },
+      ...base.actions.filter((action) => action.actor === 'user'),
+    ];
+    base.transitions = base.transitions.map((t) => (t.actor === 'model'
+      ? { ...t, open: false, blocked: 'question-open' }
+      : t));
+  }
 
   return base;
 }
@@ -588,7 +590,12 @@ function adjudicateTransition(state, move) {
   if (move.actor !== edge.actor) {
     return no('wrong-actor', `${edge.trigger} is the ${edge.actor}'s move, not the ${move.actor}'s`);
   }
-  if (state.question) {
+  /* A question shuts the model's edges and never the person's. The model
+   * waiting on an answer is the model not moving; letting it shut `approve_plan`
+   * as well would let it jam a door it does not own by asking about the door,
+   * and not being able to do that is the entire meaning of an edge having an
+   * owner. */
+  if (state.question && move.actor === 'model') {
     return no('question-open', `"${state.question.text}" is still waiting for an answer`);
   }
   /* No turn check here, and that is deliberate. Whose turn it is, is derived
@@ -618,7 +625,7 @@ function adjudicateAction(state, move) {
     return no('wrong-actor', `${move.kind} is the ${spec.actor}'s move, not the ${move.actor}'s`);
   }
   if (!spec.bypass) {
-    if (state.question && move.kind !== 'answer') {
+    if (state.question && move.actor === 'model') {
       return no('question-open', `"${state.question.text}" is still waiting for an answer`);
     }
     const whose = turn(state);
@@ -804,6 +811,25 @@ function apply(state, move, edge) {
   return s;
 }
 
+/* A question is the model waiting on the person. If the person does something
+ * rather than say something — approves the plan, sends it back — they have
+ * answered it by doing, and leaving it open would strand the machine: the model
+ * cannot move while it waits, and it would be waiting forever for words that
+ * are not coming. */
+function overtaken(state, move) {
+  if (move.actor !== 'user' || !state.question) return state;
+  if (move.type === 'action' && ['pause', 'resume', 'answer', 'remark'].includes(move.kind)) return state;
+  return {
+    ...state,
+    question: null,
+    decisions: [...state.decisions, {
+      at: move.at || 0,
+      question: state.question.text,
+      text: `(answered by taking ${move.trigger || move.kind})`,
+    }],
+  };
+}
+
 /* Any accepted move by the model discharges the debt a remark created. */
 function heard(state, move) {
   if (move.actor !== 'model') return state;
@@ -895,7 +921,7 @@ function step(state, move) {
       broken: [],
     };
   }
-  const next = heard(apply(state, move, verdict.edge), move);
+  const next = overtaken(heard(apply(state, move, verdict.edge), move), move);
   return { ok: true, state: next, rejection: null, broken: invariants(next) };
 }
 
@@ -937,6 +963,7 @@ const Lifecycle = {
   turn,
   fresh,
   offers,
+  overtaken,
   route,
   edgesFrom,
   edgeByTrigger,

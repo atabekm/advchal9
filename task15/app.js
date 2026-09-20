@@ -20,6 +20,8 @@ const el = (id) => document.getElementById(id);
 const ATTEMPTS = 2;   // the first, and one retry
 const MOVES = 14;     // a backstop, in case a run finds no edge to stop at
 
+let placeholder = '';
+
 const app = {
   log: [],
   busy: false,
@@ -371,9 +373,22 @@ function control(edge, state) {
 function paintMoves(state) {
   const offered = Lifecycle.offers(state);
   const box = el('moves');
-  const rows = offered.transitions
+  const rows = [];
+
+  /* A question the model asked is the model waiting, and it says so here rather
+   * than only in the scrollback — because the person's moves stay open while it
+   * waits, and the two facts belong next to each other. */
+  if (state.question) {
+    const asked = tag('div', 'asked');
+    asked.append(tag('div', 'askedhead', 'it asked you something'));
+    asked.append(tag('div', 'askedtext', state.question.text));
+    asked.append(tag('div', 'dim', 'answer in the box below, or just take one of your moves — doing something is an answer too'));
+    rows.push(asked);
+  }
+
+  rows.push(...offered.transitions
     .filter((edge) => edge.actor === 'user')
-    .map((edge) => control(edge, state));
+    .map((edge) => control(edge, state)));
 
   if (offered.actions.some((a) => a.kind === 'revise_plan')) {
     const row = tag('div', 'move');
@@ -619,6 +634,9 @@ function render() {
   el('pauseRun').textContent = state.paused ? 'resume' : 'pause';
   el('pauseRun').disabled = state.state === null || state.state === 'done';
   el('carryOn').hidden = app.busy || Lifecycle.turn(state) !== 'model';
+  el('request').placeholder = state.question
+    ? 'answer it here — or take one of your moves instead'
+    : placeholder;
   el('keyNote').textContent = Api.getKey() ? '' : Api.ready();
 }
 
@@ -634,6 +652,7 @@ function boot() {
   }));
   el('model').value = models[0];
 
+  placeholder = el('request').placeholder || '';
   el('key').value = Api.getKey();
   el('key').addEventListener('change', () => { Api.setKey(el('key').value); render(); });
 

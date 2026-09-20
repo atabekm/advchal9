@@ -384,3 +384,12 @@ main { flex: 1; min-height: 0; display: flex; }
 .step.pending .status, .crit.unknown .status { color: var(--dim); opacity: 0.7; }
 .step.skipped .status { color: var(--warn); }
 .step.skipped .what { text-decoration: line-through; text-decoration-color: var(--line); }
+
+/* The model waiting on an answer. It shuts the model's edges and none of the
+ * person's, so it sits above their moves rather than in place of them. */
+.asked {
+  margin-bottom: 8px; padding: 8px 10px;
+  border-left: 2px solid var(--model); background: var(--bg);
+}
+.askedhead { font-size: 11px; color: var(--dim); text-transform: lowercase; }
+.askedtext { font-size: 12.5px; margin: 2px 0 4px; }

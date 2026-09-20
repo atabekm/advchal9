@@ -161,6 +161,13 @@ Actions, by the state they belong to:
 | `ask_user` | any working state | model | `question` |
 | `answer` | any working state | user | `text` |
 | `remark` | any working state | user | `text` — whatever the person just said |
+
+A pending question shuts the **model's** edges and none of the person's. The
+first real run found the alternative: the assistant answers a demand to skip the
+planning by asking the person to approve the plan, and thereby shuts
+`approve_plan`. Owning an edge has to mean the other party can neither take it
+nor hold it closed. A person who acts rather than answers has answered, and the
+question closes with a note saying which move closed it.
 | `pause` / `resume` | any working state | user | — |
 
 One consequence of the split, and it is the visible difference from task 13:

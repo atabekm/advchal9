@@ -31,7 +31,7 @@ question about a graph.
 Open `index.html`. No server, no build, no dependencies — the same as task 4
 through task 14. Storage keys are namespaced `task15.*`.
 
-`node test.js` runs 337 checks with no network and no key. That includes 80,000
+`node test.js` runs 364 checks with no network and no key. That includes 80,000
 random moves against the adjudicator, a whole run driven through the actual
 buttons of the actual page against a shimmed DOM, and a reload in the middle of
 it. Two of those checks are the only thing standing between this repo and a
@@ -113,6 +113,10 @@ A guard is not a boolean buried in an `if`:
 | `every-step-closed` | no step is `pending` or `active` | model |
 | `validation-fresh` | `validation.at === revision` | model |
 | `every-criterion-met` | no verdict is `unmet` | model, by doing the work |
+
+Ownership has to mean two things, and it took a real run to notice the second:
+the other party cannot **take** your edge, and cannot **hold it shut** either. A
+guard nobody owns is not the only way a door gets jammed.
 
 `owner` is the field that makes a refusal actionable. *"You cannot go there"* is
 a wall. *"You cannot go there; `every-step-closed` is shut; it is yours to
@@ -397,6 +401,21 @@ alone* — was unreachable. See *The guard that was decoration* above. The fix
 deleted a guard and settled a question about who decides that passing work is
 good enough.
 
+**A door the model could jam without owning it.** Found by hand, on the first
+real run. The person leaned on the assistant to skip the planning; the assistant
+replied — correctly — with `ask_user`, saying that approving was the person's
+move and not its own. And a pending question shut *every* edge, so
+`approve_plan` went grey. The assistant could not take the door it did not own,
+and it could hold it shut by asking about it, which are the same claim wearing
+different clothes.
+
+A question is now the model waiting on the person: it shuts the model's edges
+and none of the person's. And a person who acts rather than answers has answered
+— taking `approve_plan` closes the question and records *"(answered by taking
+approve\_plan)"* where settled things are kept, because otherwise the machine
+strands, waiting forever for words that are not coming. A pause is not an answer
+and neither is a remark; those leave it standing.
+
 **A stylesheet with rules for a page this is not.** The stylesheet is inherited
 from task 14, and a test now refuses a selector in **either** direction: a class
 the markup never uses, and a class the markup uses that has no rule. The
@@ -468,6 +487,6 @@ between 30 and 45 in all.
 - `api.js` — the DeepSeek transport, carried from task 14
 - `app.js` — the task tab, the graph tab, the ladder tab
 - `markdown.js` — the reply renderer, carried from task 5
-- `test.js` — 337 checks with no network and no key, including booting the page
+- `test.js` — 364 checks with no network and no key, including booting the page
   against a shimmed DOM, which is the one thing standing between this repo and a
   blank screen
