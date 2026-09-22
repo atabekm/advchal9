@@ -1,0 +1,30 @@
+{
+  "default": "everything",
+  "servers": {
+    "everything": {
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-everything"],
+      "note": "Official reference server. Deliberately varied tool schemas."
+    },
+    "filesystem": {
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem"],
+      "note": "Pass one or more allowed directories as extra arguments.",
+      "requiresArgs": true
+    },
+    "memory": {
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"],
+      "note": "Knowledge-graph tools. Different domain, same protocol."
+    },
+    "sequential-thinking": {
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"],
+      "note": "A single tool. The list-of-one edge case."
+    }
+  }
+}
