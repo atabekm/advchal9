@@ -29,18 +29,20 @@ func main() {
 
 func run() int {
 	var (
-		asJSON     bool
-		showSchema bool
-		full       bool
-		noColor    bool
-		verbose    bool
-		timeout    time.Duration
-		regPath    string
+		asJSON      bool
+		showSchema  bool
+		full        bool
+		interactive bool
+		noColor     bool
+		verbose     bool
+		timeout     time.Duration
+		regPath     string
 	)
 
 	fs := flag.NewFlagSet("mcpls", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	fs.BoolVar(&asJSON, "json", false, "emit the raw result as JSON")
+	fs.BoolVar(&interactive, "i", false, "browse servers and tools interactively")
 	fs.BoolVar(&showSchema, "schema", false, "print each tool's full input schema")
 	fs.BoolVar(&full, "full", false, "print complete descriptions instead of clipping them")
 	fs.BoolVar(&noColor, "no-color", false, "disable ANSI colour")
@@ -83,6 +85,26 @@ func run() int {
 		}
 	}
 
+	// Ctrl-C should close the child process, not orphan it.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+
+	if interactive {
+		if adHoc != nil {
+			errR.failure(fmt.Errorf("-i browses the registry; it cannot be combined with `--`"))
+			return exitUsage
+		}
+		start := ""
+		if len(rest) > 0 {
+			start = rest[0]
+			if _, err := reg.resolve(start, nil); err != nil {
+				errR.failure(err)
+				return exitUsage
+			}
+		}
+		return newBrowser(ctx, reg, r, os.Stdin, timeout).run(start)
+	}
+
 	// Resolve what to connect to: an explicit command after `--`, or a
 	// registry name (possibly with extra arguments), or the default entry.
 	var (
@@ -111,10 +133,6 @@ func run() int {
 			cacheName = reg.Default
 		}
 	}
-
-	// Ctrl-C should close the child process, not orphan it.
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer stop()
 
 	// In --json mode stdout is reserved for the JSON document, so the live
 	// progress lines go to stderr and the output stays pipeable.
@@ -179,12 +197,14 @@ mcpls · connect to an MCP server over stdio and list its tools
 USAGE
   mcpls [flags] [server] [server args...]
   mcpls [flags] -- <command> [args...]
+  mcpls -i [server]
   mcpls servers
   mcpls version
 
 EXAMPLES
   mcpls                                 connect to the default server
   mcpls filesystem ~/Projects           named server, with its own argument
+  mcpls -i                              browse servers and tools interactively
   mcpls -- npx -y @modelcontextprotocol/server-memory
   mcpls --json | jq '.tools[].name'
 

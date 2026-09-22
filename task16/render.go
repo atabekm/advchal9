@@ -435,3 +435,139 @@ func formatDuration(d time.Duration) string {
 	}
 	return fmt.Sprintf("%.2fs", d.Seconds())
 }
+
+// --- interactive mode ------------------------------------------------------
+
+func (r *renderer) interactiveHeader() {
+	s := r.s
+	r.printf("\n  %s%smcpls%s %s· interactive%s\n", s.bold, s.cyan, s.reset, s.dim, s.reset)
+	r.printf("  %sPick a server, then walk its tools. Nothing is called — this only reads.%s\n", s.dim, s.reset)
+}
+
+func (r *renderer) serverMenu(reg *Registry, names []string, counts countCache, seen map[string]*Inspection) {
+	s := r.s
+	r.printf("\n  %sSERVERS%s\n\n", s.bold, s.reset)
+	for i, name := range names {
+		label := name
+		if name == reg.Default {
+			label += " (default)"
+		}
+		count := s.dim + "—" + s.reset
+		if n, ok := counts[name]; ok {
+			count = plural(n, "tool")
+		}
+		mark := " "
+		if _, ok := seen[name]; ok {
+			// Connected earlier in this session.
+			mark = "·"
+		}
+		r.printf("  %s%s%2d%s  %s%-22s%s %s\n", s.dim, mark, i+1, s.reset, s.cyan, label, s.reset, count)
+	}
+	r.printf("\n  %s· marks a server already connected in this session.%s\n", s.dim, s.reset)
+}
+
+func (r *renderer) connecting(entry ServerEntry) {
+	s := r.s
+	r.printf("  %sconnecting%s  %s %s\n\n", s.dim, s.reset, entry.Command, strings.Join(entry.Args, " "))
+}
+
+func (r *renderer) cachedNotice(name string) {
+	s := r.s
+	r.printf("\n  %salready connected to %s in this session — reusing that result.%s\n", s.dim, name, s.reset)
+	r.printf("  %sThe timings below are from that handshake, not a new one; r reconnects.%s\n", s.dim, s.reset)
+}
+
+func (r *renderer) toolMenu(i *Inspection) {
+	s := r.s
+	r.printf("\n  %sTOOLS · %d%s\n\n", s.bold, len(i.Tools), s.reset)
+
+	nameCol := 0
+	for _, t := range i.Tools {
+		if n := len([]rune(t.Name)); n > nameCol {
+			nameCol = n
+		}
+	}
+	nameCol = clamp(nameCol+2, 14, 32)
+
+	for idx, t := range i.Tools {
+		params := parseParams(t.InputSchema)
+		count := s.dim + "—" + s.reset
+		if len(params) > 0 {
+			count = plural(len(params), "param")
+		}
+		r.printf("  %s%3d%s  %s%s%s%s%s\n",
+			s.dim, idx+1, s.reset,
+			s.cyan, t.Name, s.reset,
+			padTo(t.Name, nameCol), count)
+	}
+}
+
+func (r *renderer) toolDetail(t *mcp.Tool, pos, total int, showSchema bool) {
+	s := r.s
+	r.printf("\n  %s%s%s%s  %s(%d of %d)%s\n", s.bold, s.cyan, t.Name, s.reset, s.dim, pos, total, s.reset)
+
+	if d := describe(t); d != "" {
+		// Full text here — the two-line clip exists to keep the list scannable,
+		// and this screen is where the whole description belongs.
+		r.printf("  %s\n", r.wrapped(d, r.width-4, "  ", 0))
+	}
+
+	params := parseParams(t.InputSchema)
+	r.printf("\n  %sPARAMETERS%s\n", s.bold, s.reset)
+	if len(params) == 0 {
+		r.printf("    %s(none)%s\n", s.dim, s.reset)
+	} else {
+		nameCol, typeCol := 0, 0
+		for _, p := range params {
+			if n := len([]rune(p.Name)); n > nameCol {
+				nameCol = n
+			}
+			if n := len([]rune(p.Type)); n > typeCol {
+				typeCol = n
+			}
+		}
+		for _, p := range params {
+			req := s.dim + "optional" + s.reset
+			if p.Required {
+				req = s.yellow + "required" + s.reset
+			}
+			// Matches the visible prefix below exactly: 4 indent + name column
+			// + 1 + type column + 2 + the 8-character required/optional word
+			// + the 2 leading spaces of the description itself.
+			gutter := strings.Repeat(" ", nameCol+typeCol+21)
+			desc := ""
+			if p.Description != "" {
+				desc = "  " + r.wrapped(p.Description, r.width-len(gutter)-2, gutter, 0)
+			}
+			r.printf("    %s%s%s%s %s%s%s%s  %s%s\n",
+				s.cyan, p.Name, s.reset, padTo(p.Name, nameCol+2),
+				s.dim, p.Type, s.reset, padTo(p.Type, typeCol+2),
+				req, desc)
+		}
+	}
+
+	if showSchema {
+		r.printf("\n  %sSCHEMA%s\n", s.bold, s.reset)
+		r.schema(t.InputSchema, "  ")
+	}
+}
+
+func (r *renderer) prompt(hint string) {
+	s := r.s
+	r.printf("\n  %s%s%s\n  %s>%s ", s.dim, hint, s.reset, s.cyan, s.reset)
+}
+
+func (r *renderer) badInput(hint string) {
+	s := r.s
+	r.printf("  %s%s%s\n", s.yellow, hint, s.reset)
+}
+
+func (r *renderer) note(msg string) {
+	s := r.s
+	r.printf("\n  %s%s%s\n", s.dim, msg, s.reset)
+}
+
+func (r *renderer) goodbye() {
+	s := r.s
+	r.printf("\n  %sbye.%s\n\n", s.dim, s.reset)
+}

@@ -1,6 +1,7 @@
 # Task 16 — `mcpls`
 
-A CLI that connects to an MCP server over stdio and lists its tools.
+A CLI that connects to an MCP server over stdio and lists its tools — as a
+one-shot command, or as an interactive browser (`-i`).
 
 Written in Go against the official [`modelcontextprotocol/go-sdk`](https://github.com/modelcontextprotocol/go-sdk) v1.8.0.
 
@@ -34,6 +35,8 @@ See [PLAN.md](PLAN.md) for the full reasoning.
 ```bash
 go build -o mcpls .
 
+./mcpls -i                                # interactive: browse servers and tools
+./mcpls -i everything                     # interactive, starting inside one server
 ./mcpls                                   # default server (everything)
 ./mcpls filesystem ~/Projects             # named server + its own argument
 ./mcpls -- npx -y @modelcontextprotocol/server-memory   # any command at all
@@ -45,6 +48,7 @@ go build -o mcpls .
 
 | flag | effect |
 |---|---|
+| `-i` | browse servers and tools interactively |
 | `--json` | emit the raw result as JSON; progress moves to stderr so stdout stays pipeable |
 | `--schema` | print each tool's full input schema |
 | `--full` | print complete descriptions instead of clipping them to two lines |
@@ -187,13 +191,119 @@ $ ./mcpls --timeout 1s everything            # exit 1
   Retry, or raise the limit with --timeout 60s.
 ```
 
+
+## Interactive mode
+
+`mcpls -i` walks servers → tools → one tool's detail. It is read-only: nothing
+is ever called, so every screen stays a report of what the server said about
+itself.
+
+It is a **scrolling REPL, not a full-screen TUI** — on purpose. A TUI would
+take the alternate screen and the handshake trace would scroll away with it.
+Here the whole session stays in scrollback, so each server's four timed
+exchanges remain visible above the tools they produced.
+
+```
+$ ./mcpls -i
+
+  mcpls · interactive
+  Pick a server, then walk its tools. Nothing is called — this only reads.
+
+  SERVERS
+
+    1  everything (default)   14 tools
+    2  filesystem             14 tools
+    3  memory                  9 tools
+    4  sequential-thinking     1 tool
+
+  · marks a server already connected in this session.
+
+  [1-4] connect · [q]uit
+  > 4
+
+  connecting  npx -y @modelcontextprotocol/server-sequential-thinking
+
+  ·  server/discover                      1.24s   incl. server startup · not supported
+  ✓  initialize                             1ms
+  ✓  notifications/initialized              0ms
+  ✓  tools/list                             3ms
+
+  server      sequential-thinking-server  v2026.8.31
+  protocol    2025-11-25
+  caps        tools
+
+  TOOLS · 1
+
+    1  sequentialthinking  9 params
+
+  [1-1] inspect · [n]ext · [l]ist · [b]ack · [q]uit
+  > 1
+
+  sequentialthinking  (1 of 1)
+  A detailed tool for dynamic and reflective problem-solving through thoughts.
+  …full description, unclipped…
+
+  PARAMETERS
+    thought             string    required  Your current thinking step
+    nextThoughtNeeded   boolean   required  Whether another thought step is needed
+    thoughtNumber       integer   required  Current thought number
+    …
+
+  [1-1] inspect · [n]ext · [s]chema · [l]ist · [b]ack · [q]uit
+  >
+```
+
+### Keys
+
+| key | does |
+|---|---|
+| `1`…`N` | inspect that tool |
+| `n` or `Enter` | next tool — walks the whole list one at a time, wrapping at the end |
+| `p` | previous tool |
+| `s` | toggle the raw JSON Schema for the selected tool |
+| `l` | back to the tool list |
+| `b` | back to the server menu |
+| `r` | reconnect, forcing a fresh handshake |
+| `q` | quit |
+
+### Two behaviours worth knowing
+
+**Revisiting a server does not reconnect.** The first visit performs a real
+handshake; going `b`ack and returning reuses that result and says so —
+
+```
+  already connected to everything in this session — reusing that result.
+  The timings below are from that handshake, not a new one; r reconnects.
+```
+
+Replaying the original timings as though they had just happened would be a lie
+in the one place this program exists to be trustworthy. `r` forces a genuine
+reconnect.
+
+**`filesystem` asks for its directory**, since it takes one as an argument.
+`~/` is expanded, and Enter accepts the current directory.
+
+Input is read from stdin as plain lines, so the mode is scriptable — which is
+how its tests drive it:
+
+```bash
+printf '1\n1\nn\nn\nq\n' | ./mcpls -i
+```
+
 ## Tests
 
 ```bash
-go test ./...      # 22 tests
+go test ./...      # 39 tests
 ```
 
-The tests cover `schema.go`, which is where the only real logic lives.
+The tests cover `schema.go` and the interactive navigation loop.
+
+`browseTools` takes an `*Inspection` and reads from an `io.Reader`, so the whole
+REPL is driven in tests from a fabricated tool list and a string of keystrokes —
+no server spawned, no network. That covers wrapping past the last tool, the
+schema toggle, out-of-range input, `b` versus `q`, and EOF.
+
+`schema.go` is where the only other real logic lives.
 `Tool.InputSchema` is typed `any` — whatever the server's JSON decoded into —
 and servers vary: `properties` may be absent, `required` may hold non-strings or
 name a property that does not exist, `type` may be a list such as
@@ -208,12 +318,14 @@ consecutive runs.
 | file | holds |
 |---|---|
 | `main.go` | flags, subcommand dispatch, exit codes |
+| `interactive.go` | the `-i` REPL: server menu, tool menu, tool detail |
 | `registry.go` | `servers.json` loading, name resolution, suggestions, count cache |
 | `connect.go` | client construction, tracing middleware, handshake, `tools/list` |
 | `schema.go` | `inputSchema` → ordered, typed, required-flagged parameters |
 | `render.go` | the two-line renderer, TTY detection, colour |
 | `servers.json` | the four registry entries (embedded into the binary) |
 | `schema_test.go` | schema decoding, argv splitting, registry behaviour |
+| `interactive_test.go` | the navigation loop, driven by scripted keystrokes |
 
 ## Scope
 

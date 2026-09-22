@@ -200,3 +200,41 @@ through for anyone who would rather trust `jq` than my formatter.
 5. `render.go`
 6. `main.go` wiring, exit codes
 7. Run against all four servers; capture the transcripts for the README
+
+## Addendum — interactive mode
+
+Added after the one-shot CLI was working, and it changes the argument in one
+useful way.
+
+The one-shot output proves the list is real. It does not prove the *client* is
+general, because a reader still has to take on faith that `mcpls filesystem`
+would have worked. Interactive mode collapses that: switching servers mid-
+session, live, is the demonstration. One binary, four handshakes, four
+different tool lists, no restart.
+
+Three decisions worth recording.
+
+**A scrolling REPL, not a full-screen TUI.** A bubbletea interface would look
+better and would have been the obvious choice — but it takes the alternate
+screen, and the handshake trace goes with it. The trace is the evidence. A mode
+that hides the evidence to look nicer is the wrong trade for this task
+specifically, so the REPL prints and scrolls, and the whole session survives in
+scrollback.
+
+**Read-only.** Selecting a tool shows its description, typed parameters and
+optionally its raw schema. It does not call it. `tools/call` is a different
+task, and adding it here would mean argument parsing, validation and result
+rendering — a second program wearing this one's clothes.
+
+**Revisiting a server is cached, and says so.** Holding sessions open would
+leak child processes across a long browse; re-handshaking on every visit would
+make navigation crawl. So the *result* is cached, and the screen states that
+the timings shown are from the earlier handshake rather than reprinting them as
+if they were fresh. `r` forces a real reconnect. The alternative — replaying
+old timings silently — would have been a fabrication in exactly the place this
+program exists to be trustworthy about.
+
+The navigation loop takes an `*Inspection` and an `io.Reader`, so it is tested
+against a fabricated tool list and scripted keystrokes, with no server involved:
+wrapping past the last tool, the schema toggle, out-of-range input, `b` versus
+`q`, and EOF.
