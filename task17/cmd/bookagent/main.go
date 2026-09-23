@@ -32,13 +32,14 @@ func run() int {
 	server := flag.String("server", "", "MCP server command (default: olserver next to this binary or in the working dir)")
 	rounds := flag.Int("rounds", agent.DefaultMaxRounds, "maximum tool rounds per question")
 	raw := flag.Bool("raw", false, "start with full tool arguments and results shown")
+	plain := flag.Bool("plain", false, "print answers as raw markdown instead of rendering them")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: bookagent [flags] [-- server-command args...]\n\n")
 		flag.PrintDefaults()
 	}
 	flag.Parse()
 
-	ui := newUI(*raw)
+	ui := newUI(*raw, *plain)
 
 	key, err := apiKey()
 	if err != nil {

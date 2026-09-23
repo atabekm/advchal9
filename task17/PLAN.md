@@ -257,3 +257,18 @@ Single branch `task17/book-tools`, one PR.
 - **Summaries are generic.** The one-line result under each tool call
   (`returned=5 total_found=11 books[5]`) is derived from `structuredContent`
   (scalars as `k=v`, arrays as `k[n]`) — the agent still has no per-tool code.
+
+## Addendum — rendering answers
+
+Answers are markdown; the REPL now renders them with glamour. Three findings
+shaped the setup:
+
+- **`auto` style is unsafe here.** It sends an OSC 11 background query and
+  reads the reply from stdin. Under a pty that doesn't answer, it timed out and
+  swallowed the first question. Style is chosen from `GLAMOUR_STYLE` /
+  `COLORFGBG` / `dark` instead, without talking to the terminal.
+- **Word wrap breaks link URLs** (`https://openlibrary.` / `org/works/…`),
+  and the model cites work ids as links. Wrap is off; terminal soft-wrap
+  keeps URLs intact.
+- **Colourless styles keep `**` markers**, so piped output is raw markdown
+  rather than half-rendered text. `-plain` forces that on a terminal.

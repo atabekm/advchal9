@@ -87,10 +87,25 @@ export DEEPSEEK_API_KEY=sk-…      # or put it in a .env file here
 | `-server` | path to the MCP server (default: `olserver` next to the binary or in the working dir) |
 | `-rounds` | maximum tool rounds per question (default 6) |
 | `-raw` | start with full tool arguments and results shown |
+| `-plain` | print answers as raw markdown instead of rendering them |
 | `-- cmd args…` | run any other stdio MCP server instead |
 
 REPL commands: `/tools` · `/raw` · `/history` · `/reset` · `/quit`. Ctrl-C
 cancels a question in progress; at the prompt it exits.
+
+**Answers are rendered as markdown** with [glamour](https://github.com/charmbracelet/glamour):
+bold, lists, tables drawn with box characters, and underlined links. Some details:
+
+- **Style:** `dark` by default, or `light` when `COLORFGBG` says the background
+  is light. Set `GLAMOUR_STYLE` to override. glamour's `auto` style is never
+  used: it asks the terminal for its background colour and reads the reply from
+  stdin, and in a terminal that doesn't answer, that costs a timeout and eats
+  the first question typed.
+- **No hard wrapping:** glamour's word wrap splits URLs inside links, so it's
+  off. The terminal soft-wraps long lines, which keeps each URL whole and
+  clickable.
+- **Piped output** (and `-plain`) is the model's raw markdown, as in the
+  transcript below. `NO_COLOR` keeps the structure without colour.
 
 The server works with any MCP client, for example task 16's inspector:
 
@@ -182,7 +197,7 @@ What it shows:
 ## Tests
 
 ```bash
-go test -race ./...     # 22 tests, no network
+go test -race ./...     # 25 tests, no network
 ```
 
 - **Server** (`openlibrary/tools_test.go`): a real MCP client connects over
@@ -197,3 +212,6 @@ go test -race ./...     # 22 tests, no network
   tool and malformed arguments, the round cap (including a model that ignores
   it), history kept across turns and rolled back on failure, and
   `reasoning_content` preserved.
+- **Rendering** (`cmd/bookagent/render_test.go`): markdown renders with and
+  without colour, URLs stay whole, padding is trimmed, and style selection
+  never falls back to `auto`.

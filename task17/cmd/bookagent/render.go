@@ -5,17 +5,21 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/glamour"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"golang.org/x/term"
 
 	"task17/agent"
 )
 
 type ui struct {
+	md      *glamour.TermRenderer // nil: print answers as raw markdown
 	color   bool
 	raw     bool
 	width   int
@@ -23,14 +27,61 @@ type ui struct {
 	first   bool // next MCP step is the first round trip
 }
 
-func newUI(raw bool) *ui {
-	st, _ := os.Stdout.Stat()
-	tty := st != nil && st.Mode()&os.ModeCharDevice != 0
+func newUI(raw, plain bool) *ui {
+	tty := term.IsTerminal(int(os.Stdout.Fd()))
 	w := 100
 	if c, err := strconv.Atoi(os.Getenv("COLUMNS")); err == nil && c > 40 {
 		w = c
 	}
-	return &ui{color: tty && os.Getenv("NO_COLOR") == "", raw: raw, width: w, inShake: true, first: true}
+	if tty {
+		if c, _, err := term.GetSize(int(os.Stdout.Fd())); err == nil && c > 40 {
+			w = c
+		}
+	}
+	u := &ui{color: tty && os.Getenv("NO_COLOR") == "", raw: raw, width: w, inShake: true, first: true}
+	// Piped output gets the raw markdown: glamour's colourless styles keep the
+	// ** and * markers anyway, and raw markdown pastes cleanly elsewhere.
+	if tty && !plain {
+		u.md = newMarkdown(u.color)
+	}
+	return u
+}
+
+// newMarkdown renders answers for a terminal. Word wrap is off: glamour
+// hard-wraps inside link URLs (breaking them for clicking and copying), while
+// the terminal's own soft wrap keeps each URL one unbroken token.
+func newMarkdown(color bool) *glamour.TermRenderer {
+	style := "notty" // NO_COLOR: structure without escape sequences
+	if color {
+		style = markdownStyle()
+	}
+	r, err := glamour.NewTermRenderer(glamour.WithStandardStyle(style), glamour.WithWordWrap(0))
+	if err != nil {
+		return nil
+	}
+	return r
+}
+
+// trailingPad matches glamour's right padding: spaces, each possibly wrapped
+// in its own SGR sequence when colour is on.
+var trailingPad = regexp.MustCompile(`(?:\x1b\[[0-9;]*m| )+$`)
+
+// markdownStyle picks dark or light without asking the terminal. glamour's
+// "auto" sends an OSC 11 background query and reads the reply from stdin; a
+// terminal that doesn't answer costs a timeout and swallows the first line
+// typed at the prompt. GLAMOUR_STYLE overrides; COLORFGBG ("fg;bg", set by
+// many terminals) is a hint; dark is the fallback.
+func markdownStyle() string {
+	if s := os.Getenv("GLAMOUR_STYLE"); s != "" && s != "auto" {
+		return s
+	}
+	if v := os.Getenv("COLORFGBG"); v != "" {
+		parts := strings.Split(v, ";")
+		if bg, err := strconv.Atoi(parts[len(parts)-1]); err == nil && (bg == 7 || bg == 15) {
+			return "light"
+		}
+	}
+	return "dark"
 }
 
 func (u *ui) paint(code, s string) string {
@@ -118,8 +169,30 @@ func (u *ui) roundCap(max int) {
 }
 
 func (u *ui) answer(s string) {
+	if u.md != nil {
+		if out, err := u.md.Render(s); err == nil {
+			// glamour supplies its own margin and blank lines around blocks.
+			fmt.Println(trimPadding(out, u.color))
+			return
+		}
+	}
 	fmt.Println()
 	fmt.Println(indent(s, "  "))
+}
+
+// trimPadding drops the trailing spaces glamour pads lines and table cells
+// with, so copied answers stay clean.
+func trimPadding(out string, color bool) string {
+	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+	for i, l := range lines {
+		if t := trailingPad.ReplaceAllString(l, ""); t != l {
+			lines[i] = t
+			if color {
+				lines[i] += "\x1b[0m" // the trimmed run may have held the reset
+			}
+		}
+	}
+	return strings.Join(lines, "\n")
 }
 
 func (u *ui) footer(calls, in, out int, d time.Duration) {
