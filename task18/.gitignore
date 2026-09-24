@@ -1,0 +1,5 @@
+/hnserver
+/hnagent
+.env
+*.db
+*.db-*
