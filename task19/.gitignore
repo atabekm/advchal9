@@ -1,0 +1,6 @@
+/searchserver
+/sumserver
+/fileserver
+/pipeagent
+.env
+/out/
