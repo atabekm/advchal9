@@ -2,6 +2,7 @@ package search
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -11,91 +12,182 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-const twoHits = `{"nbHits": 1284, "hits": [
- {"objectID": "26406989", "title": "Why asynchronous Rust doesn't work", "url": "https://theta.eu.org/2021/03/08/async-rust-2.html",
-  "author": "tazjin", "points": 612, "num_comments": 435, "created_at": "2021-03-08T10:00:00Z"},
- {"objectID": "123", "title": "Ask HN: How do you learn async?", "url": null,
-  "author": "someone", "points": null, "num_comments": null, "created_at": "2024-01-02T03:04:05Z"},
- {"objectID": "124", "title": "", "url": "https://example.com/untitled"}
-]}`
+// The search response lists pages out of order (the API does), one of them a
+// disambiguation page; the full-text response is per page.
+const searchReply = `{"query": {"searchinfo": {"totalhits": 1234}, "pages": [
+ {"pageid": 3, "title": "Tokio (software)", "index": 3, "fullurl": "https://en.wikipedia.org/wiki/Tokio_(software)",
+  "extract": "Tokio is a runtime for Rust. \nIt was released in 2016.\n\n\n"},
+ {"pageid": 1, "title": "Rust", "index": 1, "fullurl": "https://en.wikipedia.org/wiki/Rust", "pageprops": {"disambiguation": ""},
+  "extract": "Rust may refer to:"},
+ {"pageid": 2, "title": "Async/await", "index": 2, "fullurl": "https://en.wikipedia.org/wiki/Async/await",
+  "extract": "Async/await is a syntactic feature."},
+ {"pageid": 4, "title": "Empty", "index": 4, "fullurl": "https://en.wikipedia.org/wiki/Empty", "extract": "  "}
+]}}`
 
-type fakeAlgolia struct {
-	mu     sync.Mutex
-	status int
-	body   string
-	paths  []string
-	params []map[string]string
+var fullText = map[string]string{
+	"2": "Async/await is a syntactic feature.\n\n== History ==\nC# had it first.\n\n== Examples ==\n\n=== Rust ===\n\n== See also ==\nCoroutine\nFutures and promises\n\n== References ==\n",
+	"3": "Tokio is a runtime for Rust.",
 }
 
-func (f *fakeAlgolia) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+type fakeWiki struct {
+	mu      sync.Mutex
+	status  int
+	reqs    []map[string]string
+	agents  []string
+	errInfo string
+}
+
+func (f *fakeWiki) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.paths = append(f.paths, r.URL.Path)
 	p := map[string]string{}
 	for k := range r.URL.Query() {
 		p[k] = r.URL.Query().Get(k)
 	}
-	f.params = append(f.params, p)
-	if f.status != 0 {
+	f.reqs = append(f.reqs, p)
+	f.agents = append(f.agents, r.UserAgent())
+	switch {
+	case f.status != 0:
 		w.WriteHeader(f.status)
-		return
+	case f.errInfo != "":
+		json.NewEncoder(w).Encode(map[string]any{"error": map[string]string{"info": f.errInfo}})
+	case p["pageids"] != "":
+		json.NewEncoder(w).Encode(map[string]any{"query": map[string]any{"pages": []any{
+			map[string]any{"pageid": json.Number(p["pageids"]), "extract": fullText[p["pageids"]]},
+		}}})
+	default:
+		w.Write([]byte(searchReply))
 	}
-	w.Write([]byte(f.body))
 }
 
-func newFake(t *testing.T, body string) (*fakeAlgolia, *Client) {
-	f := &fakeAlgolia{body: body}
+func newFake(t *testing.T) (*fakeWiki, *Client) {
+	f := &fakeWiki{}
 	srv := httptest.NewServer(f)
 	t.Cleanup(srv.Close)
-	return f, &Client{BaseURL: srv.URL + "/api/v1", HTTP: srv.Client()}
+	return f, &Client{BaseURL: srv.URL + "/w/api.php", HTTP: srv.Client()}
 }
 
-func TestFormat(t *testing.T) {
-	_, c := newFake(t, twoHits)
-	r, err := c.Search(context.Background(), "rust async", 10, "relevance")
+func TestIntro(t *testing.T) {
+	f, c := newFake(t)
+	r, err := c.Search(context.Background(), "rust async", 5, "intro")
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := Format(r)
-	for _, want := range []string{
-		`Hacker News search: "rust async" · 2 of 1,284 matches · by relevance`,
-		"1. Why asynchronous Rust doesn't work\n   https://theta.eu.org/2021/03/08/async-rust-2.html\n" +
-			"   612 points · 435 comments · 2021-03-08 · https://news.ycombinator.com/item?id=26406989",
-		// no url: the discussion page stands in; null counts read as 0
-		"2. Ask HN: How do you learn async?\n   https://news.ycombinator.com/item?id=123\n   0 points · 0 comments · 2024-01-02",
+	got, truncated := Format(r, 2000)
+	want := `# 1. Async/await
+https://en.wikipedia.org/wiki/Async/await
+
+Async/await is a syntactic feature.
+
+# 2. Tokio (software)
+https://en.wikipedia.org/wiki/Tokio_(software)
+
+Tokio is a runtime for Rust.
+It was released in 2016.`
+	if got != want || truncated != 0 {
+		t.Errorf("got (%d truncated)\n%s\n\nwant\n%s", truncated, got, want)
+	}
+	if len(f.reqs) != 1 || f.reqs[0]["exintro"] != "1" || f.reqs[0]["gsrsearch"] != "rust async" || f.reqs[0]["gsrlimit"] != "8" {
+		t.Errorf("intro should be one request with spare hits for skipped pages: %v", f.reqs)
+	}
+	if !strings.HasPrefix(f.agents[0], "task19-searchserver/") {
+		t.Errorf("User-Agent %q", f.agents[0])
+	}
+}
+
+func TestLimitAfterSkipping(t *testing.T) {
+	_, c := newFake(t)
+	r, _ := c.Search(context.Background(), "x", 1, "intro")
+	if len(r.Articles) != 1 || r.Articles[0].Title != "Async/await" {
+		t.Errorf("want the best non-disambiguation hit only, got %+v", r.Articles)
+	}
+}
+
+func TestFull(t *testing.T) {
+	f, c := newFake(t)
+	r, err := c.Search(context.Background(), "x", 5, "full")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(f.reqs) != 3 {
+		t.Errorf("full: one search + one request per article, got %d", len(f.reqs))
+	}
+	// Headings become Markdown, the empty section and the back matter go.
+	want := "Async/await is a syntactic feature.\n\n## History\n\nC# had it first."
+	if r.Articles[0].Text != want {
+		t.Errorf("full text\n%q\nwant\n%q", r.Articles[0].Text, want)
+	}
+}
+
+func TestClean(t *testing.T) {
+	for in, want := range map[string]string{
+		"a  \nb\t\n\n\n\nc\n":                      "a\nb\n\nc",
+		"x\n== A ==\n=== A1 ===\ntext\n== B ==\n":  "x\n\n## A\n\n### A1\n\ntext",
+		"x\n== A ==\n=== A1 ===\n== B ==\ny":       "x\n\n## B\n\ny",
+		"x\n== External links ==\n=== More ===\nz": "x",
+		"x\n== Notes ==\nn\n== Legacy ==\nl":       "x\n\n## Legacy\n\nl",
 	} {
-		if !strings.Contains(got, want) {
-			t.Errorf("missing %q in\n%s", want, got)
+		if got := Clean(in); got != want {
+			t.Errorf("Clean(%q)\n got %q\nwant %q", in, got, want)
 		}
 	}
-	if strings.Contains(got, "untitled") {
-		t.Errorf("a hit without a title should be skipped:\n%s", got)
+}
+
+func TestTruncate(t *testing.T) {
+	para := strings.Repeat("word ", 30) + "end."
+	text := para + "\n\n" + para + "\n\n## Next\n\n" + para
+	for _, tc := range []struct {
+		max  int
+		want string
+		cut  bool
+	}{
+		{10000, text, false},
+		{len(para)*2 + 20, para + "\n\n" + para, true},                            // at the paragraph, heading dropped
+		{len(para) + 40, para, true},                                              // at the paragraph
+		{80, strings.TrimSpace(strings.Repeat("word ", 16)), true},                // no boundary: hard cut
+		{len("One. Two three four five. Six"), "One. Two three four five.", true}, // at the sentence
+	} {
+		src := text
+		if strings.HasPrefix(tc.want, "One.") {
+			src = "One. Two three four five. Six seven eight."
+		}
+		got, cut := Truncate(src, tc.max)
+		if got != tc.want || cut != tc.cut {
+			t.Errorf("Truncate(max %d)\n got %q (%v)\nwant %q (%v)", tc.max, got, cut, tc.want, tc.cut)
+		}
+	}
+}
+
+func TestFormatTruncated(t *testing.T) {
+	r := Result{Query: "q", Detail: "full", Total: 1, Articles: []Article{{Title: "T", URL: "u", Text: strings.Repeat("abc. ", 100)}}}
+	got, n := Format(r, 200)
+	if n != 1 || !strings.HasPrefix(got, "# 1. T\nu\n\nabc. ") || !strings.HasSuffix(got, "abc. […]") || len([]rune(got)) > 200+20 {
+		t.Errorf("%d truncated\n%s", n, got)
 	}
 }
 
 func TestNoHits(t *testing.T) {
-	_, c := newFake(t, `{"nbHits":0,"hits":[]}`)
-	r, err := c.Search(context.Background(), "zzzz", 5, "date")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := Format(r); !strings.Contains(got, `No stories found for "zzzz".`) {
+	got, _ := Format(Result{Query: "zzzz", Detail: "intro"}, 2000)
+	if got != `No Wikipedia articles found for "zzzz".` {
 		t.Errorf("got\n%s", got)
 	}
 }
 
-func TestHTTPError(t *testing.T) {
-	f, c := newFake(t, "")
+func TestErrors(t *testing.T) {
+	f, c := newFake(t)
 	f.status = 503
-	if _, err := c.Search(context.Background(), "x", 5, "relevance"); err == nil || !strings.Contains(err.Error(), "503") {
-		t.Fatalf("want an HTTP 503 error, got %v", err)
+	if _, err := c.Search(context.Background(), "x", 5, "intro"); err == nil || !strings.Contains(err.Error(), "503") {
+		t.Errorf("want HTTP 503, got %v", err)
+	}
+	f.status, f.errInfo = 0, "Search request is longer than the maximum allowed length."
+	if _, err := c.Search(context.Background(), "x", 5, "intro"); err == nil || !strings.Contains(err.Error(), "maximum allowed length") {
+		t.Errorf("want the API's error, got %v", err)
 	}
 }
 
-// The tool, through a real MCP client: defaults, the sort → endpoint mapping,
-// schema bounds and the text-first result.
+// The tool, through a real MCP client: defaults, text-first result, bounds.
 func TestTool(t *testing.T) {
-	f, c := newFake(t, twoHits)
+	f, c := newFake(t)
 	cs := connect(t, NewServer(c))
 	ctx := context.Background()
 
@@ -103,21 +195,18 @@ func TestTool(t *testing.T) {
 	if err != nil || res.IsError {
 		t.Fatalf("call: %v %v", err, text(res))
 	}
-	if !strings.HasPrefix(text(res), `Hacker News search: "rust async"`) {
+	if !strings.HasPrefix(text(res), "# 1. Async/await\nhttps://en.wikipedia.org/wiki/Async/await\n\n") {
 		t.Errorf("content should be the formatted text, got %q", text(res))
 	}
-	if f.paths[0] != "/api/v1/search" || f.params[0]["hitsPerPage"] != "10" || f.params[0]["tags"] != "story" {
-		t.Errorf("defaults: path %s params %v", f.paths[0], f.params[0])
-	}
-
-	res, _ = cs.CallTool(ctx, &mcp.CallToolParams{Name: "search", Arguments: map[string]any{"query": "x", "sort": "date", "limit": 3}})
-	if res.IsError || f.paths[1] != "/api/v1/search_by_date" || f.params[1]["hitsPerPage"] != "3" {
-		t.Errorf("sort=date: path %s params %v (%s)", f.paths[1], f.params[1], text(res))
+	if f.reqs[0]["gsrlimit"] != "8" {
+		t.Errorf("default limit 5 (+3 spare), got %v", f.reqs[0]["gsrlimit"])
 	}
 
 	for _, args := range []map[string]any{
-		{"query": "x", "limit": 31},
-		{"query": "x", "sort": "points"},
+		{"query": "x", "limit": 11},
+		{"query": "x", "chars": 100},
+		{"query": "x", "chars": 5001},
+		{"query": "x", "detail": "summary"},
 		{"query": ""},
 		{},
 	} {

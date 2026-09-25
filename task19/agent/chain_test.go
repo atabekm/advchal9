@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -46,8 +47,11 @@ func TestVerdicts(t *testing.T) {
 		if (got.Diff != "") != (tc.want.Verdict == Whitespace) {
 			t.Errorf("%s: diff %q", name, got.Diff)
 		}
-		got.Arg, got.Chars, got.SHA256, got.Diff = "", 0, "", ""
-		if got != tc.want {
+		if tc.want.Verdict == Partial && len(got.Missing) != got.Of-got.Kept {
+			t.Errorf("%s: missing %d lines, want %d", name, len(got.Missing), got.Of-got.Kept)
+		}
+		got.Arg, got.Chars, got.SHA256, got.Diff, got.Missing = "", 0, "", "", nil
+		if !reflect.DeepEqual(got, tc.want) {
 			t.Errorf("%s: got %+v want %+v", name, got, tc.want)
 		}
 	}
@@ -102,5 +106,21 @@ func TestFirstDiff(t *testing.T) {
 		if got := FirstDiff(tc[0], tc[1]); got != tc[2] {
 			t.Errorf("FirstDiff(%q, %q) = %s, want %s", tc[0], tc[1], got, tc[2])
 		}
+	}
+}
+
+func TestJoined(t *testing.T) {
+	a, b := lines("first search ", 6), lines("second search ", 4)
+	c := &Chain{}
+	c.Record("search", nil, nil, true, a, nil)
+	c.Record("search", nil, nil, true, b, nil)
+	arg := strings.Join(strings.Split(a, "\n")[:3], "\n") + "\n" + b + "a line the model wrote itself, and long enough to count\n"
+	h := c.Inspect(map[string]any{"text": arg})[0]
+	want := []Source{{Step: 1, Tool: "search", Lines: 3}, {Step: 2, Tool: "search", Lines: 4}}
+	if h.Verdict != Joined || h.Added != 1 || !reflect.DeepEqual(h.Sources, want) {
+		t.Errorf("got %+v", h)
+	}
+	if s := h.String(); !strings.Contains(s, "joined from steps 1 search (3 lines), 2 search (4 lines) · 1 added") {
+		t.Errorf("String() = %s", s)
 	}
 }

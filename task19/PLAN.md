@@ -266,3 +266,31 @@ Single branch `task19/tool-pipeline`, one PR (same as tasks 16–18).
   the save confirmation) behind a `│` bar, wrapped to the terminal. Arguments
   stay shortened, since the data they carry is already on screen with a
   handoff verdict. `-raw` still prints the JSON arguments and results.
+- **Search moved from Hacker News to Wikipedia.** Algolia returns titles,
+  links and numbers, and nothing to summarize: the live summaries could only
+  restate headlines. `search` now queries the MediaWiki API (keyless, with a
+  User-Agent as Wikimedia asks) and returns article text. It has `detail`
+  (`intro` in one request, `full` with one more per article), `chars` per
+  article (200–5,000), and `limit` 1–10. It skips disambiguation pages, drops
+  back matter and empty sections, and turns section markers into Markdown
+  headings. The design above still shows the Hacker News version.
+- **The search text is content only.** The first Wikipedia runs had a header
+  line and `(Shortened: …)` notes in the text. The model left them out when
+  passing it to `summarize` ("partial: 122 of 123 lines"). They moved to
+  `structuredContent`; a cut article keeps only a `[…]` marker. After that,
+  handoffs of 7,000 and 23,000 characters were `exact`.
+- **A `joined` verdict.** For a topic Wikipedia has no article on (async
+  Rust), the model searched five times and built the `summarize` input from
+  pieces of four results. `partial` credited it all to one step and called
+  the rest "added". Each argument line is now credited to the latest output
+  that has it, and inputs built from several outputs report every source
+  step with its line count.
+- **`partial` lists the dropped lines**, three in the trace and a count of
+  the rest, so you can see *what* was lost, not just how much.
+- **The system prompt asks for the fewest calls** (usually one per step) and
+  for carrying the better result alone rather than stitching results
+  together.
+- **Seen live: long text gets cut.** Given about 22,000 characters, the
+  model once passed its own 6,000-character excerpt to `summarize`. The trace
+  reports it (`partial: 8 of 101 lines kept`). This is inherent in letting
+  the model carry the data. The check doesn't prevent it but shows it.

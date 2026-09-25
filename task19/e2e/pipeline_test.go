@@ -24,18 +24,21 @@ import (
 	"task19/summarize"
 )
 
-const algoliaReply = `{"nbHits": 3, "hits": [
- {"objectID": "1", "title": "Why asynchronous Rust doesn't work", "url": "https://theta.eu.org/async-rust-2.html", "points": 612, "num_comments": 435, "created_at": "2021-03-08T10:00:00Z"},
- {"objectID": "2", "title": "Futurelock: A subtle risk in async Rust", "url": "https://rfd.shared.oxide.computer/rfd/0609", "points": 449, "num_comments": 230, "created_at": "2025-10-01T10:00:00Z"},
- {"objectID": "3", "title": "Async Rust never left the MVP state", "url": "https://tweedegolf.nl/mvp", "points": 390, "num_comments": 301, "created_at": "2025-06-01T10:00:00Z"}
-]}`
+const wikiReply = `{"query": {"searchinfo": {"totalhits": 212}, "pages": [
+ {"pageid": 1, "title": "Async/await", "index": 1, "fullurl": "https://en.wikipedia.org/wiki/Async/await",
+  "extract": "In computer programming, the async/await pattern is a syntactic feature of many programming languages that allows an asynchronous, non-blocking function to be structured in a way similar to an ordinary synchronous function."},
+ {"pageid": 2, "title": "Tokio (software)", "index": 2, "fullurl": "https://en.wikipedia.org/wiki/Tokio_(software)",
+  "extract": "Tokio is a software library for the Rust programming language. It provides a runtime and functions that enable the use of asynchronous I/O."},
+ {"pageid": 3, "title": "Futures and promises", "index": 3, "fullurl": "https://en.wikipedia.org/wiki/Futures_and_promises",
+  "extract": "In computer science, futures, promises, delays, and deferreds are constructs used for synchronizing program execution."}
+]}}`
 
 // The summarizer's model answers with this, whatever it is sent.
-const summaryText = `Three widely discussed critiques of **async Rust**:
+const summaryText = `Asynchronous programming in Rust rests on three ideas:
 
-- [Why asynchronous Rust doesn't work](https://theta.eu.org/async-rust-2.html) argues the model is fundamentally awkward (612 points).
-- [Futurelock](https://rfd.shared.oxide.computer/rfd/0609) describes a subtle deadlock risk.
-- [Async Rust never left the MVP state](https://tweedegolf.nl/mvp) says the feature stalled after launch.`
+- [Async/await](https://en.wikipedia.org/wiki/Async/await) lets non-blocking code read like ordinary sequential code.
+- [Futures and promises](https://en.wikipedia.org/wiki/Futures_and_promises) stand for results that are not ready yet.
+- [Tokio](https://en.wikipedia.org/wiki/Tokio_(software)) is the runtime that drives them with asynchronous I/O.`
 
 // chatFunc builds one assistant message from the conversation so far.
 type chatFunc func(msgs []llm.Message) map[string]any
@@ -78,7 +81,7 @@ func scriptedModel(relay func(string) string) chatFunc {
 		}
 		switch replies {
 		case 0:
-			return toolCall("call_1", "search", map[string]any{"query": "rust async", "limit": 3})
+			return toolCall("call_1", "search", map[string]any{"query": "async programming in Rust", "limit": 3})
 		case 1:
 			return toolCall("call_2", "summarize", map[string]any{"text": relay(last.Content), "max_words": 100})
 		case 2:
@@ -97,10 +100,10 @@ type pipeline struct {
 
 func setup(t *testing.T, relay func(string) string) *pipeline {
 	t.Helper()
-	algolia := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Write([]byte(algoliaReply))
+	wiki := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Write([]byte(wikiReply))
 	}))
-	t.Cleanup(algolia.Close)
+	t.Cleanup(wiki.Close)
 	sumLLM := llm.NewDeepSeek("server-key", "deepseek-flash")
 	sumLLM.BaseURL = fakeChat(t, func([]llm.Message) map[string]any {
 		return map[string]any{"role": "assistant", "content": summaryText}
@@ -108,7 +111,7 @@ func setup(t *testing.T, relay func(string) string) *pipeline {
 	dir := t.TempDir()
 
 	servers := []*mcp.Server{
-		search.NewServer(&search.Client{BaseURL: algolia.URL, HTTP: algolia.Client()}),
+		search.NewServer(&search.Client{BaseURL: wiki.URL, HTTP: wiki.Client()}),
 		summarize.NewServer(&summarize.Summarizer{LLM: sumLLM}),
 		savefile.NewServer(&savefile.Saver{Dir: dir}),
 	}
@@ -154,12 +157,12 @@ func TestFaithfulChain(t *testing.T) {
 	}
 
 	// The data really went search → summarize: the step-2 argument is the
-	// search text, and it names every story.
+	// search text, with every article's text in it.
 	st := a.Chain.Steps
 	if h := st[1].Handoffs[0]; h.From != 1 || h.Arg != "text" {
 		t.Errorf("summarize handoff %+v", h)
 	}
-	for _, title := range []string{"Why asynchronous Rust doesn't work", "Futurelock", "never left the MVP"} {
+	for _, title := range []string{"# 1. Async/await", "asynchronous I/O", "synchronizing program execution"} {
 		if !strings.Contains(st[0].Output, title) {
 			t.Errorf("search output lacks %q", title)
 		}

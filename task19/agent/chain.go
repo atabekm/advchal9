@@ -20,9 +20,17 @@ type Verdict string
 const (
 	Exact      Verdict = "exact"      // byte-identical
 	Whitespace Verdict = "whitespace" // identical once whitespace is collapsed
-	Partial    Verdict = "partial"    // some of the output's lines, possibly with others
+	Partial    Verdict = "partial"    // some of one output's lines, possibly with others
+	Joined     Verdict = "joined"     // lines from several outputs put together
 	None       Verdict = "none"       // nothing in common with any earlier output
 )
+
+// Source is one earlier output that lines of an argument came from.
+type Source struct {
+	Step  int
+	Tool  string
+	Lines int // argument lines found in this output (and in no later one)
+}
 
 // Handoff describes one argument that carries data into a call.
 type Handoff struct {
@@ -32,10 +40,12 @@ type Handoff struct {
 	Verdict  Verdict
 	Chars    int
 	SHA256   string
-	Kept     int    // Partial: lines of the source output present in the argument
-	Of       int    // Partial: non-empty lines in the source output
-	Added    int    // Partial: argument lines not in the source output
-	Diff     string // Whitespace: where the argument first departs from the output
+	Kept     int      // Partial: lines of the source output present in the argument
+	Of       int      // Partial: non-empty lines in the source output
+	Added    int      // Partial, Joined: argument lines found in no source
+	Diff     string   // Whitespace: where the argument first departs from the output
+	Sources  []Source // Joined: where the lines came from, by step
+	Missing  []string // Partial: the source's lines not carried over, in order
 }
 
 // StoreCheck compares a hash a tool reports for what it stored with the
@@ -90,36 +100,63 @@ func (c *Chain) classify(arg string) Handoff {
 			return Handoff{From: st.N, FromTool: st.Tool, Verdict: Whitespace, Diff: FirstDiff(st.Output, arg)}
 		}
 	}
-	best := Handoff{Verdict: None}
-	bestFrac := 0.0
+	// Every line of the argument is credited to the latest output that has
+	// it; the steps credited say whether the data came from one output or
+	// was put together from several.
+	outs := map[int]map[string]bool{}
+	counts := map[int]int{}
 	argLines := lineSet(arg)
-	for i := len(c.Steps) - 1; i >= 0; i-- {
-		st := c.Steps[i]
-		if !st.OK {
-			continue
-		}
-		src := lineSet(st.Output)
-		if len(src) == 0 {
-			continue
-		}
-		kept := 0
-		for l := range src {
-			if argLines[l] {
-				kept++
+	added := 0
+	for l := range argLines {
+		found := false
+		for i := len(c.Steps) - 1; i >= 0; i-- {
+			st := c.Steps[i]
+			if !st.OK {
+				continue
+			}
+			if outs[i] == nil {
+				outs[i] = lineSet(st.Output)
+			}
+			if outs[i][l] {
+				counts[i]++
+				found = true
+				break
 			}
 		}
-		if f := float64(kept) / float64(len(src)); kept > 0 && f > bestFrac {
-			added := 0
-			for l := range argLines {
-				if !src[l] {
-					added++
-				}
-			}
-			bestFrac = f
-			best = Handoff{From: st.N, FromTool: st.Tool, Verdict: Partial, Kept: kept, Of: len(src), Added: added}
+		if !found {
+			added++
 		}
 	}
-	return best
+	switch len(counts) {
+	case 0:
+		return Handoff{Verdict: None}
+	case 1:
+		for i := range counts {
+			st, src := c.Steps[i], outs[i]
+			kept := 0
+			var missing []string
+			seen := map[string]bool{}
+			for _, l := range strings.Split(st.Output, "\n") {
+				if l = collapse(l); l == "" || seen[l] {
+					continue
+				}
+				seen[l] = true
+				if argLines[l] {
+					kept++
+				} else {
+					missing = append(missing, l)
+				}
+			}
+			return Handoff{From: st.N, FromTool: st.Tool, Verdict: Partial, Kept: kept, Of: len(src), Added: added, Missing: missing}
+		}
+	}
+	h := Handoff{Verdict: Joined, Added: added}
+	for i := range c.Steps {
+		if n := counts[i]; n > 0 {
+			h.Sources = append(h.Sources, Source{Step: c.Steps[i].N, Tool: c.Steps[i].Tool, Lines: n})
+		}
+	}
+	return h
 }
 
 // Record adds a finished call. If the result reports a sha256 of what it
@@ -174,6 +211,13 @@ func (h Handoff) String() string {
 	case Partial:
 		return fmt.Sprintf("%s · from step %d %s · partial: %d of %d lines kept, %d added · %s chars",
 			h.Arg, h.From, h.FromTool, h.Kept, h.Of, h.Added, thousands(h.Chars))
+	case Joined:
+		parts := make([]string, len(h.Sources))
+		for i, src := range h.Sources {
+			parts[i] = fmt.Sprintf("%d %s (%d lines)", src.Step, src.Tool, src.Lines)
+		}
+		return fmt.Sprintf("%s · joined from steps %s · %d added · %s chars",
+			h.Arg, strings.Join(parts, ", "), h.Added, thousands(h.Chars))
 	case Whitespace:
 		return fmt.Sprintf("%s · from step %d %s · whitespace differs (%s) · %s chars",
 			h.Arg, h.From, h.FromTool, h.Diff, thousands(h.Chars))

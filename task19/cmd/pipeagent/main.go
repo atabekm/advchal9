@@ -26,6 +26,7 @@ const defaultServers = "http://localhost:8771/mcp,http://localhost:8772/mcp,http
 
 const systemPrompt = `You complete requests with the tools available to you. They come from separate servers and do not talk to each other: when one tool's output is the next tool's input, you carry it.
 When you pass a tool's output to another tool, pass it verbatim: the complete text, character for character, with nothing added, removed, reformatted or summarised by you. Leave processing to the tools rather than rewriting their output yourself.
+Use as few calls as the request needs: usually one per step. Call a tool again only when its result is unusable, and then carry the better result alone rather than stitching results together.
 Use the tools for every fact; never invent results. If a call fails, read the error, fix the arguments and try again, or say plainly what could not be done.
 When you are done, answer in two or three sentences: what was done and where the result is, quoting paths exactly as a tool returned them.
 Current time: %s.`
