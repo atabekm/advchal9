@@ -170,9 +170,48 @@ func (u *ui) toolResult(st agent.ChainStep, o agent.ToolOutcome) {
 			fmt.Printf("      %s %s\n", u.red("≠"), u.red(fmt.Sprintf("stored sha256 %s… matches no argument sent", clip(sc.Reported, 9))))
 		}
 	}
-	if u.raw {
+	switch {
+	case u.raw:
 		fmt.Println(indent(o.ForModel, "        "))
+	case st.OK:
+		u.output(st.Output)
 	}
+}
+
+// output prints what a tool returned, in full, behind a bar: the data the
+// model now holds and may carry into the next call. Long lines are wrapped
+// so the bar stays on every line.
+func (u *ui) output(text string) {
+	bar := u.dim("│ ")
+	width := max(40, u.width-10)
+	for _, l := range strings.Split(strings.TrimRight(text, "\n"), "\n") {
+		for _, w := range wrap(l, width) {
+			fmt.Println("      " + bar + w)
+		}
+	}
+}
+
+// wrap breaks a line at spaces to fit width, keeping its leading indentation
+// on the continuation lines. A single word longer than width (a URL) stays whole.
+func wrap(line string, width int) []string {
+	if len([]rune(line)) <= width {
+		return []string{line}
+	}
+	lead := line[:len(line)-len(strings.TrimLeft(line, " "))]
+	var out []string
+	cur := lead
+	for _, word := range strings.Fields(line) {
+		switch {
+		case cur == lead:
+			cur += word
+		case len([]rune(cur))+1+len([]rune(word)) > width:
+			out = append(out, cur)
+			cur = lead + word
+		default:
+			cur += " " + word
+		}
+	}
+	return append(out, cur)
 }
 
 // chain prints the turn's calls as one pipeline, with how each piece of data

@@ -106,6 +106,11 @@ export DEEPSEEK_API_KEY=sk-…   # or a .env file here (sumserver and pipeagent 
 REPL commands: `/tools` (every server's tools with their parameters) ·
 `/raw` · `/quit`.
 
+Each call's arguments are shortened to keep the call on one line: the data
+they carry is printed in full under the call that produced it, and the
+handoff line says whether it arrived unchanged. `-raw` shows the full JSON
+arguments instead.
+
 **A server that is down** costs its tools, not the run. The agent reports it
 and offers the model the tools it has. Before each request it pings every
 session, replaces lost ones and tries missing servers again.
@@ -114,8 +119,9 @@ session, replaces lost ones and tries missing servers again.
 
 Unedited, with `-plain`.
 
-**The full chain.** One request, three calls in order, each on a different
-server:
+**The full chain.** One request, and the model makes every call in order,
+each on a different server. Under each call is the data that tool returned,
+in full: the text the model now holds and carries into the next call.
 
 ```
   pipeagent · deepseek-flash · 3 MCP servers over Streamable HTTP
@@ -125,37 +131,88 @@ server:
   ✓ fileserver    save_to_file · http://localhost:8773/mcp · protocol 2025-11-25
   3 tools from 3 servers, offered to the model as one list
 
-  › Find the 8 most relevant Hacker News stories about Rust async, summarize them in about 150 words focusing on the main criticisms, and save the summary to rust-async.md
+  › Find the 6 most relevant Hacker News stories about SQLite performance, summarize them in about 100 words, and save the summary to sqlite-perf.md
 
-  ⚙ 1 search @searchserver {"limit":8,"query":"Rust async","sort":"relevance"}
-      ✓ 1.4s · query="Rust async" returned=8 sort="relevance" total_matches=1106
-  ⚙ 2 summarize @sumserver {"focus":"main criticisms of async Rust","format":"markdown","max_wor…
-      ⇐ text · from step 1 search · exact · 1,573 chars · sha256 297808db
-      ✓ 2.8s · input_chars=1573 model="deepseek-flash" output_words=100 ungrounded_links[0]
-  ⚙ 3 save_to_file @fileserver {"content":"Hacker News results on \"Rust async\" surf… (959 char…
-      ⇐ content · from step 2 summarize · whitespace differs (trailing "\n" added) · 959 chars
-      ✓ 9ms · bytes=967 overwritten=false path="out/rust-async.md"
-      ≡ stored sha256 10606abf… = content sent
+  ⚙ 1 search @searchserver {"limit":6,"query":"SQLite performance","sort":"relevance"}
+      ✓ 683ms · query="SQLite performance" returned=6 sort="relevance" total_matches=184
+      │ Hacker News search: "SQLite performance" · 6 of 184 matches · by relevance
+      │ 
+      │ 1. SQLite performance tuning: concurrent reads, multiple GBs and 100k SELECTs/s
+      │    https://phiresky.github.io/blog/2020/sqlite-performance-tuning/
+      │    219 points · 69 comments · 2023-04-12 · https://news.ycombinator.com/item?id=35547819
+      │ 
+      │ 2. SQLite improves performance with memory-mapped I/O
+      │    http://www.sqlite.org/releaselog/3_7_17.html
+      │    185 points · 80 comments · 2013-05-23 · https://news.ycombinator.com/item?id=5758192
+      │ 
+      │ 3. Why SQLite Performance Tuning Made Bencher 1200x Faster
+      │    https://bencher.dev/learn/engineering/sqlite-performance-tuning/
+      │    99 points · 20 comments · 2024-04-17 · https://news.ycombinator.com/item?id=40069583
+      │ 
+      │ 4. SQLite improving performance with pre-sort
+      │    https://andersmurphy.com/2026/06/07/sqlite-improving-performance-with-pre-sort.html
+      │    65 points · 5 comments · 2026-06-26 · https://news.ycombinator.com/item?id=48687137
+      │ 
+      │ 5. Sqlite Performance
+      │    http://stackoverflow.com/questions/1711631/improve-insert-per-second-performance-of-sqlite
+      │    30 points · 6 comments · 2016-11-12 · https://news.ycombinator.com/item?id=12939690
+      │ 
+      │ 6. Small Changes for Big SQLite Performance Increases
+      │    https://whylabs.ai/blog/posts/small-changes-for-big-sqlite-performance-increases
+      │    12 points · 1 comments · 2022-07-20 · https://news.ycombinator.com/item?id=32172231
+  ⚙ 2 summarize @sumserver {"focus":"SQLite performance topics, techniques an… (74 chars)","format":"markd…
+      ⇐ text · from step 1 search · exact · 1,369 chars · sha256 232e18a5
+      ✓ 6.3s · input_chars=1369 model="deepseek-flash" output_words=47 ungrounded_links[0]
+      │ - Concurrent reads, multiple GBs, and 100k SELECTs/s.
+      │ - Memory-mapped I/O.
+      │ - A 1200x speedup via tuning.
+      │ - Pre-sort.
+      │ - Improving insert-per-second performance.
+      │ - Small changes for big increases.
+      │ 
+      │ Takeaways: tune concurrency/read throughput, use memory-mapped I/O, pre-sort data, optimize inserts,
+      │ and small changes can yield major gains.
+  ⚙ 3 summarize @sumserver {"focus":"one line per story naming its title, poi… (87 chars)","format":"markd…
+      ⇐ text · from step 1 search · exact · 1,369 chars · sha256 232e18a5
+      ✓ 5.2s · input_chars=1369 model="deepseek-flash" output_words=88 ungrounded_links[0]
+      │ - SQLite performance tuning: concurrent reads, multiple GBs and 100k SELECTs/s — 219 pts, 69
+      │ comments, 2023-04-12.
+      │ - SQLite improves performance with memory-mapped I/O — 185 pts, 80 comments, 2013-05-23.
+      │ - Why SQLite Performance Tuning Made Bencher 1200x Faster — 99 pts, 20 comments, 2024-04-17.
+      │ - SQLite improving performance with pre-sort — 65 pts, 5 comments, 2026-06-26.
+      │ - Sqlite Performance — 30 pts, 6 comments, 2016-11-12.
+      │ - Small Changes for Big SQLite Performance Increases — 12 pts, 1 comments, 2022-07-20.
+      │ 
+      │ HN search: 6 of 184 matches, by relevance.
+  ⚙ 4 save_to_file @fileserver {"content":"- SQLite performance tuning: concurrent… (562 chars)","filename…
+      ⇐ content · from step 3 summarize · whitespace differs (trailing "\n" added) · 562 chars
+      ✓ 6ms · bytes=574 overwritten=false path="out/sqlite-perf.md"
+      ≡ stored sha256 b480a634… = content sent
+      │ Saved out/sqlite-perf.md · 574 bytes · sha256
+      │ b480a634c6fda289f42c096dc2cff39983c9fccb1c6db175187b1bff1ee42017
 
-  chain search → summarize → save_to_file · 2 handoffs: 1 exact, 1 whitespace · stored = sent
+  chain search → summarize → summarize → save_to_file · 3 handoffs: 2 exact, 1 whitespace · stored = sent
 
-  I searched Hacker News for "Rust async" (top 8 by relevance), summarized those stories in ~130 words with a focus on the main criticisms (e.g. "Why asynchronous Rust doesn't work", "Futurelock: A subtle risk in async Rust", "Async Rust never left the MVP state"), and saved the summary to `out/rust-async.md` (967 bytes).
+  I searched Hacker News for "SQLite performance" (6 of 184 matches, by relevance) and summarized the top six stories — from the 100k SELECTs/s tuning post through memory-mapped I/O, Bencher's 1200x speedup, pre-sort, insert-per-second improvements, and small changes with big gains.
 
-  Note that only the search metadata (titles, links, points, dates) was available as source text, so the summary reflects the stories' framing rather than the contents of the linked articles.
+  The summary is saved at `out/sqlite-perf.md` (574 bytes, sha256 b480a634c6fda289f42c096dc2cff39983c9fccb1c6db175187b1bff1ee42017).
 
-  4 model calls · 8,722 in / 1,493 out tokens · 12.1s
+  5 model calls · 11,432 in / 1,713 out tokens · 21.3s
 ```
 
-The 1,573-character search result reached `summarize` byte for byte. The
-summary reached the file with one newline added at the end, which the trace
-names instead of hiding. The file's hash matches what was sent. (959 chars
-and 967 bytes: `—` is three bytes in UTF-8.)
+The search result reached both `summarize` calls byte for byte. The model
+judged the first summary too thin, summarized again with a sharper focus, and
+saved the second one (`from step 3`), with one newline added at the end,
+which the trace names instead of hiding. The file's hash matches what was
+sent. (562 chars and 574 bytes: `—` is three bytes in UTF-8.)
 
 What the servers logged, each in its own terminal:
 
 ```
-21:17:54  ✓ search {"limit":8,"query":"Rust async","sort":"relevance"} · 1.4s · Hacker News search: "Rust async" · 8 of 1,106 matches · by relevance …
-21:18:00  ✓ summarize {"focus":"main criticisms of async Rust","format":"markdown","max_words":150,"text":"Hacker News search: \"Rust async\" · 8 of… (1,573 chars)"} · 2.8s · Hacker News results on "Rust async" surface several criticisms: - ["W…
+21:28:48  ✓ search {"limit":6,"query":"SQLite performance","sort":"relevance"} · 678ms · Hacker News search: "SQLite performance" · 6 of 184 matches · by rele…
+21:28:57  ✓ summarize {"focus":"SQLite performance topics, techniques an… (74 chars)","format":"markdown","max_words":110,"text":"Hacker News search: \"SQLite performance\"… (1,369 chars)"} · 6.3s · - Concurrent reads, multiple GBs, and 100k SELECTs/s. - Memory-mapped…
+21:29:05  ✓ summarize {"focus":"one line per story naming its title, poi… (87 chars)","format":"markdown","max_words":100,"text":"Hacker News search: \"SQLite performance\"… (1,369 chars)"} · 5.2s · - SQLite performance tuning: concurrent reads, multiple GBs and 100k …
+21:29:06  ✓ save_to_file {"content":"- SQLite performance tuning: concurrent… (562 chars)","filename":"sqlite-perf.md"} · 3ms · Saved out/sqlite-perf.md · 574 bytes · sha256 b480a634c6fda289f42c096…
 ```
 
 **A run where the model didn't pass on the latest output.** In an earlier

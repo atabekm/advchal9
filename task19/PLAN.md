@@ -261,3 +261,8 @@ Single branch `task19/tool-pipeline`, one PR (same as tasks 16–18).
 - **`save_to_file` without `overwrite` links the temp file into place**
   instead of renaming it, so two calls racing for a new name can't both
   succeed. A test with 8 concurrent writers covers it.
+- **The data between steps is printed in full.** Under each successful call
+  the trace shows the text the tool returned (the search list, the summary,
+  the save confirmation) behind a `│` bar, wrapped to the terminal. Arguments
+  stay shortened, since the data they carry is already on screen with a
+  handoff verdict. `-raw` still prints the JSON arguments and results.
