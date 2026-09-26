@@ -40,6 +40,10 @@ func (st *Store) Append(name string, data []byte) (AppendOut, error) {
 		return AppendOut{}, err
 	}
 	path := filepath.Join(st.Dir, name)
+	// A symlink would lead the write outside Dir.
+	if fi, err := os.Lstat(path); err == nil && !fi.Mode().IsRegular() {
+		return AppendOut{}, fmt.Errorf("%s is not a regular file", path)
+	}
 	old, err := os.ReadFile(path)
 	created := errors.Is(err, os.ErrNotExist)
 	if err != nil && !created {

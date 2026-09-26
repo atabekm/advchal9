@@ -15,7 +15,7 @@ type evalRow struct {
 	name   string
 	res    grade.Result
 	ran    bool // false: the turn itself failed (setup, model API), so it has no grade
-	calls  int // model requests
+	calls  int  // model requests
 	tokens int
 	took   time.Duration
 }

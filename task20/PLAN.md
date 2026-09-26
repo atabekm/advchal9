@@ -224,3 +224,40 @@ go build -o . ./cmd/...
 ## Branch
 
 Single branch `task20/mcp-orchestration`, one PR (same as tasks 16–19).
+
+## Addendum — what the build changed
+
+- **The file prefix is `file`, not `files`.** Prefixes default to the server's
+  name without `server`, and the server is `fileserver`. Tools are
+  `file__save`, `file__append`, `file__read`, `file__list`.
+- **A nil source offers no tools.** `search.NewServer` registers only the
+  tools of the sources it is given, so tests and partial setups don't
+  advertise tools that would crash.
+- **The SDK lists tools sorted by name**, not in registration order; the
+  tests compare sorted lists.
+- **`from` is provenance, and it is transitive.** A call counts as carrying
+  a step's data when a long argument's handoff verdict points to it, or a
+  short argument (a title, an id) is in that output and not in the prompt,
+  or either holds for a call in between: `from hn (via 2: exact)`.
+- **The grader tries every assignment of calls to steps** and keeps the one
+  where the most steps are met. Greedy matching took the first `summarize` of
+  two for the summary step and then blamed the append, which carried the
+  second one (seen live).
+- **A `reworded` handoff verdict.** The model once rewrote the HN list
+  before passing it on, so no line matched and the verdict was `none`. Now
+  an argument none of whose lines survive, but 60% or more of whose words
+  (10 or more) are one output's, is `reworded` from it. It counts as
+  provenance and is flagged in yellow.
+- **`read` reports `file_sha256`.** Any `sha256` in a result is taken as a
+  hash of what the call stored; a read stores nothing and printed
+  `stored ≠ sent`.
+- **`wiki_article` returns at most 12,000 characters (default 6,000).** The
+  model always asked for the maximum; carrying 20,000 characters made
+  `extract` take a minute a call and led the model to write its own excerpt.
+- **Budgets are the steps plus two**, room for one retry after a poor
+  result. The notes scenario allows its reads on top.
+- **A turn that ends in an error gets no grade** (DeepSeek timeouts,
+  network errors), rather than a FAIL with no calls.
+- **`append` refuses a symlink**, as `read` and `list` already did.
+- **`extract` uses DeepSeek's JSON mode** (`CompleteJSON` in `llm/`), and
+  writes JSON objects with their keys in column order, the quote last.

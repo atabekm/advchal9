@@ -51,6 +51,14 @@ func TestAppend(t *testing.T) {
 			t.Errorf("append %q: hashes/sizes %+v", tc.content, out)
 		}
 	}
+	outside := filepath.Join(filepath.Dir(dir), "outside.md")
+	os.Symlink(outside, filepath.Join(dir, "link.md"))
+	if res := call(t, cs, "append", map[string]any{"filename": "link.md", "content": "x"}, nil); !res.IsError {
+		t.Errorf("append through a symlink: %s", text(res))
+	}
+	if _, err := os.Stat(outside); err == nil {
+		t.Error("a file was written outside the directory")
+	}
 	for _, args := range []map[string]any{{"filename": "notes.md", "content": ""}, {"filename": "../x.md", "content": "x"}, {"filename": "x.md"}} {
 		if res := call(t, cs, "append", args, nil); !res.IsError {
 			t.Errorf("%v: want an error, got %s", args, text(res))
