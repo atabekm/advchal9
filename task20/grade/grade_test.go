@@ -266,3 +266,36 @@ func TestShippedScenarios(t *testing.T) {
 		t.Errorf("%d scenarios", len(scs))
 	}
 }
+
+// Seen live: the model summarized twice, from its own text, and appended
+// the second summary. The failing step is the summary; the append, which
+// carries the second summary, is matched to it and passes.
+func TestBestAssignment(t *testing.T) {
+	sc := &Scenario{Prompt: "summarize the article and add it", Steps: []Step{
+		{ID: "article", Tool: "search__wiki_article"},
+		{ID: "sum", Tool: "text__summarize", From: []string{"article"}},
+		{ID: "add", Tool: "file__append", From: []string{"sum"}},
+	}}
+	sum2 := long("Second summary, with a different focus.")
+	var tr trace
+	tr.call("search__wiki_article", map[string]any{"title": "X"}, wikiOut).
+		call("text__summarize", map[string]any{"text": long("The model's own excerpt.")}, sumOut).
+		call("text__summarize", map[string]any{"text": long("The model's own excerpt.")}, sum2).
+		call("file__append", map[string]any{"filename": "a.md", "content": sum2}, "Appended")
+	r := Grade(sc, &tr.c)
+	if got := problems(r); got != "sum: carries nothing from article (call 1)" {
+		t.Errorf("problems %q", got)
+	}
+	if r.Steps[1].Call != 3 || r.Steps[2].Call != 4 || !r.Steps[2].OK() {
+		t.Errorf("sum → %d, add → %d ok=%v", r.Steps[1].Call, r.Steps[2].Call, r.Steps[2].OK())
+	}
+	// A retry that gets it right fills the step; the first try is extra.
+	var tr2 trace
+	tr2.call("search__wiki_article", map[string]any{"title": "X"}, wikiOut).
+		call("text__summarize", map[string]any{"text": long("The model's own excerpt.")}, sumOut).
+		call("text__summarize", map[string]any{"text": wikiOut}, sum2).
+		call("file__append", map[string]any{"filename": "a.md", "content": sum2}, "Appended")
+	if r := Grade(sc, &tr2.c); !r.Pass || r.Steps[1].Call != 3 || len(r.Extra) != 1 || r.Extra[0].Call != 2 {
+		t.Errorf("retry: %s %+v", problems(r), r.Extra)
+	}
+}

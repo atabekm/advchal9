@@ -150,7 +150,7 @@ func (u *ui) toolCall(step int, name, target string, args json.RawMessage, hando
 		if h.Verdict == agent.Whitespace {
 			mark, text = u.cyan("⇐"), h.String()
 		}
-		if h.Verdict == agent.Partial || h.Verdict == agent.Joined || h.Verdict == agent.None {
+		if h.Verdict == agent.Partial || h.Verdict == agent.Joined || h.Verdict == agent.Reworded || h.Verdict == agent.None {
 			mark, text = u.yellow("⇐"), u.yellow(text)
 		}
 		fmt.Printf("      %s %s\n", mark, text)
@@ -235,11 +235,11 @@ func (u *ui) chain(c *agent.Chain) {
 	}
 	total := 0
 	var parts []string
-	for _, v := range []agent.Verdict{agent.Exact, agent.Whitespace, agent.Partial, agent.Joined, agent.None} {
+	for _, v := range []agent.Verdict{agent.Exact, agent.Whitespace, agent.Partial, agent.Joined, agent.Reworded, agent.None} {
 		if n := counts[v]; n > 0 {
 			total += n
 			s := fmt.Sprintf("%d %s", n, v)
-			if v == agent.Partial || v == agent.Joined || v == agent.None {
+			if v == agent.Partial || v == agent.Joined || v == agent.Reworded || v == agent.None {
 				s = u.yellow(s)
 			}
 			parts = append(parts, s)
@@ -530,6 +530,9 @@ func (u *ui) evalTable(rows []evalRow) bool {
 			g = u.red("ERROR ")
 		}
 		fmt.Printf("  %-*s  %s %6s %6d %9d %9s %7s\n", namew, r.name, g, steps, r.res.Calls, r.calls, thousands(r.tokens), r.took.Round(100*time.Millisecond))
+		if !r.ran {
+			fmt.Printf("  %-*s  %s\n", namew, "", u.dim("no grade: the turn did not finish"))
+		}
 	}
 	fmt.Printf("\n  %s\n", u.bold(fmt.Sprintf("%d of %d scenarios passed", passed, len(rows))))
 	return passed == len(rows)

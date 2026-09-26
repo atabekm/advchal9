@@ -172,9 +172,12 @@ func wikiHandler(c *Wiki) mcp.ToolHandlerFor[WikiIn, WikiOut] {
 // ---------------------------------------------------------- wiki_article
 
 const (
-	defaultArticleChars = 8000
+	// The model carries what this returns into the next call, token by
+	// token; 20,000 characters made that slow, and made the model write its
+	// own excerpt instead.
+	defaultArticleChars = 6000
 	minArticleChars     = 500
-	maxArticleChars     = 20000
+	maxArticleChars     = 12000
 )
 
 type ArticleIn struct {

@@ -14,7 +14,7 @@ import (
 type evalRow struct {
 	name   string
 	res    grade.Result
-	ran    bool
+	ran    bool // false: the turn itself failed (setup, model API), so it has no grade
 	calls  int // model requests
 	tokens int
 	took   time.Duration
@@ -50,9 +50,9 @@ func (r *runner) eval(ctx context.Context, router *agent.Router, path string) bo
 		}
 		fmt.Println("\n  " + r.ui.bold("› ") + sc.Prompt)
 		start := time.Now()
-		a, _ := r.run(ctx, sc.Prompt)
+		a, ok := r.run(ctx, sc.Prompt)
 		row := evalRow{name: sc.Name, took: time.Since(start)}
-		if a != nil {
+		if ok {
 			row.ran, row.res = true, grade.Grade(sc, a.Chain)
 			row.calls, row.tokens = a.Calls, a.Usage.PromptTokens+a.Usage.CompletionTokens
 			r.ui.report(row.res)

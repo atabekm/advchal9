@@ -7,5 +7,5 @@
     {"id": "save", "tool": "file__save", "from": ["people"], "args": {"filename": "apollo11-people.json"}}
   ],
   "forbid": ["text__summarize", "file__append", "search__hackernews"],
-  "max_calls": 4
+  "max_calls": 5
 }

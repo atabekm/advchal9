@@ -119,10 +119,8 @@ type Result struct {
 	Pass     bool
 }
 
-// Grade matches the turn's calls to the scenario's steps. Each step takes
-// the earliest unclaimed successful call of an accepted tool that meets all
-// its conditions; when none does, the earliest such call is reported with
-// what it got wrong.
+// Grade matches the turn's calls to the scenario's steps and checks the
+// turn as a whole: no forbidden or unknown tools, no more calls than allowed.
 func Grade(sc *Scenario, c *agent.Chain) Result {
 	res := Result{Scenario: sc}
 	flow := Flow(c, sc.Prompt)
@@ -135,47 +133,12 @@ func Grade(sc *Scenario, c *agent.Chain) Result {
 			res.Failed++
 		}
 	}
+	res.Steps = match(sc.Steps, c, flow)
 	claimed := map[int]bool{}
-	matched := map[string]int{} // step id → call
-
-	for _, step := range sc.Steps {
-		var first *StepResult
-		var chosen *StepResult
-		failedCall := 0
-		for _, st := range c.Steps {
-			if !step.accepts(st.Tool) || claimed[st.N] {
-				continue
-			}
-			if !st.OK {
-				if failedCall == 0 {
-					failedCall = st.N
-				}
-				continue
-			}
-			r := check(step, st, matched, flow)
-			if first == nil {
-				first = &r
-			}
-			if len(r.Problems) == 0 {
-				chosen = &r
-				break
-			}
+	for _, s := range res.Steps {
+		if s.Call > 0 {
+			claimed[s.Call] = true
 		}
-		switch {
-		case chosen != nil:
-		case first != nil:
-			chosen = first
-		default:
-			chosen = &StepResult{Step: step, Problems: []string{"not called"}}
-			if failedCall > 0 {
-				chosen.Problems = []string{fmt.Sprintf("called at %d but it failed, and never successfully", failedCall)}
-			}
-		}
-		if chosen.Call > 0 {
-			claimed[chosen.Call] = true
-			matched[step.ID] = chosen.Call
-		}
-		res.Steps = append(res.Steps, *chosen)
 	}
 
 	forbidden := map[string]bool{}
@@ -202,6 +165,85 @@ func Grade(sc *Scenario, c *agent.Chain) Result {
 		res.Pass = res.Pass && s.OK()
 	}
 	return res
+}
+
+// match assigns calls to steps. Every assignment is tried, each step taking
+// one unclaimed successful call of an accepted tool or none, and the best
+// wins: most steps met, then most steps with a call (a failing call says
+// more than none), then the earliest calls. A model that summarized twice
+// and saved the second summary is matched to the second one.
+func match(steps []Step, c *agent.Chain, flow map[int][]Link) []StepResult {
+	var best []StepResult
+	var bestKey []int
+	cur := make([]StepResult, 0, len(steps))
+	claimed := map[int]bool{}
+	matched := map[string]int{}
+
+	var try func(i int)
+	try = func(i int) {
+		if i == len(steps) {
+			if k := key(cur); bestKey == nil || less(k, bestKey) {
+				best, bestKey = append([]StepResult(nil), cur...), k
+			}
+			return
+		}
+		step := steps[i]
+		for _, st := range c.Steps {
+			if !st.OK || claimed[st.N] || !step.accepts(st.Tool) {
+				continue
+			}
+			claimed[st.N], matched[step.ID] = true, st.N
+			cur = append(cur, check(step, st, matched, flow))
+			try(i + 1)
+			cur = cur[:len(cur)-1]
+			delete(claimed, st.N)
+			delete(matched, step.ID)
+		}
+		cur = append(cur, unmatched(step, c))
+		try(i + 1)
+		cur = cur[:len(cur)-1]
+	}
+	try(0)
+	return best
+}
+
+// key ranks an assignment; smaller is better.
+func key(rs []StepResult) []int {
+	ok, assigned := 0, 0
+	calls := make([]int, len(rs))
+	for i, r := range rs {
+		if r.OK() {
+			ok++
+		}
+		if r.Call > 0 {
+			assigned++
+			calls[i] = r.Call
+		} else {
+			calls[i] = 1 << 30
+		}
+	}
+	return append([]int{-ok, -assigned}, calls...)
+}
+
+func less(a, b []int) bool {
+	for i := range a {
+		if a[i] != b[i] {
+			return a[i] < b[i]
+		}
+	}
+	return false
+}
+
+// unmatched is a step no call fills, and whether one was tried and failed.
+func unmatched(step Step, c *agent.Chain) StepResult {
+	r := StepResult{Step: step, Problems: []string{"not called"}}
+	for _, st := range c.Steps {
+		if step.accepts(st.Tool) && !st.OK {
+			r.Problems = []string{fmt.Sprintf("called at %d but it failed, and never successfully", st.N)}
+			break
+		}
+	}
+	return r
 }
 
 // check says whether call st can fill step, given the calls already matched.

@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 // MinHandoffChars is the shortest string argument checked as a handoff.
@@ -22,6 +23,7 @@ const (
 	Whitespace Verdict = "whitespace" // identical once whitespace is collapsed
 	Partial    Verdict = "partial"    // some of one output's lines, possibly with others
 	Joined     Verdict = "joined"     // lines from several outputs put together
+	Reworded   Verdict = "reworded"   // no line kept, but most of its words are one output's
 	None       Verdict = "none"       // nothing in common with any earlier output
 )
 
@@ -46,7 +48,15 @@ type Handoff struct {
 	Diff     string   // Whitespace: where the argument first departs from the output
 	Sources  []Source // Joined: where the lines came from, by step
 	Missing  []string // Partial: the source's lines not carried over, in order
+	Overlap  int      // Reworded: percent of the argument's words found in the source
 }
+
+// Reworded needs this share of the argument's words, and at least
+// minSharedWords of them, to come from one output.
+const (
+	rewordedShare  = 60
+	minSharedWords = 10
+)
 
 // StoreCheck compares a hash a tool reports for what it stored with the
 // hash of the argument the client sent.
@@ -131,7 +141,7 @@ func (c *Chain) classify(arg string) Handoff {
 	}
 	switch len(counts) {
 	case 0:
-		return Handoff{Verdict: None}
+		return c.reworded(arg)
 	case 1:
 		for i := range counts {
 			st, src := c.Steps[i], outs[i]
@@ -159,6 +169,48 @@ func (c *Chain) classify(arg string) Handoff {
 		}
 	}
 	return h
+}
+
+// reworded looks for the output most of the argument's words come from:
+// data the model carried but rewrote, so that no line survived as it was.
+func (c *Chain) reworded(arg string) Handoff {
+	words := wordSet(arg)
+	best, bestPct := -1, 0
+	for i := len(c.Steps) - 1; i >= 0; i-- {
+		st := c.Steps[i]
+		if !st.OK {
+			continue
+		}
+		src := wordSet(st.Output)
+		shared := 0
+		for w := range words {
+			if src[w] {
+				shared++
+			}
+		}
+		if pct := 100 * shared / max(1, len(words)); shared >= minSharedWords && pct > bestPct {
+			best, bestPct = i, pct
+		}
+	}
+	if best < 0 || bestPct < rewordedShare {
+		return Handoff{Verdict: None}
+	}
+	st := c.Steps[best]
+	return Handoff{From: st.N, FromTool: st.Tool, Verdict: Reworded, Overlap: bestPct}
+}
+
+// wordSet is the distinct lower-case words of four letters or more: the
+// ones that carry content.
+func wordSet(s string) map[string]bool {
+	m := map[string]bool{}
+	for _, w := range strings.FieldsFunc(strings.ToLower(s), func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsDigit(r)
+	}) {
+		if len([]rune(w)) >= 4 {
+			m[w] = true
+		}
+	}
+	return m
 }
 
 // Record adds a finished call. If the result reports a sha256 of what it
@@ -220,6 +272,9 @@ func (h Handoff) String() string {
 		}
 		return fmt.Sprintf("%s · joined from steps %s · %d added · %s chars",
 			h.Arg, strings.Join(parts, ", "), h.Added, thousands(h.Chars))
+	case Reworded:
+		return fmt.Sprintf("%s · from step %d %s · reworded: no line kept as is, %d%% of its words are that output's · %s chars",
+			h.Arg, h.From, h.FromTool, h.Overlap, thousands(h.Chars))
 	case Whitespace:
 		return fmt.Sprintf("%s · from step %d %s · whitespace differs (%s) · %s chars",
 			h.Arg, h.From, h.FromTool, h.Diff, thousands(h.Chars))

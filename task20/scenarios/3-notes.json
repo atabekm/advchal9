@@ -14,5 +14,5 @@
     {"id": "add", "tool": "file__append", "after": ["list"], "from": ["sum"], "args": {"filename": "languages.md"}}
   ],
   "forbid": ["file__save", "search__hackernews", "search__books"],
-  "max_calls": 7
+  "max_calls": 10
 }

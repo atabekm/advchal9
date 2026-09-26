@@ -124,3 +124,28 @@ func TestJoined(t *testing.T) {
 		t.Errorf("String() = %s", s)
 	}
 }
+
+// Seen live: the model rewrote a list before passing it on, so that no line
+// matched; most of its words still came from that output.
+func TestReworded(t *testing.T) {
+	var c Chain
+	list := "1. Webb's first images exceed expectations\n   https://cosmosmagazine.com/webb\n   840 points · 265 comments · 2022-03-18\n" +
+		"2. The James Webb Space Telescope is finding too many early galaxies\n   https://skyandtelescope.org/early\n   764 points · 526 comments · 2023-01-12"
+	c.Record("hn", "", nil, nil, true, list, nil)
+	c.Record("wiki", "", nil, nil, true, "The James Webb Space Telescope is an infrared observatory launched in 2021 by NASA.", nil)
+	arg := "Hacker News stories: Webb's first images exceed expectations (840 points, 265 comments, 2022-03-18, cosmosmagazine.com/webb); " +
+		"The James Webb Space Telescope is finding too many early galaxies (764 points, 526 comments, 2023-01-12, skyandtelescope.org/early)." +
+		strings.Repeat(" ", MinHandoffChars)
+	h := c.Inspect(map[string]any{"a": arg})[0]
+	if h.Verdict != Reworded || h.From != 1 || h.Overlap < 60 {
+		t.Errorf("%+v", h)
+	}
+	if !strings.Contains(h.String(), "reworded: no line kept as is") {
+		t.Error(h.String())
+	}
+	// Words from nowhere stay "none".
+	own := strings.Repeat("Completely unrelated prose about gardening and tomatoes. ", 6)
+	if h := c.Inspect(map[string]any{"a": own})[0]; h.Verdict != None {
+		t.Errorf("%+v", h)
+	}
+}

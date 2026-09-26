@@ -65,7 +65,7 @@ func TestRead(t *testing.T) {
 	os.WriteFile(filepath.Join(dir, "a.md"), []byte(content), 0o644)
 	var out ReadOut
 	res := call(t, cs, "read", map[string]any{"filename": "a.md"}, &out)
-	if res.IsError || text(res) != content || out.SHA256 != hash([]byte(content)) || out.Bytes != len(content) {
+	if res.IsError || text(res) != content || out.FileSHA256 != hash([]byte(content)) || out.Bytes != len(content) {
 		t.Errorf("read: %q %+v", text(res), out)
 	}
 	if res := call(t, cs, "read", map[string]any{"filename": "b.md"}, nil); !res.IsError || !strings.Contains(text(res), "list shows") {

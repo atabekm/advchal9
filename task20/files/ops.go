@@ -79,10 +79,12 @@ func separator(old []byte) string {
 }
 
 type ReadOut struct {
-	Path     string `json:"path"`
-	Bytes    int    `json:"bytes"`
-	SHA256   string `json:"sha256" jsonschema:"Hex SHA-256 of the file."`
-	Modified string `json:"modified"`
+	Path  string `json:"path"`
+	Bytes int    `json:"bytes"`
+	// Not "sha256": the agent takes a result's sha256 for a hash of what the
+	// call stored, and a read stores nothing.
+	FileSHA256 string `json:"file_sha256" jsonschema:"Hex SHA-256 of the file."`
+	Modified   string `json:"modified"`
 }
 
 // Read returns the file's text exactly.
@@ -108,7 +110,7 @@ func (st *Store) Read(name string) (string, ReadOut, error) {
 	if err != nil {
 		return "", ReadOut{}, err
 	}
-	return string(b), ReadOut{Path: path, Bytes: len(b), SHA256: hash(b), Modified: fi.ModTime().Format(time.RFC3339)}, nil
+	return string(b), ReadOut{Path: path, Bytes: len(b), FileSHA256: hash(b), Modified: fi.ModTime().Format(time.RFC3339)}, nil
 }
 
 // Entry is one file in the directory.
