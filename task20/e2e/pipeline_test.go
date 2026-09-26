@@ -81,7 +81,7 @@ func scriptedModel(relay func(string) string) chatFunc {
 		}
 		switch replies {
 		case 0:
-			return toolCall("call_1", "search__search", map[string]any{"query": "async programming in Rust", "limit": 3})
+			return toolCall("call_1", "search__wikipedia", map[string]any{"query": "async programming in Rust", "limit": 3})
 		case 1:
 			return toolCall("call_2", "text__summarize", map[string]any{"text": relay(last.Content), "max_words": 100})
 		case 2:
@@ -111,7 +111,7 @@ func setup(t *testing.T, relay func(string) string) *pipeline {
 	dir := t.TempDir()
 
 	servers := []*mcp.Server{
-		search.NewServer(&search.Client{BaseURL: wiki.URL, HTTP: wiki.Client()}),
+		search.NewServer(search.Sources{Wiki: &search.Wiki{BaseURL: wiki.URL, HTTP: wiki.Client()}}),
 		summarize.NewServer(&summarize.Summarizer{LLM: sumLLM}),
 		savefile.NewServer(&savefile.Saver{Dir: dir}),
 	}
@@ -146,7 +146,7 @@ func TestFaithfulChain(t *testing.T) {
 	}
 
 	path, counts, stores := a.Chain.Report()
-	if path != "search__search → text__summarize → file__save_to_file" {
+	if path != "search__wikipedia → text__summarize → file__save_to_file" {
 		t.Errorf("path %q", path)
 	}
 	if counts[agent.Exact] != 2 || len(counts) != 1 {

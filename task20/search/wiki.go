@@ -1,7 +1,6 @@
-// Package search is the first tool of the pipeline: full-text search over
-// Wikipedia that returns the articles' own text. The result is plain text
-// that any other tool can take as input; it knows nothing about what comes
-// next.
+// Package search is one MCP server over three read-only sources: Wikipedia,
+// Hacker News and Open Library. Every tool returns plain text that any other
+// tool can take as input; none knows what comes next.
 package search
 
 import (
@@ -18,43 +17,31 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/modelcontextprotocol/go-sdk/mcp"
-
-	"task20/mcpserve"
 )
 
 const (
-	ServerName    = "searchserver"
-	ServerVersion = "0.2.0"
-
-	DefaultBaseURL = "https://en.wikipedia.org/w/api.php"
-	// Wikimedia asks API clients to identify themselves.
-	userAgent = "task20-searchserver/0.2 (https://github.com/atabekm/advchal9; MCP tool demo)"
-
-	defaultLimit = 5
-	maxLimit     = 10
-	defaultChars = 2000
-	minChars     = 200
-	maxChars     = 5000
+	WikiBaseURL = "https://en.wikipedia.org/w/api.php"
+	// Wikimedia and Open Library ask API clients to identify themselves.
+	userAgent = "task20-searchserver/0.3 (https://github.com/atabekm/advchal9; MCP tool demo)"
 )
 
-// Client talks to the MediaWiki API.
-type Client struct {
+// Wiki talks to the MediaWiki API.
+type Wiki struct {
 	BaseURL string
 	HTTP    *http.Client
 }
 
-func NewClient() *Client {
-	return &Client{BaseURL: DefaultBaseURL, HTTP: &http.Client{Timeout: 15 * time.Second}}
+func NewWiki() *Wiki {
+	return &Wiki{BaseURL: WikiBaseURL, HTTP: &http.Client{Timeout: 15 * time.Second}}
 }
 
 // Article is one search hit with its text, before truncation.
 type Article struct {
-	ID    int
-	Title string
-	URL   string
-	Text  string
+	ID             int
+	Title          string
+	URL            string
+	Text           string
+	RedirectedFrom string // Article: the title asked for, when it redirected
 }
 
 // Result is one search: the articles found and how many matched in total.
@@ -73,6 +60,14 @@ type apiResponse struct {
 		SearchInfo struct {
 			TotalHits int `json:"totalhits"`
 		} `json:"searchinfo"`
+		Normalized []struct {
+			From string `json:"from"`
+			To   string `json:"to"`
+		} `json:"normalized"`
+		Redirects []struct {
+			From string `json:"from"`
+			To   string `json:"to"`
+		} `json:"redirects"`
 		Pages []struct {
 			PageID    int               `json:"pageid"`
 			Title     string            `json:"title"`
@@ -88,7 +83,7 @@ type apiResponse struct {
 // Search finds up to limit articles. With detail "intro" one request brings
 // the lead sections; with "full" each article's whole text is fetched too.
 // Disambiguation pages are skipped: they are lists of links, not text.
-func (c *Client) Search(ctx context.Context, query string, limit int, detail string) (Result, error) {
+func (c *Wiki) Search(ctx context.Context, query string, limit int, detail string) (Result, error) {
 	q := url.Values{
 		"action": {"query"}, "format": {"json"}, "formatversion": {"2"},
 		"generator": {"search"}, "gsrsearch": {query}, "gsrlimit": {strconv.Itoa(limit + 3)},
@@ -123,7 +118,7 @@ func (c *Client) Search(ctx context.Context, query string, limit int, detail str
 
 // fillFull replaces each intro with the whole article. The API returns a
 // full extract for one page per request, so the requests run side by side.
-func (c *Client) fillFull(ctx context.Context, arts []Article) error {
+func (c *Wiki) fillFull(ctx context.Context, arts []Article) error {
 	var wg sync.WaitGroup
 	errs := make([]error, len(arts))
 	for i := range arts {
@@ -148,7 +143,37 @@ func (c *Client) fillFull(ctx context.Context, arts []Article) error {
 	return errors.Join(errs...)
 }
 
-func (c *Client) get(ctx context.Context, q url.Values, out *apiResponse) error {
+// ErrNoArticle is returned by Article for a title Wikipedia has no page for.
+var ErrNoArticle = errors.New("no article")
+
+// Article fetches one article by its title, whole, following redirects
+// ("JWST" → "James Webb Space Telescope"). A disambiguation page is an
+// error: it is a list of other titles, not an article.
+func (c *Wiki) Article(ctx context.Context, title string) (Article, error) {
+	q := url.Values{
+		"action": {"query"}, "format": {"json"}, "formatversion": {"2"}, "titles": {title}, "redirects": {"1"},
+		"prop": {"extracts|info|pageprops"}, "inprop": {"url"}, "ppprop": {"disambiguation"},
+		"explaintext": {"1"}, "exsectionformat": {"wiki"},
+	}
+	var ar apiResponse
+	if err := c.get(ctx, q, &ar); err != nil {
+		return Article{}, err
+	}
+	if len(ar.Query.Pages) == 0 || ar.Query.Pages[0].Missing || strings.TrimSpace(ar.Query.Pages[0].Extract) == "" {
+		return Article{}, fmt.Errorf("%w titled %q", ErrNoArticle, title)
+	}
+	p := ar.Query.Pages[0]
+	if _, dis := p.PageProps["disambiguation"]; dis {
+		return Article{}, fmt.Errorf("%q is a disambiguation page, not an article; use a more specific title", p.Title)
+	}
+	a := Article{ID: p.PageID, Title: p.Title, URL: p.FullURL, Text: Clean(p.Extract)}
+	if len(ar.Query.Redirects) > 0 {
+		a.RedirectedFrom = ar.Query.Redirects[0].From
+	}
+	return a, nil
+}
+
+func (c *Wiki) get(ctx context.Context, q url.Values, out *apiResponse) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.BaseURL+"?"+q.Encode(), nil)
 	if err != nil {
 		return err
@@ -265,11 +290,11 @@ func Truncate(text string, max int) (string, bool) {
 	return cut, true
 }
 
-// Format renders a result as the text the tool returns: each article with
+// FormatArticles renders a result as the text the tool returns: each article with
 // its title, link and text, cut to chars characters. The text holds content
 // only. Counts and what was shortened go to the structured output: a model
 // carrying the text on treats a header or a note as metadata and drops it.
-func Format(r Result, chars int) (string, int) {
+func FormatArticles(r Result, chars int) (string, int) {
 	if len(r.Articles) == 0 {
 		return fmt.Sprintf("No Wikipedia articles found for %q.", r.Query), 0
 	}
@@ -284,70 +309,6 @@ func Format(r Result, chars int) (string, int) {
 		parts = append(parts, fmt.Sprintf("# %d. %s\n%s\n\n%s", i+1, a.Title, a.URL, text))
 	}
 	return strings.Join(parts, "\n\n"), truncated
-}
-
-// ------------------------------------------------------------------- tool
-
-type In struct {
-	Query  string `json:"query" jsonschema:"What to search for, e.g. 'async programming in Rust' or 'history of SQLite'."`
-	Limit  int    `json:"limit,omitempty" jsonschema:"How many articles to return."`
-	Detail string `json:"detail,omitempty" jsonschema:"'intro' for each article's lead section, 'full' for its whole text (both cut to 'chars')."`
-	Chars  int    `json:"chars,omitempty" jsonschema:"Maximum characters of text per article; longer text is cut at a paragraph or sentence."`
-}
-
-type Out struct {
-	Query     string `json:"query"`
-	Detail    string `json:"detail"`
-	Total     int    `json:"total_matches" jsonschema:"How many articles match in all."`
-	Returned  int    `json:"returned"`
-	Truncated int    `json:"truncated" jsonschema:"How many of the returned articles were cut to 'chars' (marked […])."`
-}
-
-func NewServer(c *Client) *mcp.Server {
-	s := mcp.NewServer(&mcp.Implementation{Name: ServerName, Title: "Wikipedia search", Version: ServerVersion},
-		&mcp.ServerOptions{Instructions: "Full-text search over English Wikipedia, returning the articles' text."})
-	s.AddReceivingMiddleware(mcpserve.NullArgsAsEmpty)
-
-	schema := mcpserve.Schema[In]()
-	schema.Required = []string{"query"}
-	schema.Properties["query"].MinLength = mcpserve.Ptr(1)
-	lim := schema.Properties["limit"]
-	lim.Minimum, lim.Maximum, lim.Default = mcpserve.Ptr(1.0), mcpserve.Ptr(float64(maxLimit)), json.RawMessage(strconv.Itoa(defaultLimit))
-	det := schema.Properties["detail"]
-	det.Enum, det.Default = []any{"intro", "full"}, json.RawMessage(`"intro"`)
-	ch := schema.Properties["chars"]
-	ch.Minimum, ch.Maximum, ch.Default = mcpserve.Ptr(float64(minChars)), mcpserve.Ptr(float64(maxChars)), json.RawMessage(strconv.Itoa(defaultChars))
-
-	mcp.AddTool(s, &mcp.Tool{
-		Name:  "search",
-		Title: "Search Wikipedia",
-		Description: "Search English Wikipedia and return the best-matching articles as plain text: for each, " +
-			"its title, link and text (the lead section, or the whole article with detail 'full'), " +
-			"cut to at most 'chars' characters and marked […] where shortened.",
-		InputSchema: schema,
-		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, OpenWorldHint: mcpserve.Ptr(true)},
-	}, func(ctx context.Context, _ *mcp.CallToolRequest, in In) (*mcp.CallToolResult, Out, error) {
-		in.Query = strings.TrimSpace(in.Query)
-		if in.Query == "" {
-			return nil, Out{}, errors.New("query is empty")
-		}
-		if in.Limit == 0 {
-			in.Limit = defaultLimit
-		}
-		if in.Detail == "" {
-			in.Detail = "intro"
-		}
-		if in.Chars == 0 {
-			in.Chars = defaultChars
-		}
-		r, err := c.Search(ctx, in.Query, in.Limit, in.Detail)
-		if err != nil {
-			return nil, Out{}, err
-		}
-		text, truncated := Format(r, in.Chars)
-		return mcpserve.Text(text), Out{Query: r.Query, Detail: r.Detail, Total: r.Total, Returned: len(r.Articles), Truncated: truncated}, nil
-	})
-	return s
 }
 
 func thousands(n int) string {
