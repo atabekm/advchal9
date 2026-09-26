@@ -1,4 +1,4 @@
-package savefile
+package files
 
 import (
 	"context"
@@ -17,7 +17,7 @@ import (
 func setup(t *testing.T) (string, *mcp.ClientSession) {
 	t.Helper()
 	dir := filepath.Join(t.TempDir(), "out")
-	s := NewServer(&Saver{Dir: dir})
+	s := NewServer(&Store{Dir: dir})
 	ct, st := mcp.NewInMemoryTransports()
 	ctx := context.Background()
 	if _, err := s.Connect(ctx, st, nil); err != nil {
@@ -31,13 +31,13 @@ func setup(t *testing.T) (string, *mcp.ClientSession) {
 	return dir, cs
 }
 
-func save(t *testing.T, cs *mcp.ClientSession, args map[string]any) (*mcp.CallToolResult, Out) {
+func save(t *testing.T, cs *mcp.ClientSession, args map[string]any) (*mcp.CallToolResult, SaveOut) {
 	t.Helper()
-	res, err := cs.CallTool(context.Background(), &mcp.CallToolParams{Name: "save_to_file", Arguments: args})
+	res, err := cs.CallTool(context.Background(), &mcp.CallToolParams{Name: "save", Arguments: args})
 	if err != nil {
 		t.Fatal(err)
 	}
-	var out Out
+	var out SaveOut
 	b, _ := json.Marshal(res.StructuredContent)
 	json.Unmarshal(b, &out)
 	return res, out
@@ -129,7 +129,7 @@ func TestMissingContent(t *testing.T) {
 }
 
 func TestSaveRace(t *testing.T) {
-	sv := &Saver{Dir: t.TempDir()}
+	sv := &Store{Dir: t.TempDir()}
 	errs := make(chan error, 8)
 	for i := range 8 {
 		go func() {

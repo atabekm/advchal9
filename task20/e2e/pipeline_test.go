@@ -17,9 +17,9 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"task20/agent"
+	"task20/files"
 	"task20/llm"
 	"task20/mcpserve"
-	"task20/savefile"
 	"task20/search"
 	"task20/summarize"
 )
@@ -85,7 +85,7 @@ func scriptedModel(relay func(string) string) chatFunc {
 		case 1:
 			return toolCall("call_2", "text__summarize", map[string]any{"text": relay(last.Content), "max_words": 100})
 		case 2:
-			return toolCall("call_3", "file__save_to_file", map[string]any{"filename": "rust-async.md", "content": relay(last.Content)})
+			return toolCall("call_3", "file__save", map[string]any{"filename": "rust-async.md", "content": relay(last.Content)})
 		default:
 			return map[string]any{"role": "assistant", "content": "Saved to " + last.Content}
 		}
@@ -113,7 +113,7 @@ func setup(t *testing.T, relay func(string) string) *pipeline {
 	servers := []*mcp.Server{
 		search.NewServer(search.Sources{Wiki: &search.Wiki{BaseURL: wiki.URL, HTTP: wiki.Client()}}),
 		summarize.NewServer(&summarize.Summarizer{LLM: sumLLM}),
-		savefile.NewServer(&savefile.Saver{Dir: dir}),
+		files.NewServer(&files.Store{Dir: dir}),
 	}
 	var conns []*agent.Server
 	for _, s := range servers {
@@ -146,7 +146,7 @@ func TestFaithfulChain(t *testing.T) {
 	}
 
 	path, counts, stores := a.Chain.Report()
-	if path != "search__wikipedia → text__summarize → file__save_to_file" {
+	if path != "search__wikipedia → text__summarize → file__save" {
 		t.Errorf("path %q", path)
 	}
 	if counts[agent.Exact] != 2 || len(counts) != 1 {
