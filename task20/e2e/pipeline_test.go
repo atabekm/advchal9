@@ -1,5 +1,5 @@
-// Package e2e runs the whole pipeline: the three real servers over
-// Streamable HTTP, the agent's router and chain check, and a scripted model
+// Package e2e runs the whole flow: the three real servers over Streamable
+// HTTP, the agent's router and chain check, the grader, and a scripted model
 // in place of DeepSeek. No network beyond localhost.
 package e2e
 
@@ -33,7 +33,12 @@ const wikiReply = `{"query": {"searchinfo": {"totalhits": 212}, "pages": [
   "extract": "In computer science, futures, promises, delays, and deferreds are constructs used for synchronizing program execution."}
 ]}}`
 
-// The summarizer's model answers with this, whatever it is sent.
+const hnReply = `{"nbHits": 212, "hits": [
+ {"objectID": "41", "title": "Async Rust is a bad language", "url": "https://bitbashing.io/async-rust.html", "points": 700, "num_comments": 600, "created_at": "2023-09-01T10:00:00Z"},
+ {"objectID": "42", "title": "Tokio 1.0", "url": "https://tokio.rs/blog/2020-12-tokio-1-0", "points": 500, "num_comments": 120, "created_at": "2020-12-23T10:00:00Z"}
+]}`
+
+// The text server's model answers with this, whatever it is sent.
 const summaryText = `Asynchronous programming in Rust rests on three ideas:
 
 - [Async/await](https://en.wikipedia.org/wiki/Async/await) lets non-blocking code read like ordinary sequential code.
@@ -99,11 +104,25 @@ type pipeline struct {
 }
 
 func setup(t *testing.T, relay func(string) string) *pipeline {
+	return setupWith(t, scriptedModel(relay))
+}
+
+// setupWith starts the three real servers over Streamable HTTP, their
+// backends faked, and an agent model that answers with chat.
+func setupWith(t *testing.T, chat chatFunc) *pipeline {
 	t.Helper()
 	wiki := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Write([]byte(wikiReply))
 	}))
 	t.Cleanup(wiki.Close)
+	hn := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Write([]byte(hnReply))
+	}))
+	t.Cleanup(hn.Close)
+	library := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Write([]byte(`{"numFound": 0, "docs": []}`))
+	}))
+	t.Cleanup(library.Close)
 	sumLLM := llm.NewDeepSeek("server-key", "deepseek-flash")
 	sumLLM.BaseURL = fakeChat(t, func([]llm.Message) map[string]any {
 		return map[string]any{"role": "assistant", "content": summaryText}
@@ -111,7 +130,11 @@ func setup(t *testing.T, relay func(string) string) *pipeline {
 	dir := t.TempDir()
 
 	servers := []*mcp.Server{
-		search.NewServer(search.Sources{Wiki: &search.Wiki{BaseURL: wiki.URL, HTTP: wiki.Client()}}),
+		search.NewServer(search.Sources{
+			Wiki:    &search.Wiki{BaseURL: wiki.URL, HTTP: wiki.Client()},
+			HN:      &search.HN{BaseURL: hn.URL, HTTP: hn.Client()},
+			Library: &search.Library{BaseURL: library.URL, HTTP: library.Client()},
+		}),
 		texttools.NewServer(&texttools.Engine{LLM: sumLLM}),
 		files.NewServer(&files.Store{Dir: dir}),
 	}
@@ -133,7 +156,7 @@ func setup(t *testing.T, relay func(string) string) *pipeline {
 		t.Fatal(err)
 	}
 	model := llm.NewDeepSeek("agent-key", "deepseek-flash")
-	model.BaseURL = fakeChat(t, scriptedModel(relay)).URL
+	model.BaseURL = fakeChat(t, chat).URL
 	return &pipeline{dir: dir, router: router, model: model}
 }
 

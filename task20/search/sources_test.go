@@ -172,3 +172,18 @@ func TestToolList(t *testing.T) {
 		t.Errorf("tools %v, want %v", names, want)
 	}
 }
+
+// A source left out offers no tools.
+func TestPartialSources(t *testing.T) {
+	cs := connect(t, NewServer(Sources{HN: NewHN()}))
+	var names []string
+	for tool, err := range cs.Tools(context.Background(), nil) {
+		if err != nil {
+			t.Fatal(err)
+		}
+		names = append(names, tool.Name)
+	}
+	if !slices.Equal(names, []string{"hackernews"}) {
+		t.Errorf("tools %v", names)
+	}
+}

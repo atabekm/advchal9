@@ -17,6 +17,7 @@ import (
 	"golang.org/x/term"
 
 	"task20/agent"
+	"task20/grade"
 	"task20/mcpserve"
 )
 
@@ -24,6 +25,7 @@ type ui struct {
 	md    *glamour.TermRenderer // nil: print answers as raw markdown
 	color bool
 	raw   bool
+	brief bool // eval: no full tool outputs
 	width int
 }
 
@@ -183,7 +185,7 @@ func (u *ui) toolResult(st agent.ChainStep, o agent.ToolOutcome) {
 	switch {
 	case u.raw:
 		fmt.Println(indent(o.ForModel, "        "))
-	case st.OK:
+	case st.OK && !u.brief:
 		u.output(st.Output)
 	}
 }
@@ -443,4 +445,92 @@ func thousands(n int) string {
 		s = s[:i] + "," + s[i:]
 	}
 	return s
+}
+
+// ------------------------------------------------------------------ eval
+
+func (u *ui) scenarioHeader(i, n int, sc *grade.Scenario) {
+	fmt.Printf("\n  %s %s %s\n", u.bold(fmt.Sprintf("━━ scenario %d/%d", i, n)), u.bold(sc.Name), u.dim(sc.File))
+}
+
+// report shows how the calls matched the scenario, step by step.
+func (u *ui) report(r grade.Result) {
+	verdict := u.green("PASS")
+	if !r.Pass {
+		verdict = u.red("FAIL")
+	}
+	calls := fmt.Sprintf("%d call%s", r.Calls, plural(r.Calls))
+	if r.Failed > 0 {
+		calls += fmt.Sprintf(" + %d failed", r.Failed)
+	}
+	fmt.Printf("\n  %s %s %s %s\n", u.bold("grade"), u.bold(r.Scenario.Name), verdict, u.dim("· "+calls))
+	idw, toolw := 2, 4
+	for _, s := range r.Steps {
+		idw = max(idw, len(s.Step.ID))
+		toolw = max(toolw, len(s.Tool), len(s.Step.Tool))
+	}
+	for _, s := range r.Steps {
+		mark := u.green("✓")
+		if !s.OK() {
+			mark = u.red("✗")
+		}
+		tool, where := s.Step.Tool, ""
+		if s.Call > 0 {
+			tool = s.Tool
+			where = u.dim(fmt.Sprintf("→ %s · call %d", s.Target, s.Call))
+		}
+		fmt.Printf("    %s %-*s %s %s\n", mark, idw, s.Step.ID, u.cyan(fmt.Sprintf("%-*s", toolw, tool)), where)
+		pad := strings.Repeat(" ", idw+7)
+		if len(s.Details) > 0 {
+			fmt.Printf("%s%s\n", pad, u.dim(strings.Join(s.Details, " · ")))
+		}
+		for _, p := range s.Problems {
+			fmt.Printf("%s%s\n", pad, u.red(p))
+		}
+	}
+	for _, e := range r.Extra {
+		state := ""
+		if !e.OK {
+			state = " (failed)"
+		}
+		fmt.Printf("    %s %s\n", u.dim("·"), u.dim(fmt.Sprintf("extra call %d %s%s", e.Call, e.Tool, state)))
+	}
+	if len(r.Steps) == 0 && r.Calls == 0 {
+		fmt.Printf("    %s %s\n", u.green("✓"), u.dim("no tool called, as expected"))
+	}
+	for _, p := range r.Problems {
+		fmt.Printf("    %s %s\n", u.red("✗"), u.red(p))
+	}
+}
+
+// evalTable closes an eval run; it reports whether every scenario passed.
+func (u *ui) evalTable(rows []evalRow) bool {
+	namew := 8
+	for _, r := range rows {
+		namew = max(namew, len(r.name))
+	}
+	fmt.Printf("\n  %s\n\n", u.bold("━━ results"))
+	fmt.Printf("  %s\n", u.dim(fmt.Sprintf("%-*s  %-6s %6s %6s %9s %9s %7s", namew, "scenario", "grade", "steps", "calls", "llm calls", "tokens", "time")))
+	passed := 0
+	for _, r := range rows {
+		g, steps := u.red("FAIL  "), "–"
+		if r.ran {
+			ok := 0
+			for _, s := range r.res.Steps {
+				if s.OK() {
+					ok++
+				}
+			}
+			steps = fmt.Sprintf("%d/%d", ok, len(r.res.Steps))
+			if r.res.Pass {
+				g = u.green("PASS  ")
+				passed++
+			}
+		} else {
+			g = u.red("ERROR ")
+		}
+		fmt.Printf("  %-*s  %s %6s %6d %9d %9s %7s\n", namew, r.name, g, steps, r.res.Calls, r.calls, thousands(r.tokens), r.took.Round(100*time.Millisecond))
+	}
+	fmt.Printf("\n  %s\n", u.bold(fmt.Sprintf("%d of %d scenarios passed", passed, len(rows))))
+	return passed == len(rows)
 }

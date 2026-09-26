@@ -25,7 +25,9 @@ import (
 
 const defaultServers = "http://localhost:8771/mcp,http://localhost:8772/mcp,http://localhost:8773/mcp"
 
-const systemPrompt = `You complete requests with the tools available to you. They come from separate servers and do not talk to each other: when one tool's output is the next tool's input, you carry it.
+const systemPrompt = `You complete requests with the tools available to you. Each tool belongs to a server, named before its own name (server__tool) and in brackets at the start of its description. The servers do not talk to each other: when one tool's output is the next tool's input, you carry it.
+Choose every tool by what the request asks for and what the tool's description says it is for; several tools may look alike, and only one fits. Call only the tools the request needs, in the order its data requires.
+If no tool can do what is asked, say so plainly and call nothing: never guess, and never save or pass on data you made up.
 When you pass a tool's output to another tool, pass it verbatim: the complete text, character for character, with nothing added, removed, reformatted or summarised by you. Leave processing to the tools rather than rewriting their output yourself.
 Use as few calls as the request needs: usually one per step. Call a tool again only when its result is unusable, and then carry the better result alone rather than stitching results together.
 Use the tools for every fact; never invent results. If a call fails, read the error, fix the arguments and try again, or say plainly what could not be done.
@@ -43,6 +45,7 @@ func run() int {
 	rounds := flag.Int("rounds", agent.DefaultMaxRounds, "maximum tool rounds per request")
 	raw := flag.Bool("raw", false, "start with full tool arguments and results shown")
 	plain := flag.Bool("plain", false, "print answers as raw markdown instead of rendering them")
+	eval := flag.String("eval", "", "run the scenarios in this file or directory, grade each run, and exit")
 	flag.Parse()
 
 	u := newUI(*raw, *plain)
@@ -79,6 +82,13 @@ func run() int {
 		return 1
 	}
 	u.connected(router)
+
+	if *eval != "" {
+		if !r.eval(ctx, router, *eval) {
+			return 1
+		}
+		return 0
+	}
 
 	if *question != "" {
 		fmt.Println("\n  " + u.bold("› ") + *question)
@@ -189,10 +199,17 @@ func (r *runner) close() {
 
 // turn runs one request in a fresh conversation and prints the chain report.
 func (r *runner) turn(ctx context.Context, prompt string) bool {
+	_, ok := r.run(ctx, prompt)
+	return ok
+}
+
+// run is one request: the trace as it happens, then the chain report, the
+// answer and the cost. It returns the agent, whose Chain holds the calls.
+func (r *runner) run(ctx context.Context, prompt string) (*agent.Agent, bool) {
 	router, err := r.ensure(ctx)
 	if err != nil {
 		r.ui.fail(err.Error(), "")
-		return false
+		return nil, false
 	}
 	fmt.Println()
 	a := agent.New(r.llm, router, fmt.Sprintf(systemPrompt, time.Now().Format(time.RFC3339)), agent.Observer{
@@ -211,11 +228,11 @@ func (r *runner) turn(ctx context.Context, prompt string) bool {
 		if !errors.Is(err, context.Canceled) {
 			r.ui.fail(err.Error(), "")
 		}
-		return false
+		return a, false
 	}
 	r.ui.answer(answer)
 	r.ui.footer(a.Calls, a.Usage.PromptTokens, a.Usage.CompletionTokens, time.Since(start))
-	return true
+	return a, true
 }
 
 func onOff(b bool) string {

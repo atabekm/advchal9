@@ -18,7 +18,8 @@ const (
 	ServerVersion = "0.3.0"
 )
 
-// Sources are the three backends. The tools overlap on purpose: a request
+// Sources are the three backends; a nil one's tools are not offered. The
+// tools overlap on purpose: a request
 // about a topic, a discussion or a book each has one right tool, and the
 // descriptions say which.
 type Sources struct {
@@ -38,6 +39,19 @@ func NewServer(src Sources) *mcp.Server {
 	s.AddReceivingMiddleware(mcpserve.NullArgsAsEmpty)
 	ro := &mcp.ToolAnnotations{ReadOnlyHint: true, OpenWorldHint: mcpserve.Ptr(true)}
 
+	if src.Wiki != nil {
+		addWiki(s, src.Wiki, ro)
+	}
+	if src.HN != nil {
+		addHN(s, src.HN, ro)
+	}
+	if src.Library != nil {
+		addLibrary(s, src.Library, ro)
+	}
+	return s
+}
+
+func addWiki(s *mcp.Server, wiki *Wiki, ro *mcp.ToolAnnotations) {
 	mcp.AddTool(s, &mcp.Tool{
 		Name:  "wikipedia",
 		Title: "Search Wikipedia",
@@ -47,7 +61,7 @@ func NewServer(src Sources) *mcp.Server {
 			"For encyclopedic facts: history, definitions, background.",
 		InputSchema: wikiSchema(),
 		Annotations: ro,
-	}, wikiHandler(src.Wiki))
+	}, wikiHandler(wiki))
 
 	mcp.AddTool(s, &mcp.Tool{
 		Name:  "wiki_article",
@@ -57,8 +71,10 @@ func NewServer(src Sources) *mcp.Server {
 			"Fails for a title with no article or a disambiguation page; then search with wikipedia instead.",
 		InputSchema: articleSchema(),
 		Annotations: ro,
-	}, articleHandler(src.Wiki))
+	}, articleHandler(wiki))
+}
 
+func addHN(s *mcp.Server, hn *HN, ro *mcp.ToolAnnotations) {
 	mcp.AddTool(s, &mcp.Tool{
 		Name:  "hackernews",
 		Title: "Search Hacker News",
@@ -67,8 +83,10 @@ func NewServer(src Sources) *mcp.Server {
 			"For news, reactions and discussions, not for encyclopedic facts.",
 		InputSchema: hnSchema(),
 		Annotations: ro,
-	}, hnHandler(src.HN))
+	}, hnHandler(hn))
+}
 
+func addLibrary(s *mcp.Server, lib *Library, ro *mcp.ToolAnnotations) {
 	mcp.AddTool(s, &mcp.Tool{
 		Name:  "books",
 		Title: "Search books",
@@ -77,7 +95,7 @@ func NewServer(src Sources) *mcp.Server {
 			"its work_id for the book tool. Sort 'readers' puts the most-read first.",
 		InputSchema: booksSchema(),
 		Annotations: ro,
-	}, booksHandler(src.Library))
+	}, booksHandler(lib))
 
 	mcp.AddTool(s, &mcp.Tool{
 		Name:  "book",
@@ -86,8 +104,7 @@ func NewServer(src Sources) *mcp.Server {
 			"publication date, link, the catalogue's description and subjects, as plain text.",
 		InputSchema: bookSchema(),
 		Annotations: ro,
-	}, bookHandler(src.Library))
-	return s
+	}, bookHandler(lib))
 }
 
 // ------------------------------------------------------------- wikipedia
