@@ -1,0 +1,18 @@
+{
+  "name": "notes",
+  "prompt": "Look through my notes and add a short summary of the Wikipedia article on the Rust programming language to the note where it belongs.",
+  "setup": [
+    {"tool": "file__save", "args": {"filename": "space.md", "overwrite": true,
+      "content": "# Space telescopes\n\n- Hubble: launched 1990, visible and ultraviolet.\n"}},
+    {"tool": "file__save", "args": {"filename": "languages.md", "overwrite": true,
+      "content": "# Programming languages\n\n## Go\n\nDesigned at Google; garbage-collected, with goroutines and channels.\n"}}
+  ],
+  "steps": [
+    {"id": "list", "tool": "file__list"},
+    {"id": "wiki", "tool": "search__wiki_article|search__wikipedia"},
+    {"id": "sum", "tool": "text__summarize", "from": ["wiki"]},
+    {"id": "add", "tool": "file__append", "after": ["list"], "from": ["sum"], "args": {"filename": "languages.md"}}
+  ],
+  "forbid": ["file__save", "search__hackernews", "search__books"],
+  "max_calls": 7
+}

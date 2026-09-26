@@ -1,0 +1,12 @@
+{
+  "name": "hn-vs-wiki",
+  "prompt": "Compare what Hacker News discussions and Wikipedia say about the James Webb Space Telescope, and save the comparison to jwst-hn-vs-wiki.md",
+  "steps": [
+    {"id": "hn", "tool": "search__hackernews"},
+    {"id": "wiki", "tool": "search__wikipedia|search__wiki_article"},
+    {"id": "cmp", "tool": "text__compare", "from": ["hn", "wiki"]},
+    {"id": "save", "tool": "file__save", "from": ["cmp"], "args": {"filename": "jwst-hn-vs-wiki.md"}}
+  ],
+  "forbid": ["file__append", "search__books", "search__book"],
+  "max_calls": 6
+}

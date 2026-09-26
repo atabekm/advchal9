@@ -1,0 +1,11 @@
+{
+  "name": "apollo",
+  "prompt": "Get the Wikipedia article on the Apollo 11 mission, pull out every person it names together with their role, and save them as JSON to apollo11-people.json",
+  "steps": [
+    {"id": "article", "tool": "search__wiki_article|search__wikipedia"},
+    {"id": "people", "tool": "text__extract", "from": ["article"], "args": {"format": "json"}},
+    {"id": "save", "tool": "file__save", "from": ["people"], "args": {"filename": "apollo11-people.json"}}
+  ],
+  "forbid": ["text__summarize", "file__append", "search__hackernews"],
+  "max_calls": 4
+}

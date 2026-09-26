@@ -1,0 +1,6 @@
+{
+  "name": "weather",
+  "prompt": "What will the weather be in Paris tomorrow? Save the forecast to paris.md.",
+  "steps": [],
+  "max_calls": 0
+}

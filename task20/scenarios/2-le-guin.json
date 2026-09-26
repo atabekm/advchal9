@@ -1,0 +1,16 @@
+{
+  "name": "le-guin",
+  "prompt": "Find Ursula K. Le Guin's most-read book on Open Library, read its Wikipedia article, summarize it in about 120 words and add the summary to my reading-list.md",
+  "setup": [
+    {"tool": "file__save", "args": {"filename": "reading-list.md", "overwrite": true,
+      "content": "# Reading list\n\n## The Dispossessed\n\nAnarres and Urras: two worlds, one wall. Read in 2025.\n"}}
+  ],
+  "steps": [
+    {"id": "books", "tool": "search__books"},
+    {"id": "article", "tool": "search__wiki_article|search__wikipedia", "from": ["books"]},
+    {"id": "sum", "tool": "text__summarize", "from": ["article"]},
+    {"id": "add", "tool": "file__append", "from": ["sum"], "args": {"filename": "reading-list.md"}}
+  ],
+  "forbid": ["file__save", "search__hackernews"],
+  "max_calls": 6
+}
