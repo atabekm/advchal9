@@ -18,7 +18,9 @@ import (
 const DefaultMaxRounds = 8
 
 type Observer struct {
-	ToolCall   func(step int, name, server string, args json.RawMessage, handoffs []Handoff)
+	// ToolCall gets the name the model used and where the router sends it,
+	// "searchserver.hackernews", or "" for a name no server offers.
+	ToolCall   func(step int, name, target string, args json.RawMessage, handoffs []Handoff)
 	ToolResult func(step ChainStep, r ToolOutcome)
 	RoundCap   func(max int)
 }
@@ -118,17 +120,18 @@ func (a *Agent) callTool(ctx context.Context, tc llm.ToolCall) ToolOutcome {
 	argErr := json.Unmarshal(raw, &args)
 	handoffs := a.Chain.Inspect(args)
 
-	server := ""
-	if s := a.Router.Owner(name); s != nil {
-		server = s.Name()
+	route, known := a.Router.Resolve(name)
+	target := ""
+	if known {
+		target = route.Target()
 	}
 	if a.Obs.ToolCall != nil {
-		a.Obs.ToolCall(len(a.Chain.Steps)+1, name, server, raw, handoffs)
+		a.Obs.ToolCall(len(a.Chain.Steps)+1, name, target, raw, handoffs)
 	}
 
 	var out ToolOutcome
 	switch {
-	case server == "":
+	case !known:
 		err := fmt.Errorf("unknown tool %q", name)
 		out = ToolOutcome{Err: err, ForModel: errorJSON(err.Error())}
 	case argErr != nil:
@@ -150,7 +153,7 @@ func (a *Agent) callTool(ctx context.Context, tc llm.ToolCall) ToolOutcome {
 	if out.Result != nil {
 		structured = out.Result.StructuredContent
 	}
-	step := a.Chain.Record(name, args, handoffs, ok, out.ForModel, structured)
+	step := a.Chain.Record(name, target, args, handoffs, ok, out.ForModel, structured)
 	if a.Obs.ToolResult != nil {
 		a.Obs.ToolResult(step, out)
 	}

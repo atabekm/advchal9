@@ -3,15 +3,28 @@ package agent
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
+// Sep joins a server's prefix and a tool's own name: search__hackernews. A
+// dot would read better, but OpenAI-style APIs (DeepSeek among them) accept
+// only [a-zA-Z0-9_-] in function names.
+const Sep = "__"
+
+var (
+	nameRE    = regexp.MustCompile(`^[a-zA-Z0-9_-]{1,64}$`)
+	notNameRE = regexp.MustCompile(`[^a-z0-9_-]+`)
+)
+
 // Server is one connected MCP server and the tools it offered.
 type Server struct {
 	URL     string
+	Prefix  string // namespace for its tools; DefaultPrefix(Name()) when empty
 	Session *mcp.ClientSession
 	Tools   []*mcp.Tool
 }
@@ -26,46 +39,98 @@ func (s *Server) Name() string {
 	return s.URL
 }
 
-// Router merges the tool lists of several servers into one and sends each
-// call to the server that owns the tool. The model sees a single list and
-// never learns that the tools live apart.
-type Router struct {
-	servers []*Server
-	owner   map[string]*Server
-	tools   []*mcp.Tool
+// Title is the server's human-readable title, or its name.
+func (s *Server) Title() string {
+	if s.Session != nil {
+		if ir := s.Session.InitializeResult(); ir != nil && ir.ServerInfo != nil && ir.ServerInfo.Title != "" {
+			return ir.ServerInfo.Title
+		}
+	}
+	return s.Name()
 }
 
-// NewRouter fails when two servers offer a tool with the same name: a call
-// by that name would be ambiguous, and picking one silently would hide it.
+// DefaultPrefix is the server's name without a "server" suffix:
+// searchserver → search.
+func DefaultPrefix(name string) string {
+	p := strings.TrimSuffix(strings.ToLower(name), "server")
+	p = strings.Trim(notNameRE.ReplaceAllString(p, "_"), "_-")
+	if p == "" {
+		return "srv"
+	}
+	return p
+}
+
+// Route is where a namespaced tool name leads.
+type Route struct {
+	Server *Server
+	Tool   string // the name the server knows it by
+}
+
+// Target reads "searchserver.hackernews".
+func (r Route) Target() string { return r.Server.Name() + "." + r.Tool }
+
+// Router merges the tool lists of several servers into one, each tool under
+// its server's prefix, and sends each call to that server by the tool's own
+// name. Two servers may offer tools with the same name; the prefix tells
+// them apart. The server never sees the prefix.
+type Router struct {
+	servers []*Server
+	routes  map[string]Route
+	tools   []*mcp.Tool // as offered to the model: namespaced names
+}
+
+// NewRouter fails when two servers share a prefix, or a namespaced name is
+// not one a model API accepts: either would make calls ambiguous or
+// impossible, and picking silently would hide it.
 func NewRouter(servers []*Server) (*Router, error) {
-	r := &Router{owner: map[string]*Server{}}
+	r := &Router{routes: map[string]Route{}}
+	byPrefix := map[string]*Server{}
 	for _, s := range servers {
 		if s == nil || s.Session == nil {
 			continue
 		}
+		if s.Prefix == "" {
+			s.Prefix = DefaultPrefix(s.Name())
+		}
+		if prev, ok := byPrefix[s.Prefix]; ok {
+			return nil, fmt.Errorf("prefix %q is used by both %s (%s) and %s (%s); set one with -servers prefix=url",
+				s.Prefix, prev.Name(), prev.URL, s.Name(), s.URL)
+		}
+		byPrefix[s.Prefix] = s
 		for _, t := range s.Tools {
-			if prev, ok := r.owner[t.Name]; ok {
-				return nil, fmt.Errorf("tool %q is offered by both %s (%s) and %s (%s)",
-					t.Name, prev.Name(), prev.URL, s.Name(), s.URL)
+			name := s.Prefix + Sep + t.Name
+			if !nameRE.MatchString(name) {
+				return nil, fmt.Errorf("tool %q of %s: namespaced name %q must match %s", t.Name, s.Name(), name, nameRE)
 			}
-			r.owner[t.Name] = s
-			r.tools = append(r.tools, t)
+			if _, dup := r.routes[name]; dup {
+				return nil, fmt.Errorf("%s offers tool %q twice", s.Name(), t.Name)
+			}
+			r.routes[name] = Route{Server: s, Tool: t.Name}
+			nt := *t
+			nt.Name = name
+			nt.Description = "[" + s.Title() + "] " + t.Description
+			r.tools = append(r.tools, &nt)
 		}
 		r.servers = append(r.servers, s)
 	}
 	return r, nil
 }
 
-func (r *Router) Tools() []*mcp.Tool        { return r.tools }
-func (r *Router) Servers() []*Server        { return r.servers }
-func (r *Router) Owner(tool string) *Server { return r.owner[tool] }
+func (r *Router) Tools() []*mcp.Tool { return r.tools }
+func (r *Router) Servers() []*Server { return r.servers }
+
+// Resolve says where a namespaced name leads.
+func (r *Router) Resolve(name string) (Route, bool) {
+	rt, ok := r.routes[name]
+	return rt, ok
+}
 
 func (r *Router) Call(ctx context.Context, name string, args map[string]any) (*mcp.CallToolResult, error) {
-	s := r.owner[name]
-	if s == nil {
+	rt, ok := r.routes[name]
+	if !ok {
 		return nil, fmt.Errorf("unknown tool %q", name)
 	}
-	return s.Session.CallTool(ctx, &mcp.CallToolParams{Name: name, Arguments: args})
+	return rt.Server.Session.CallTool(ctx, &mcp.CallToolParams{Name: rt.Tool, Arguments: args})
 }
 
 // Step is one MCP request as seen by the client, for the trace.

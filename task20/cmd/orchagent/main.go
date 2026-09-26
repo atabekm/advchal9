@@ -1,7 +1,8 @@
-// orchagent connects to several MCP servers at once, merges their tools into
-// one list and lets DeepSeek chain them. The servers know nothing of each
-// other; the model carries each output to the next call, and the agent checks
-// every handoff. Nothing in here names a tool.
+// orchagent connects to several MCP servers at once, offers their tools to
+// DeepSeek as one list, each under its server's namespace, and routes every
+// call to the server that owns it. The servers know nothing of each other;
+// the model picks the tools and carries each output to the next call, and
+// the agent checks every handoff. Nothing in here names a tool.
 package main
 
 import (
@@ -36,7 +37,7 @@ func main() {
 }
 
 func run() int {
-	servers := flag.String("servers", defaultServers, "comma-separated MCP endpoints")
+	servers := flag.String("servers", defaultServers, "comma-separated MCP endpoints, each optionally prefix=url to name its tools' namespace")
 	question := flag.String("q", "", "run this one request and exit")
 	model := flag.String("model", "deepseek-flash", "DeepSeek model: deepseek-flash or deepseek-v4-pro")
 	rounds := flag.Int("rounds", agent.DefaultMaxRounds, "maximum tool rounds per request")
@@ -50,11 +51,16 @@ func run() int {
 		u.fail(err.Error(), "export DEEPSEEK_API_KEY=sk-…  (or put it in a .env file here)")
 		return 2
 	}
-	var urls []string
+	var urls, prefixes []string
 	for _, s := range strings.Split(*servers, ",") {
-		if s = strings.TrimSpace(s); s != "" {
-			urls = append(urls, s)
+		if s = strings.TrimSpace(s); s == "" {
+			continue
 		}
+		prefix, url, ok := strings.Cut(s, "=")
+		if !ok {
+			prefix, url = "", s
+		}
+		urls, prefixes = append(urls, strings.TrimSpace(url)), append(prefixes, strings.TrimSpace(prefix))
 	}
 	if len(urls) == 0 {
 		u.fail("-servers is empty", "")
@@ -65,7 +71,7 @@ func run() int {
 	defer stop()
 
 	u.header(*model, len(urls))
-	r := &runner{ui: u, llm: llm.NewDeepSeek(key, *model), urls: urls, servers: make([]*agent.Server, len(urls)), rounds: *rounds}
+	r := &runner{ui: u, llm: llm.NewDeepSeek(key, *model), urls: urls, prefixes: prefixes, servers: make([]*agent.Server, len(urls)), rounds: *rounds}
 	defer r.close()
 	router, err := r.ensure(ctx)
 	if err != nil {
@@ -117,12 +123,13 @@ func run() int {
 
 // runner owns one session per server and replaces any that went away.
 type runner struct {
-	ui      *ui
-	llm     *llm.DeepSeek
-	urls    []string
-	servers []*agent.Server // same order as urls; nil while unreachable
-	down    []bool          // reported as unreachable last time, to avoid repeating it
-	rounds  int
+	ui       *ui
+	llm      *llm.DeepSeek
+	urls     []string
+	prefixes []string        // per url; "" for the server's default
+	servers  []*agent.Server // same order as urls; nil while unreachable
+	down     []bool          // reported as unreachable last time, to avoid repeating it
+	rounds   int
 }
 
 // ensure pings every session, reconnects the lost ones, tries the missing
@@ -159,6 +166,7 @@ func (r *runner) ensure(ctx context.Context) (*agent.Router, error) {
 			r.ui.note(s.Name() + " is back at " + url)
 		}
 		r.down[i] = false
+		s.Prefix = r.prefixes[i]
 		r.servers[i] = s
 	}
 	router, err := agent.NewRouter(r.servers)

@@ -123,23 +123,26 @@ func (u *ui) connected(r *agent.Router) {
 		if ir := s.Session.InitializeResult(); ir != nil {
 			proto = " · protocol " + ir.ProtocolVersion
 		}
-		fmt.Printf("  %s %-13s %s %s\n", u.green("✓"), u.bold(s.Name()), strings.Join(names, ", "), u.dim("· "+s.URL+proto))
+		fmt.Printf("  %s %-13s %s\n", u.green("✓"), u.bold(s.Name()), u.dim(s.URL+proto))
+		fmt.Printf("      %s%s\n", u.cyan(s.Prefix+agent.Sep), strings.Join(names, u.dim(" · ")))
 	}
-	fmt.Printf("  %s\n", u.dim(fmt.Sprintf("%d tools from %d servers, offered to the model as one list", len(r.Tools()), len(r.Servers()))))
+	fmt.Printf("  %s\n", u.dim(fmt.Sprintf("%d tools from %d servers, offered to the model as one list, each as <prefix>%s<tool>", len(r.Tools()), len(r.Servers()), agent.Sep)))
 }
 
-func (u *ui) toolCall(step int, name, server string, args json.RawMessage, handoffs []agent.Handoff) {
+func (u *ui) toolCall(step int, name, target string, args json.RawMessage, handoffs []agent.Handoff) {
 	a := mcpserve.ShortArgs(args, 40)
 	if u.raw {
 		a = compact(args)
-	} else {
-		a = clip(a, u.width-len(name)-len(server)-12)
 	}
-	at := ""
-	if server != "" {
-		at = u.dim(" @" + server)
+	route := u.red(" → no such tool")
+	if target != "" {
+		route = u.dim(" → " + target)
 	}
-	fmt.Printf("  %s %s%s %s\n", u.yellow(fmt.Sprintf("⚙ %d", step)), u.cyan(name), at, a)
+	fmt.Printf("  %s %s%s\n", u.yellow(fmt.Sprintf("⚙ %d", step)), u.cyan(name), route)
+	if !u.raw {
+		a = clip(a, u.width-8)
+	}
+	fmt.Printf("      %s\n", u.dim(a))
 	for _, h := range handoffs {
 		mark, text := u.green("⇐"), h.String()
 		if h.Verdict == agent.Whitespace {
@@ -328,9 +331,9 @@ func firstLine(s string) string {
 // tools renders parameters from each tool's inputSchema as the server sent it.
 func (u *ui) tools(r *agent.Router) {
 	for _, srv := range r.Servers() {
-		fmt.Printf("\n  %s %s\n", u.bold(srv.Name()), u.dim(srv.URL))
+		fmt.Printf("\n  %s %s\n", u.bold(srv.Name()), u.dim(srv.Title()+" · "+srv.URL))
 		for _, t := range srv.Tools {
-			fmt.Printf("\n    %s  %s\n", u.cyan(t.Name), t.Description)
+			fmt.Printf("\n    %s  %s\n", u.cyan(srv.Prefix+agent.Sep+t.Name), t.Description)
 			for _, p := range params(t.InputSchema) {
 				fmt.Printf("      %s\n", p)
 			}

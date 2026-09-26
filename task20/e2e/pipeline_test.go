@@ -81,11 +81,11 @@ func scriptedModel(relay func(string) string) chatFunc {
 		}
 		switch replies {
 		case 0:
-			return toolCall("call_1", "search", map[string]any{"query": "async programming in Rust", "limit": 3})
+			return toolCall("call_1", "search__search", map[string]any{"query": "async programming in Rust", "limit": 3})
 		case 1:
-			return toolCall("call_2", "summarize", map[string]any{"text": relay(last.Content), "max_words": 100})
+			return toolCall("call_2", "text__summarize", map[string]any{"text": relay(last.Content), "max_words": 100})
 		case 2:
-			return toolCall("call_3", "save_to_file", map[string]any{"filename": "rust-async.md", "content": relay(last.Content)})
+			return toolCall("call_3", "file__save_to_file", map[string]any{"filename": "rust-async.md", "content": relay(last.Content)})
 		default:
 			return map[string]any{"role": "assistant", "content": "Saved to " + last.Content}
 		}
@@ -146,7 +146,7 @@ func TestFaithfulChain(t *testing.T) {
 	}
 
 	path, counts, stores := a.Chain.Report()
-	if path != "search → summarize → save_to_file" {
+	if path != "search__search → text__summarize → file__save_to_file" {
 		t.Errorf("path %q", path)
 	}
 	if counts[agent.Exact] != 2 || len(counts) != 1 {

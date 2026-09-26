@@ -59,7 +59,9 @@ type StoreCheck struct {
 // ChainStep is one tool call in the turn.
 type ChainStep struct {
 	N        int
-	Tool     string
+	Tool     string // the name the model called
+	Target   string // "server.tool" it was routed to; "" if unknown
+	Args     map[string]any
 	OK       bool
 	Output   string // the text the model received
 	Handoffs []Handoff
@@ -161,8 +163,8 @@ func (c *Chain) classify(arg string) Handoff {
 
 // Record adds a finished call. If the result reports a sha256 of what it
 // stored, it is compared with the hashes of the string arguments sent.
-func (c *Chain) Record(tool string, args map[string]any, handoffs []Handoff, ok bool, output string, structured any) ChainStep {
-	st := ChainStep{N: len(c.Steps) + 1, Tool: tool, OK: ok, Output: output, Handoffs: handoffs}
+func (c *Chain) Record(tool, target string, args map[string]any, handoffs []Handoff, ok bool, output string, structured any) ChainStep {
+	st := ChainStep{N: len(c.Steps) + 1, Tool: tool, Target: target, Args: args, OK: ok, Output: output, Handoffs: handoffs}
 	if ok {
 		if reported := reportedHash(structured); reported != "" {
 			sc := &StoreCheck{Reported: reported}

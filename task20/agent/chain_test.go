@@ -21,8 +21,8 @@ func TestVerdicts(t *testing.T) {
 	search := lines("search result line ", 12)
 	summary := lines("summary sentence ", 10)
 	c := &Chain{}
-	c.Record("search", map[string]any{"query": "x"}, nil, true, search, nil)
-	c.Record("summarize", map[string]any{"text": search}, nil, true, summary, nil)
+	c.Record("search", "", map[string]any{"query": "x"}, nil, true, search, nil)
+	c.Record("summarize", "", map[string]any{"text": search}, nil, true, summary, nil)
 
 	shortened := strings.Join(strings.Split(search, "\n")[:6], "\n") + "\nan extra line written by the model itself, long enough"
 	for name, tc := range map[string]struct {
@@ -60,7 +60,7 @@ func TestVerdicts(t *testing.T) {
 func TestFailedStepIsNoSource(t *testing.T) {
 	out := lines("error text ", 12)
 	c := &Chain{}
-	c.Record("search", nil, nil, false, out, nil)
+	c.Record("search", "", nil, nil, false, out, nil)
 	if h := c.Inspect(map[string]any{"text": out}); h[0].Verdict != None {
 		t.Errorf("a failed call's output is not a source: %+v", h[0])
 	}
@@ -69,17 +69,17 @@ func TestFailedStepIsNoSource(t *testing.T) {
 func TestStoreCheckAndReport(t *testing.T) {
 	summary := lines("summary ", 10)
 	c := &Chain{}
-	c.Record("search", map[string]any{"query": "q"}, nil, true, lines("hit ", 10), nil)
+	c.Record("search", "", map[string]any{"query": "q"}, nil, true, lines("hit ", 10), nil)
 	h1 := c.Inspect(map[string]any{"text": c.Steps[0].Output})
-	c.Record("summarize", map[string]any{"text": c.Steps[0].Output}, h1, true, summary, nil)
-	c.Record("save_to_file", map[string]any{"filename": "x.md"}, nil, false, `{"error":"bad name"}`, nil)
+	c.Record("summarize", "", map[string]any{"text": c.Steps[0].Output}, h1, true, summary, nil)
+	c.Record("save_to_file", "", map[string]any{"filename": "x.md"}, nil, false, `{"error":"bad name"}`, nil)
 	args := map[string]any{"filename": "y.md", "content": summary}
 	h2 := c.Inspect(args)
-	st := c.Record("save_to_file", args, h2, true, "Saved", map[string]any{"sha256": strings.ToUpper(Hash(summary)), "bytes": 1})
+	st := c.Record("save_to_file", "", args, h2, true, "Saved", map[string]any{"sha256": strings.ToUpper(Hash(summary)), "bytes": 1})
 	if st.Store == nil || !st.Store.Match || st.Store.Arg != "content" {
 		t.Fatalf("store check: %+v", st.Store)
 	}
-	bad := c.Record("save_to_file", args, nil, true, "Saved", map[string]any{"sha256": Hash("something else")})
+	bad := c.Record("save_to_file", "", args, nil, true, "Saved", map[string]any{"sha256": Hash("something else")})
 	if bad.Store == nil || bad.Store.Match {
 		t.Errorf("a different hash must not match: %+v", bad.Store)
 	}
@@ -112,8 +112,8 @@ func TestFirstDiff(t *testing.T) {
 func TestJoined(t *testing.T) {
 	a, b := lines("first search ", 6), lines("second search ", 4)
 	c := &Chain{}
-	c.Record("search", nil, nil, true, a, nil)
-	c.Record("search", nil, nil, true, b, nil)
+	c.Record("search", "", nil, nil, true, a, nil)
+	c.Record("search", "", nil, nil, true, b, nil)
 	arg := strings.Join(strings.Split(a, "\n")[:3], "\n") + "\n" + b + "a line the model wrote itself, and long enough to count\n"
 	h := c.Inspect(map[string]any{"text": arg})[0]
 	want := []Source{{Step: 1, Tool: "search", Lines: 3}, {Step: 2, Tool: "search", Lines: 4}}
