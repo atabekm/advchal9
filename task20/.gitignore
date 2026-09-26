@@ -1,0 +1,6 @@
+/searchserver
+/textserver
+/fileserver
+/orchagent
+.env
+/out/
