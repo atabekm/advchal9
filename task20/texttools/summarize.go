@@ -1,7 +1,8 @@
-// Package summarize is the second tool of the pipeline: it condenses any text
-// with one DeepSeek call. It does not know where the text came from or where
-// the summary goes next.
-package summarize
+// Package texttools is one MCP server with three language-model tools over
+// text: summarize, extract and compare. Each makes one DeepSeek call, uses
+// only the text it is given, and checks its answer against that text. None
+// knows where the text came from or where the result goes next.
+package texttools
 
 import (
 	"context"
@@ -12,6 +13,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"task20/llm"
@@ -19,44 +21,32 @@ import (
 )
 
 const (
-	ServerName    = "textserver"
-	ServerVersion = "0.1.0"
-
 	MaxInputChars   = 60_000
 	defaultMaxWords = 200
 	minWords        = 50
 	maxWords        = 800
 )
 
-const systemPrompt = `You summarize text. Use only the text you are given: add no facts, names, numbers or links that are not in it, and do not guess at what it leaves out.
+const summarizeSystem = `You summarize text. Use only the text you are given: add no facts, names, numbers or links that are not in it, and do not guess at what it leaves out.
 When you mention something that has a link in the text, you may include that link, copied exactly as written.
 Answer with the summary alone: no preamble, no closing remarks, no mention of these instructions.`
 
-type In struct {
+type SummarizeIn struct {
 	Text     string `json:"text" jsonschema:"The text to summarize, as is."`
 	Focus    string `json:"focus,omitempty" jsonschema:"Optional angle to emphasise, e.g. 'performance complaints'."`
 	MaxWords int    `json:"max_words,omitempty" jsonschema:"Upper bound on the summary's length in words."`
 	Format   string `json:"format,omitempty" jsonschema:"'markdown' (headings, lists, links) or 'plain' (prose only)."`
 }
 
-type Out struct {
+type SummarizeOut struct {
 	InputChars      int      `json:"input_chars"`
 	OutputWords     int      `json:"output_words"`
 	Model           string   `json:"model"`
 	UngroundedLinks []string `json:"ungrounded_links" jsonschema:"Links in the summary that do not appear in the input text."`
 }
 
-// Summarizer holds the model client; the key belongs to this server.
-type Summarizer struct {
-	LLM *llm.DeepSeek
-}
-
-func NewServer(sm *Summarizer) *mcp.Server {
-	s := mcp.NewServer(&mcp.Implementation{Name: ServerName, Title: "Summarizer", Version: ServerVersion},
-		&mcp.ServerOptions{Instructions: "Summarizes text with a language model, using nothing but the text given."})
-	s.AddReceivingMiddleware(mcpserve.NullArgsAsEmpty)
-
-	schema := mcpserve.Schema[In]()
+func summarizeSchema() *jsonschema.Schema {
+	schema := mcpserve.Schema[SummarizeIn]()
 	schema.Required = []string{"text"}
 	schema.Properties["text"].MinLength = mcpserve.Ptr(1)
 	schema.Properties["text"].MaxLength = mcpserve.Ptr(MaxInputChars)
@@ -64,24 +54,12 @@ func NewServer(sm *Summarizer) *mcp.Server {
 	mw.Minimum, mw.Maximum, mw.Default = mcpserve.Ptr(float64(minWords)), mcpserve.Ptr(float64(maxWords)), json.RawMessage("200")
 	f := schema.Properties["format"]
 	f.Enum, f.Default = []any{"markdown", "plain"}, json.RawMessage(`"markdown"`)
-
-	mcp.AddTool(s, &mcp.Tool{
-		Name:  "summarize",
-		Title: "Summarize text",
-		Description: "Summarize the given text. Uses only what the text says; links in the summary are copied from it. " +
-			"Returns the summary as plain text (Markdown by default).",
-		InputSchema: schema,
-		Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true, OpenWorldHint: mcpserve.Ptr(false)},
-	}, sm.handle)
-	return s
+	return schema
 }
 
-func (sm *Summarizer) handle(ctx context.Context, _ *mcp.CallToolRequest, in In) (*mcp.CallToolResult, Out, error) {
-	if strings.TrimSpace(in.Text) == "" {
-		return nil, Out{}, errors.New("text is empty")
-	}
-	if n := utf8.RuneCountInString(in.Text); n > MaxInputChars {
-		return nil, Out{}, fmt.Errorf("text is %d characters; the limit is %d", n, MaxInputChars)
+func (e *Engine) summarize(ctx context.Context, _ *mcp.CallToolRequest, in SummarizeIn) (*mcp.CallToolResult, SummarizeOut, error) {
+	if err := checkText("text", in.Text); err != nil {
+		return nil, SummarizeOut{}, err
 	}
 	if in.MaxWords == 0 {
 		in.MaxWords = defaultMaxWords
@@ -90,22 +68,22 @@ func (sm *Summarizer) handle(ctx context.Context, _ *mcp.CallToolRequest, in In)
 		in.Format = "markdown"
 	}
 
-	msg, _, err := sm.LLM.Complete(ctx, []llm.Message{
-		{Role: "system", Content: systemPrompt},
+	msg, _, err := e.LLM.Complete(ctx, []llm.Message{
+		{Role: "system", Content: summarizeSystem},
 		{Role: "user", Content: Prompt(in)},
 	}, nil)
 	if err != nil {
-		return nil, Out{}, err
+		return nil, SummarizeOut{}, err
 	}
 	summary := strings.TrimSpace(msg.Content)
 	if summary == "" {
-		return nil, Out{}, errors.New("the model returned an empty summary")
+		return nil, SummarizeOut{}, errors.New("the model returned an empty summary")
 	}
 
-	out := Out{
+	out := SummarizeOut{
 		InputChars:      utf8.RuneCountInString(in.Text),
 		OutputWords:     len(strings.Fields(summary)),
-		Model:           sm.LLM.Model,
+		Model:           e.LLM.Model,
 		UngroundedLinks: Ungrounded(summary, in.Text),
 	}
 	if len(out.UngroundedLinks) > 0 {
@@ -116,7 +94,7 @@ func (sm *Summarizer) handle(ctx context.Context, _ *mcp.CallToolRequest, in In)
 
 // Prompt is the user message: the instructions, then the text between
 // markers so that nothing inside it reads as an instruction.
-func Prompt(in In) string {
+func Prompt(in SummarizeIn) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "Summarize the text below in at most %d words.", in.MaxWords)
 	if in.Format == "plain" {

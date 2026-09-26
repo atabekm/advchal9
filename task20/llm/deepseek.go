@@ -73,9 +73,14 @@ func NewDeepSeek(key, model string) *DeepSeek {
 }
 
 type chatRequest struct {
-	Model    string         `json:"model"`
-	Messages []Message      `json:"messages"`
-	Tools    []FunctionTool `json:"tools,omitempty"`
+	Model          string          `json:"model"`
+	Messages       []Message       `json:"messages"`
+	Tools          []FunctionTool  `json:"tools,omitempty"`
+	ResponseFormat *responseFormat `json:"response_format,omitempty"`
+}
+
+type responseFormat struct {
+	Type string `json:"type"`
 }
 
 type chatResponse struct {
@@ -88,7 +93,17 @@ type chatResponse struct {
 
 // Complete sends one request. Passing no tools forces a plain-text answer.
 func (d *DeepSeek) Complete(ctx context.Context, msgs []Message, tools []FunctionTool) (Message, Usage, error) {
-	body, err := json.Marshal(chatRequest{Model: d.Model, Messages: msgs, Tools: tools})
+	return d.send(ctx, chatRequest{Model: d.Model, Messages: msgs, Tools: tools})
+}
+
+// CompleteJSON asks for a single JSON object as the answer. The prompt must
+// say so and show the shape: JSON mode guarantees syntax, not a schema.
+func (d *DeepSeek) CompleteJSON(ctx context.Context, msgs []Message) (Message, Usage, error) {
+	return d.send(ctx, chatRequest{Model: d.Model, Messages: msgs, ResponseFormat: &responseFormat{Type: "json_object"}})
+}
+
+func (d *DeepSeek) send(ctx context.Context, cr chatRequest) (Message, Usage, error) {
+	body, err := json.Marshal(cr)
 	if err != nil {
 		return Message{}, Usage{}, err
 	}
@@ -111,16 +126,16 @@ func (d *DeepSeek) Complete(ctx context.Context, msgs []Message, tools []Functio
 	if resp.StatusCode != http.StatusOK {
 		return Message{}, Usage{}, apiError(resp.StatusCode, raw)
 	}
-	var cr chatResponse
-	if err := json.Unmarshal(raw, &cr); err != nil {
+	var res chatResponse
+	if err := json.Unmarshal(raw, &res); err != nil {
 		return Message{}, Usage{}, fmt.Errorf("decoding deepseek response: %w", err)
 	}
-	if len(cr.Choices) == 0 {
-		return Message{}, cr.Usage, errors.New("deepseek returned no choices")
+	if len(res.Choices) == 0 {
+		return Message{}, res.Usage, errors.New("deepseek returned no choices")
 	}
-	m := cr.Choices[0].Message
+	m := res.Choices[0].Message
 	m.Role = "assistant"
-	return m, cr.Usage, nil
+	return m, res.Usage, nil
 }
 
 func apiError(status int, body []byte) error {

@@ -1,4 +1,4 @@
-package summarize
+package texttools
 
 import (
 	"context"
@@ -19,19 +19,19 @@ import (
 type fakeLLM struct {
 	mu    sync.Mutex
 	reply string
-	reqs  []struct {
-		Messages []llm.Message   `json:"messages"`
-		Tools    json.RawMessage `json:"tools"`
-	}
+	reqs  []chatReq
+}
+
+type chatReq struct {
+	Messages       []llm.Message   `json:"messages"`
+	Tools          json.RawMessage `json:"tools"`
+	ResponseFormat json.RawMessage `json:"response_format"`
 }
 
 func (f *fakeLLM) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	var req struct {
-		Messages []llm.Message   `json:"messages"`
-		Tools    json.RawMessage `json:"tools"`
-	}
+	var req chatReq
 	json.NewDecoder(r.Body).Decode(&req)
 	f.reqs = append(f.reqs, req)
 	json.NewEncoder(w).Encode(map[string]any{
@@ -46,7 +46,7 @@ func setup(t *testing.T, reply string) (*fakeLLM, *mcp.ClientSession) {
 	t.Cleanup(srv.Close)
 	d := llm.NewDeepSeek("test-key", "deepseek-flash")
 	d.BaseURL = srv.URL
-	s := NewServer(&Summarizer{LLM: d})
+	s := NewServer(&Engine{LLM: d})
 
 	ct, st := mcp.NewInMemoryTransports()
 	ctx := context.Background()
@@ -61,17 +61,22 @@ func setup(t *testing.T, reply string) (*fakeLLM, *mcp.ClientSession) {
 	return f, cs
 }
 
-func call(t *testing.T, cs *mcp.ClientSession, args map[string]any) (*mcp.CallToolResult, Out) {
+func call(t *testing.T, cs *mcp.ClientSession, args map[string]any) (*mcp.CallToolResult, SummarizeOut) {
 	t.Helper()
-	res, err := cs.CallTool(context.Background(), &mcp.CallToolParams{Name: "summarize", Arguments: args})
+	var out SummarizeOut
+	return callTool(t, cs, "summarize", args, &out), out
+}
+
+func callTool(t *testing.T, cs *mcp.ClientSession, tool string, args map[string]any, out any) *mcp.CallToolResult {
+	t.Helper()
+	res, err := cs.CallTool(context.Background(), &mcp.CallToolParams{Name: tool, Arguments: args})
 	if err != nil {
 		t.Fatal(err)
 	}
-	var out Out
-	if b, err := json.Marshal(res.StructuredContent); err == nil {
-		json.Unmarshal(b, &out)
+	if b, err := json.Marshal(res.StructuredContent); err == nil && out != nil {
+		json.Unmarshal(b, out)
 	}
-	return res, out
+	return res
 }
 
 const source = "1. Why asynchronous Rust doesn't work\n   https://theta.eu.org/2021/03/08/async-rust-2.html\n   612 points"

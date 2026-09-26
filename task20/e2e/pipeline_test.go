@@ -21,7 +21,7 @@ import (
 	"task20/llm"
 	"task20/mcpserve"
 	"task20/search"
-	"task20/summarize"
+	"task20/texttools"
 )
 
 const wikiReply = `{"query": {"searchinfo": {"totalhits": 212}, "pages": [
@@ -112,7 +112,7 @@ func setup(t *testing.T, relay func(string) string) *pipeline {
 
 	servers := []*mcp.Server{
 		search.NewServer(search.Sources{Wiki: &search.Wiki{BaseURL: wiki.URL, HTTP: wiki.Client()}}),
-		summarize.NewServer(&summarize.Summarizer{LLM: sumLLM}),
+		texttools.NewServer(&texttools.Engine{LLM: sumLLM}),
 		files.NewServer(&files.Store{Dir: dir}),
 	}
 	var conns []*agent.Server
