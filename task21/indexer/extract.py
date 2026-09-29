@@ -178,8 +178,8 @@ def _apply_outline(blocks: list[_Block], toc: list, fonts: _FontRules) -> tuple[
     top of a page while the heading sits a page later).
 
     Outlines often leave out unnumbered sections (References, Broader Impact);
-    a block set in a heading font size after the first outline heading becomes
-    a top-level heading too, so references don't pile onto the last section.
+    a block set in a heading font size becomes a top-level heading too, so
+    the abstract and references don't pile onto a neighbouring section.
     """
     heads: dict[int, tuple[int, int, str]] = {}  # block index -> (lines in heading, level, title)
     cursor = 0
@@ -210,10 +210,9 @@ def _apply_outline(blocks: list[_Block], toc: list, fonts: _FontRules) -> tuple[
             cursor = i + 1
             matched += 1
 
-    first = min(heads, default=len(blocks))
     elements: list[Element] = []
     for i, b in enumerate(blocks):
-        if i > first and i not in heads and fonts.is_unnumbered_big(b):
+        if i not in heads and fonts.is_unnumbered_big(b):
             elements.append(Element("heading", b.text, b.page, 1))
         elif i in heads:
             n, level, text = heads[i]

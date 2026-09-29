@@ -1,6 +1,7 @@
 """indexer — build and inspect a local document index.
 
   indexer show  [--docs DIR] [--headings] [FILE...]   what extraction found
+  indexer show  --chunks fixed|struct [--limit N]      chunk boundaries and metadata
 """
 
 from __future__ import annotations
@@ -9,7 +10,11 @@ import argparse
 import sys
 from pathlib import Path
 
+from .chunk_fixed import chunk_fixed
+from .chunk_struct import chunk_struct
 from .extract import extract, find_sources
+
+CHUNKERS = {"fixed": chunk_fixed, "struct": chunk_struct}
 
 TASK_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_DOCS = TASK_DIR / "docs"
@@ -22,6 +27,8 @@ def main(argv: list[str] | None = None) -> int:
     show = sub.add_parser("show", help="print what extraction found in each document")
     show.add_argument("--docs", type=Path, default=DEFAULT_DOCS)
     show.add_argument("--headings", action="store_true", help="list every heading found")
+    show.add_argument("--chunks", choices=CHUNKERS, help="print the chunks this strategy makes")
+    show.add_argument("--limit", type=int, default=8, help="chunks per document with --chunks (0 = all)")
     show.add_argument("files", nargs="*", type=Path, help="only these files (default: all in --docs)")
 
     args = ap.parse_args(argv)
@@ -58,6 +65,15 @@ def cmd_show(args) -> int:
         if args.headings:
             for h in heads:
                 print(f"    p{h.page:<3} {'  ' * (h.level - 1)}{h.text}")
+        if args.chunks:
+            chunks = CHUNKERS[args.chunks](doc)
+            print(f"  chunks    {len(chunks)} ({args.chunks})")
+            for c in chunks[: args.limit or None]:
+                pages = f"p{c.page_start}" + (f"-{c.page_end}" if c.page_end != c.page_start else "")
+                print(f"\n  ── {c.chunk_id}  {pages}  {c.char_len} chars  sections {c.sections_spanned}")
+                print(f"     section: {c.section}")
+                body = c.text if len(c.text) <= 400 else c.text[:200] + " … " + c.text[-160:]
+                print("     " + body.replace("\n", "\n     "))
         print()
     if len(paths) > 1:
         print(f"{len(paths)} documents, {total_pages} pages, {total_chars:,} chars "
