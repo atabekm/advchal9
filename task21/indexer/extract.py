@@ -104,7 +104,26 @@ def _extract_pdf(path: Path, source: str, sha: str) -> Document:
             if any(e.kind == "heading" for e in elements):
                 heading_source = "fonts"
 
-        return Document(source, title, pdf.page_count, sha, heading_source, elements)
+        return Document(source, title, pdf.page_count, sha, heading_source, _join_continued(elements))
+
+
+def _join_continued(elements: list[Element]) -> list[Element]:
+    """Glue a paragraph back together when a column or page break split it.
+
+    PyMuPDF ends a block at every column and page break, so a sentence (or a
+    reference entry) running across one arrives as two paragraphs. The second
+    half gives itself away: the first one has no closing punctuation and the
+    second starts in lowercase.
+    """
+    out: list[Element] = []
+    for e in elements:
+        prev = out[-1] if out else None
+        if (e.kind == "para" and prev is not None and prev.kind == "para"
+                and not prev.text.endswith((".", "!", "?", ":")) and e.text[:1].islower()):
+            out[-1] = Element("para", _join_lines([prev.text, e.text]), prev.page)
+        else:
+            out.append(e)
+    return out
 
 
 def _read_blocks(pdf: pymupdf.Document) -> list[_Block]:

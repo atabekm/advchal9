@@ -102,3 +102,24 @@ One branch, `task21/document-indexing`, one commit per stage.
 - `ollama pull nomic-embed-text`
 - drop PDFs into `task21/docs/` (≥ 20–30 pages total; papers with an
   outline show the structure strategy best)
+
+## What the build changed
+
+- **Outline + fonts, not outline or fonts.** arXiv outlines leave out
+  Abstract, References, Broader Impact; with the outline alone the
+  references piled onto "6 Discussion". Unnumbered blocks in a heading font
+  size are now top-level headings next to the outline's.
+- **Figure labels repeat headings.** "Scaled Dot-Product Attention" is also a
+  box in Figure 2, which comes first on the page. Outline matching takes the
+  best candidate on the page (numbered, bold), not the first.
+- **Ligatures** (`ﬁ`) broke matching "4.4 Fact Verification"; extraction
+  expands them.
+- **Paragraphs split by column/page breaks** are glued back (no closing
+  punctuation + lowercase continuation). On the dev papers this took struct
+  chunks starting mid-sentence from 5.9% to 0%, ending mid-sentence from
+  17.8% to 12.7%; the rest are tables, author blocks and reference entries.
+- **Merged small sections can exceed MAX_CHARS** by up to MIN_CHARS (a lone
+  heading prepended to a full chunk). Accepted: splitting it off again would
+  recreate the lone-heading chunk.
+- Added `indexer query` — not asked for, but it is the quickest proof that
+  the stored vectors are usable.

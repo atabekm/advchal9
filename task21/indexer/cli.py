@@ -4,6 +4,7 @@
   indexer show  --chunks fixed|struct [--limit N]      chunk boundaries and metadata
   indexer index [--docs DIR] [--db FILE] [--rebuild]    chunk both ways, embed, store
   indexer query [--strategy S] [-k N] "question"        nearest chunks (sanity check)
+  indexer stats [--db FILE] [--markdown FILE]           compare the two strategies
 """
 
 from __future__ import annotations
@@ -20,6 +21,7 @@ from .chunk_fixed import chunk_fixed
 from .chunk_struct import chunk_struct
 from .embed import Embedder, EmbedError
 from .extract import extract, find_sources
+from .stats import collect, render_markdown, render_terminal
 from .store import Store
 
 CHUNKERS = {"fixed": chunk_fixed, "struct": chunk_struct}
@@ -61,9 +63,13 @@ def main(argv: list[str] | None = None) -> int:
     query.add_argument("-k", type=int, default=3)
     query.add_argument("question")
 
+    stats = sub.add_parser("stats", help="static comparison of the chunking strategies")
+    stats.add_argument("--db", type=Path, default=DEFAULT_DB)
+    stats.add_argument("--markdown", type=Path, help="also write the tables as Markdown to this file")
+
     args = ap.parse_args(argv)
     try:
-        return {"show": cmd_show, "index": cmd_index, "query": cmd_query}[args.cmd](args)
+        return {"show": cmd_show, "index": cmd_index, "query": cmd_query, "stats": cmd_stats}[args.cmd](args)
     except EmbedError as e:
         print(f"error: {e}", file=sys.stderr)
         return 1
@@ -189,6 +195,26 @@ def cmd_query(args) -> int:
             snippet = " ".join(row["text"].split())
             print(f"         {snippet[:220]}{'…' if len(snippet) > 220 else ''}")
         print()
+    store.close()
+    return 0
+
+
+def cmd_stats(args) -> int:
+    if not args.db.exists():
+        print(f"no index at {args.db} — run: indexer index", file=sys.stderr)
+        return 1
+    store = Store(args.db)
+    stats = collect(store)
+    if not stats:
+        print("index is empty", file=sys.stderr)
+        return 1
+    docs = store.documents()
+    print(f"{len(docs)} documents, {sum(d['pages'] for d in docs)} pages, "
+          f"{sum(d['chars'] for d in docs):,} chars, model {store.meta().get('model')}\n")
+    print(render_terminal(stats))
+    if args.markdown:
+        args.markdown.write_text(render_markdown(stats, store) + "\n")
+        print(f"\nwrote {args.markdown}")
     store.close()
     return 0
 

@@ -48,3 +48,13 @@ def test_markdown(tmp_path):
 def test_join_lines_dehyphenates():
     assert _join_lines(["atten-", "tion is", "all"]) == "attention is all"
     assert _join_lines(["self-", "Attention"]) == "self- Attention"
+
+
+def test_join_continued_paragraphs():
+    from indexer.extract import Element, _join_continued
+    els = [Element("para", "Reading Wikipedia to", 3), Element("para", "answer open questions.", 4),
+           Element("para", "New paragraph.", 4), Element("para", "lowercase but previous ended.", 4)]
+    out = _join_continued(els)
+    assert [(e.text, e.page) for e in out] == [
+        ("Reading Wikipedia to answer open questions.", 3), ("New paragraph.", 4),
+        ("lowercase but previous ended.", 4)]
