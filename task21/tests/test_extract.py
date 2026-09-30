@@ -58,3 +58,36 @@ def test_join_continued_paragraphs():
     assert [(e.text, e.page) for e in out] == [
         ("Reading Wikipedia to answer open questions.", 3), ("New paragraph.", 4),
         ("lowercase but previous ended.", 4)]
+
+
+def test_ieee_two_column_headings(tmp_path):
+    """Body-size headings (roman small caps, italic letters) in two columns, read left column first."""
+    doc = pymupdf.open()
+    page = doc.new_page()  # 612 wide: columns at 50–290 and 320–560
+    text = "Body text that runs on for a while in a narrow column of the page. " * 4
+    page.insert_textbox((50, 60, 290, 80), "I. INTRODUCTION", fontsize=10)
+    page.insert_textbox((50, 90, 290, 240), text, fontsize=10)
+    page.insert_textbox((50, 250, 290, 270), "A. Scope of the Work", fontsize=10, fontname="tiit")
+    page.insert_textbox((50, 280, 290, 430), text, fontsize=10)
+    page.insert_textbox((320, 60, 560, 80), "II. RELATED WORK", fontsize=10)
+    page.insert_textbox((320, 90, 560, 240), text, fontsize=10)
+    path = tmp_path / "ieee.pdf"
+    doc.save(path)
+
+    d = extract(path, tmp_path)
+    assert d.heading_source == "fonts"
+    assert [(h.text, h.level) for h in d.headings] == [
+        ("I. INTRODUCTION", 1), ("A. Scope of the Work", 2), ("II. RELATED WORK", 1)]
+    kinds = [e.kind for e in d.elements]
+    assert kinds == ["heading", "para", "heading", "para", "heading", "para"]
+
+
+def test_reading_order_bands_and_columns():
+    from indexer.extract import _reading_order
+
+    def b(name, x0, y0, x1):
+        return {"name": name, "bbox": (x0, y0, x1, y0 + 10)}
+
+    blocks = [b("R1", 320, 100, 560), b("L2", 50, 150, 290), b("title", 50, 20, 560),
+              b("L1", 50, 100, 290), b("R2", 320, 150, 560), b("wide", 50, 300, 560), b("L3", 50, 400, 290)]
+    assert [x["name"] for x in _reading_order(blocks, 612)] == ["title", "L1", "L2", "R1", "R2", "wide", "L3"]

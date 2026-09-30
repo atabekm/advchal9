@@ -49,7 +49,12 @@ per line. Two things make structure chunking possible:
 - **Headings from fonts** when there is no outline: a short block set larger
   than body text, or bold and numbered like `3.2 Attention`. Level comes from
   the numbering, else from the font size rank. The largest size is the title
-  when it only occurs on page 1.
+  when it only occurs on page 1. IEEE-style papers set headings at body size
+  and weight, so two patterns cover them: `II. RELATED WORKS` in capitals
+  (level 1) and an italic `A. Tatar Speech Corpus` (level 2).
+- **Reading order**: blocks crossing the middle of the page split it into
+  bands; inside a band the left column is read before the right. Sorting by
+  position alone interleaves the columns of a two-column paper line by line.
 
 Cleanup: rotated margin text (arXiv stamps), page numbers and lines repeated
 on half the pages (running headers) are dropped. Ligatures are expanded

@@ -121,5 +121,11 @@ One branch, `task21/document-indexing`, one commit per stage.
 - **Merged small sections can exceed MAX_CHARS** by up to MIN_CHARS (a lone
   heading prepended to a full chunk). Accepted: splitting it off again would
   recreate the lone-heading chunk.
+- **IEEE-style headings** (`I. INTRODUCTION` in small caps, `A. Setup` in
+  italics, both at body size and weight) gave the TatarTTS paper 0 headings;
+  struct fell back to packing paragraphs. Two patterns now catch them.
+- **Two-column reading order.** PyMuPDF's `sort=True` orders blocks by y
+  across the page, interleaving columns ("B." of section II came after
+  section III). Blocks are now ordered by bands and columns.
 - Added `indexer query` — not asked for, but it is the quickest proof that
   the stored vectors are usable.

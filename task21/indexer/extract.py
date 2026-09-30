@@ -63,6 +63,7 @@ class _Line:
     text: str
     size: float
     bold: bool
+    italic: bool
 
 
 @dataclass
@@ -76,6 +77,10 @@ class _Block:
 
 
 _NUMBERED = re.compile(r"^(?:[A-Z]|\d+)(?:\.\d+)*\.?\s+\S")
+# IEEE style sets headings at body size and weight: "I. INTRODUCTION" in
+# small caps (level 1) and "A. Tatar Speech Corpus" in italics (level 2).
+_ROMAN_CAPS = re.compile(r"^[IVXLC]+\.\s+[A-Z][A-Z0-9 ,:;&'’()/\-–]*$")
+_LETTER = re.compile(r"^[A-Z]\.\s+[A-Z0-9]")
 # Default dict flags minus ligature preservation: "ﬁ" becomes "fi", so
 # "Veriﬁcation" matches the outline's "Verification" and embeds normally.
 _TEXT_FLAGS = pymupdf.TEXTFLAGS_DICT & ~pymupdf.TEXT_PRESERVE_LIGATURES
@@ -126,12 +131,47 @@ def _join_continued(elements: list[Element]) -> list[Element]:
     return out
 
 
+def _reading_order(blocks: list[dict], width: float) -> list[dict]:
+    """Order a page's blocks the way a person reads them, columns included.
+
+    Sorting by position alone interleaves two columns line by line. Blocks
+    that cross the middle of the page (title, wide figures, single-column
+    text) split the page into horizontal bands; inside a band the left column
+    is read top to bottom, then the right one.
+    """
+    mid = width / 2
+
+    def side(b):
+        x0, _, x1, _ = b["bbox"]
+        if x1 <= mid + 10:
+            return "left"
+        if x0 >= mid - 10:
+            return "right"
+        return "full"
+
+    out: list[dict] = []
+    band: list[dict] = []
+
+    def flush():
+        band.sort(key=lambda b: (side(b) == "right", b["bbox"][1], b["bbox"][0]))
+        out.extend(band)
+        band.clear()
+
+    for b in sorted(blocks, key=lambda b: (b["bbox"][1], b["bbox"][0])):
+        if side(b) == "full":
+            flush()
+            out.append(b)
+        else:
+            band.append(b)
+    flush()
+    return out
+
+
 def _read_blocks(pdf: pymupdf.Document) -> list[_Block]:
     blocks: list[_Block] = []
     for page in pdf:
-        for b in page.get_text("dict", sort=True, flags=_TEXT_FLAGS)["blocks"]:
-            if b["type"] != 0:
-                continue
+        text_blocks = [b for b in page.get_text("dict", flags=_TEXT_FLAGS)["blocks"] if b["type"] == 0]
+        for b in _reading_order(text_blocks, page.rect.width):
             lines = []
             for l in b["lines"]:
                 # Rotated text is margin stamps (arXiv ids, line numbers).
@@ -147,7 +187,9 @@ def _read_blocks(pdf: pymupdf.Document) -> list[_Block]:
                 size = chars.most_common(1)[0][0]
                 bold = all(s["flags"] & 16 or "bold" in s["font"].lower() or "medi" in s["font"].lower()
                            for s in spans)
-                lines.append(_Line(text, size, bold))
+                italic = all(s["flags"] & 2 or "ital" in s["font"].lower() or "oblique" in s["font"].lower()
+                             for s in spans)
+                lines.append(_Line(text, size, bold, italic))
             if not lines:
                 continue
             block = _Block(page.number + 1, lines)
@@ -278,6 +320,11 @@ class _FontRules:
         short = len(text) <= 100 and len(b.lines) <= 3 and not text.endswith((".", ",", ";"))
         big = size in self.sizes and not (size == self.title_size and b.page == 1)
         bold_numbered = all(l.bold for l in b.lines) and bool(_NUMBERED.match(text))
+        if short and len(b.lines) <= 2 and not big:
+            if _ROMAN_CAPS.match(text):
+                return 1
+            if _LETTER.match(text) and all(l.italic for l in b.lines):
+                return 2
         if not short or not (big or bold_numbered):
             return None
         if m := re.match(r"^(\d+(?:\.\d+)*)\.?\s", text):
