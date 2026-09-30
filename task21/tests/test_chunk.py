@@ -81,3 +81,13 @@ def test_split_long_prefers_sentences():
     assert all(len(p) <= 400 for p in parts)
     assert all(p.endswith(".") for p in parts)
     assert split_long("x" * 1000, 300) == ["x" * 300, "x" * 300, "x" * 300, "x" * 100]
+
+
+def test_struct_heading_never_alone_before_long_paragraph():
+    long_para = " ".join([SENT.strip()] * 24)  # ~1460 chars: heading + paragraph > 1500
+    doc = _doc(H("1 Intro"), P(SENT * 5), H("2 Long"), P(long_para), P(SENT * 3))
+    chunks = chunk_struct(doc, max_chars=1500)
+    assert all(c.text.strip() not in ("1 Intro", "2 Long") for c in chunks)
+    second = [c for c in chunks if c.section == "2 Long"]
+    assert second[0].text.startswith("2 Long\n\nThe quick")
+    assert all(len(c.text) <= 1500 for c in chunks)

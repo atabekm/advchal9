@@ -213,10 +213,25 @@ def cmd_stats(args) -> int:
           f"{sum(d['chars'] for d in docs):,} chars, model {store.meta().get('model')}\n")
     print(render_terminal(stats))
     if args.markdown:
-        args.markdown.write_text(render_markdown(stats, store) + "\n")
+        _write_tables(args.markdown, render_markdown(stats, store))
         print(f"\nwrote {args.markdown}")
     store.close()
     return 0
+
+
+STATS_START, STATS_END = "<!-- stats:start -->", "<!-- stats:end -->"
+
+
+def _write_tables(path: Path, tables: str) -> None:
+    """Replace only what sits between the stats markers, keeping the prose around it."""
+    block = f"{STATS_START}\n{tables}\n{STATS_END}"
+    old = path.read_text() if path.exists() else ""
+    if STATS_START in old and STATS_END in old:
+        head, rest = old.split(STATS_START, 1)
+        tail = rest.split(STATS_END, 1)[1]
+        path.write_text(head + block + tail)
+    else:
+        path.write_text(block + "\n")
 
 
 if __name__ == "__main__":

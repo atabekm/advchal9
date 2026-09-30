@@ -53,14 +53,20 @@ def chunk_struct(doc: Document, max_chars: int = MAX_CHARS, min_chars: int = MIN
     for spans in sections:
         name = spans[0].section
         pieces = [_Piece(name)]
-        for span in spans:
+        for n, span in enumerate(spans):
             para = flat.text[span.start:span.end]
-            for part in split_long(para, max_chars):
+            # The heading always stays with the text after it: the first
+            # paragraph is split to fit next to it rather than leaving the
+            # heading alone in a chunk.
+            heading_alone = n == 1 and spans[0].heading
+            budget = max_chars - len(pieces[-1].text) - 2 if heading_alone else max_chars
+            for part in split_long(para, max(budget, max_chars // 4)):
                 cur = pieces[-1]
-                if cur.text and len(cur.text) + 2 + len(part) > max_chars:
+                if cur.text and len(cur.text) + 2 + len(part) > max_chars and not heading_alone:
                     cur = _Piece(name)
                     pieces.append(cur)
                 cur.add(part, span.page, name)
+                heading_alone = False
         per_section.append(pieces)
 
     # Merge sections too small to stand alone into their neighbour.
