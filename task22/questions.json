@@ -1,0 +1,85 @@
+[
+  {
+    "id": "q01",
+    "kind": "fact",
+    "question": "How many hours of speech does the TatarTTS dataset contain, and who recorded it?",
+    "expect": "About 70 hours of transcribed audio (over 38,000 segments) from two professional speakers, one male (36.2 h) and one female (33.9 h), actors of the Tatar National Theatre.",
+    "must_contain": [["70"], ["two"], ["female"]],
+    "sources": [{"source": "1570978467.pdf", "pages": [1, 2]}]
+  },
+  {
+    "id": "q02",
+    "kind": "fact",
+    "question": "Which model architecture and training framework were used to build the TatarTTS baseline models?",
+    "expect": "VITS (end-to-end variational inference TTS with a conditional VAE, normalizing flows, adversarial training), trained with the Piper framework at its high quality tier (83M parameters), one single-speaker model per speaker, 1,000 epochs, exported to ONNX.",
+    "must_contain": [["VITS"], ["Piper"]],
+    "sources": [{"source": "1570978467.pdf", "pages": [3]}]
+  },
+  {
+    "id": "q03",
+    "kind": "explain",
+    "question": "How did the synthesized TatarTTS speech compare with the original recordings in the listening evaluation?",
+    "expect": "In naturalness both models fall within the confidence interval of the original audio. In pronunciation, coherence and overall quality they lag the originals by about 0.2 points, but still score above 4.5 MOS. The originals scored above 4.70.",
+    "must_contain": [["natural"], ["0.2"], ["4.5"]],
+    "sources": [{"source": "1570978467.pdf", "pages": [3, 4]}]
+  },
+  {
+    "id": "q04",
+    "kind": "fact",
+    "question": "How did the apertium-anaphora module change the accuracy of anaphor translation in its preliminary evaluation?",
+    "expect": "Spanish–English (120 anaphors): accuracy rose from 29.2% to 54.2%. Catalan–Italian (108 anaphors): it fell from 83.3% to 75.0%, because the test data was skewed towards singular antecedents, which the default translation already covers.",
+    "must_contain": [["29.2"], ["54.2"], ["83.3"], ["75"]],
+    "sources": [{"source": "s10590-021-09260-6.pdf", "pages": [15, 16]}]
+  },
+  {
+    "id": "q05",
+    "kind": "explain",
+    "question": "Why was the apertium-recursive module developed, and how does it work?",
+    "expect": "The finite-state chunker only matches fixed, contiguous word sequences, so long-distance reordering and nested structures (relative clauses, prepositional phrases inside prepositional phrases) need many rules. apertium-recursive applies transfer rules recursively with context-free grammars and a GLR parser. Example: the 30+ English–Spanish noun-phrase rules shrink to fewer than 10 (mostly 3).",
+    "must_contain": [["context-free", "CFG"], ["GLR"], ["contiguous", "finite-state", "fixed sequence"]],
+    "sources": [{"source": "s10590-021-09260-6.pdf", "pages": [8, 9]}]
+  },
+  {
+    "id": "q06",
+    "kind": "fact",
+    "question": "What are the three golden rules of fat loss in Gutless?",
+    "expect": "1. Calories: a calorie deficit is the only requirement for fat loss. 2. Protein: it fills you up and spares muscle. 3. Consistency (sustainability): a diet you can stick to.",
+    "must_contain": [["calorie"], ["protein"], ["consisten", "sustainab"]],
+    "sources": [{"source": "Gutless.pdf", "pages": [9, 10, 11, 12]}]
+  },
+  {
+    "id": "q07",
+    "kind": "fact",
+    "question": "Using the simple method from Gutless, how many calories per day should a 185-pound person eat to lose fat?",
+    "expect": "Multiply body weight in pounds by 10–12: between 1,850 and 2,220 calories a day (11 per pound if unsure; 10 if inactive, 12 if very active).",
+    "must_contain": [["1850", "1,850"], ["2220", "2,220"]],
+    "sources": [{"source": "Gutless.pdf", "pages": [10, 11]}]
+  },
+  {
+    "id": "q08",
+    "kind": "multi",
+    "question": "Which documents in the collection deal with the Tatar language, and in what way?",
+    "expect": "Two documents. The TatarTTS paper introduces a 70-hour open-source text-to-speech dataset and baseline models for Tatar. The Apertium paper covers Tatar in machine translation: a released Kazakh–Tatar pair, Tatar listed as a Turkic language with minority status, and Tatar–Bashqort among unreleased pairs.",
+    "must_contain": [["speech", "TTS"], ["Apertium", "machine translation"]],
+    "sources": [
+      {"source": "1570978467.pdf", "pages": [1, 2, 4]},
+      {"source": "s10590-021-09260-6.pdf", "pages": [17, 18, 20]}
+    ]
+  },
+  {
+    "id": "q09",
+    "kind": "unanswerable",
+    "question": "According to Gutless, how many grams of creatine should you take per day?",
+    "expect": "Gutless does not discuss creatine. The answer should say the documents do not cover it, not give a dose.",
+    "must_contain": [["not contain", "does not", "doesn't", "no information", "not mention", "not covered", "not discuss"]],
+    "sources": []
+  },
+  {
+    "id": "q10",
+    "kind": "unanswerable",
+    "question": "What word error rate (WER) did the TatarTTS paper report for its synthesized speech?",
+    "expect": "The paper reports no WER. It evaluates with MOS only (naturalness, pronunciation, coherence, overall quality). The answer should say so and not invent a number.",
+    "must_contain": [["not contain", "does not", "doesn't", "no information", "not mention", "not report", "not provide"]],
+    "sources": []
+  }
+]

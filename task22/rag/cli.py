@@ -3,6 +3,7 @@
   rag ask  "question" [--mode rag|plain|both] [--strategy struct|fixed] [-k N] [--show-context]
   rag chat [--mode rag|plain] [--strategy struct|fixed] [-k N]
            in chat: /rag on|off  /strategy struct|fixed  /k N  /context on|off  /quit
+  rag check [--questions FILE] [-k N]            retrieval only: are the expected sources found?
 """
 
 from __future__ import annotations
@@ -14,6 +15,7 @@ from pathlib import Path
 
 from indexer.embed import EmbedError
 
+from . import evalset
 from .agent import MODES, Agent, Answer
 from .llm import MODELS, DeepSeek, LLMError
 from .retrieve import DEFAULT_DB, DEFAULT_K, DEFAULT_STRATEGY, STRATEGIES, Hit, IndexMissing, Retriever
@@ -42,9 +44,14 @@ def main(argv: list[str] | None = None) -> int:
     chat.add_argument("--show-context", action="store_true")
     common(chat)
 
+    check = sub.add_parser("check", help="retrieval check of the control questions, no LLM")
+    check.add_argument("--db", type=Path, default=DEFAULT_DB)
+    check.add_argument("--questions", type=Path, default=evalset.DEFAULT_QUESTIONS)
+    check.add_argument("-k", type=int, default=DEFAULT_K)
+
     args = ap.parse_args(argv)
     try:
-        return {"ask": cmd_ask, "chat": cmd_chat}[args.cmd](args)
+        return {"ask": cmd_ask, "chat": cmd_chat, "check": cmd_check}[args.cmd](args)
     except (EmbedError, IndexMissing, LLMError) as e:
         print(f"error: {e}", file=sys.stderr)
         return 1
@@ -102,6 +109,32 @@ def cmd_chat(args) -> int:
         if ans.hits and show:
             print_context(ans.hits, strategy)
         print_answer(ans)
+
+
+def cmd_check(args) -> int:
+    questions = evalset.load(args.questions)
+    retriever = Retriever(args.db)
+    totals = {s: 0 for s in STRATEGIES}
+    answerable = [q for q in questions if q.answerable]
+    print(f"{'id':4}  {'kind':12}  " + "  ".join(f"{s:>14}" for s in STRATEGIES) + "   top hit (struct)")
+    for q in questions:
+        cells, top = [], ""
+        for strategy in STRATEGIES:
+            hits = retriever.search(q.question, strategy, args.k)
+            rc = evalset.retrieval_check(q, hits)
+            if strategy == STRATEGIES[0]:
+                top = f"{hits[0].source} {hits[0].pages} {hits[0].score:.2f}" if hits else "—"
+            if rc is None:
+                cells.append(f"{'n/a':>14}")
+                continue
+            totals[strategy] += rc.hit
+            where = f"rank {rc.first_rank}" if rc.first_rank else "miss"
+            cells.append(f"{('hit' if rc.hit else f'{rc.recall:.0%}') + ' ' + where:>14}")
+        print(f"{q.id:4}  {q.kind:12}  " + "  ".join(cells) + f"   {top}")
+    retriever.close()
+    print("\nhit@%d over %d answerable questions: " % (args.k, len(answerable))
+          + ", ".join(f"{s} {totals[s]}/{len(answerable)}" for s in STRATEGIES))
+    return 0
 
 
 def print_context(hits: list[Hit], strategy: str) -> None:
