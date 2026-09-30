@@ -127,3 +127,21 @@ One branch, `task22/rag-query`, one commit per stage, one PR at the end.
 
 - `ollama serve` with `nomic-embed-text` (already pulled for task 21)
 - `DEEPSEEK_API_KEY` in the environment or `task22/.env`
+
+## What the build changed
+
+- **Retrieval runs before the LLM calls, on one thread.** `Agent.answer` takes
+  precomputed `hits`, so `rag eval` embeds and searches serially (the SQLite
+  connection stays on its thread) and then runs the 30 LLM calls and 30 judge calls
+  in a thread pool.
+- **A `rag check` command** (retrieval only, no LLM) came out of stage 3. It showed
+  the q08 miss (TatarTTS takes all five slots) before any answer was generated.
+- **The questions were not tuned to the index.** q05/fixed and q08 miss in retrieval,
+  and they stay that way: they are findings, not bugs in the test set.
+- **Page-level hit is coarse.** q04/fixed "hits" at rank 1 on the right page, but
+  the chunk with the numbers is the next one. This is noted in EVAL.md and not fixed
+  here (fixing it would need a character-span ground truth).
+- **The judge is stricter than the keyword check, and sometimes wrong.** Its blind
+  spots are listed in EVAL.md; the two scores are read side by side.
+- Eval runs are committed under `eval/`, so the report can be rebuilt
+  (`--report`) or re-graded (`--rejudge`) without new answers.

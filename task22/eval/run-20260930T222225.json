@@ -1,0 +1,1532 @@
+{
+ "created": "2026-09-30T22:22:25",
+ "model": "deepseek-flash",
+ "k": 5,
+ "strategies": [
+  "struct",
+  "fixed"
+ ],
+ "labels": [
+  "plain",
+  "rag/struct",
+  "rag/fixed"
+ ],
+ "wall_seconds": 77.3,
+ "results": [
+  {
+   "id": "q01",
+   "label": "plain",
+   "answer": "The TatarTTS dataset contains **12 hours of speech**. It was recorded by **SberDevices**, with the voice recordings performed by native Tatar speaker **Aigul Khusainova**.",
+   "keywords": 0.0,
+   "keywords_matched": [
+    false,
+    false,
+    false
+   ],
+   "retrieval": null,
+   "cited": [],
+   "cited_expected": null,
+   "context": [],
+   "prompt_tokens": 79,
+   "completion_tokens": 5345,
+   "seconds": 26.69,
+   "judge": {
+    "verdict": "wrong",
+    "hallucination": true,
+    "reason": "The answer states 12 hours and a single speaker from SberDevices, contradicting the expected ~70 hours from two professional Tatar National Theatre actors."
+   }
+  },
+  {
+   "id": "q02",
+   "label": "plain",
+   "answer": "The TatarTTS baseline models were built using the **VITS** architecture and trained with the **ESPnet/ESPnet2** toolkit.",
+   "keywords": 0.5,
+   "keywords_matched": [
+    true,
+    false
+   ],
+   "retrieval": null,
+   "cited": [],
+   "cited_expected": null,
+   "context": [],
+   "prompt_tokens": 78,
+   "completion_tokens": 3600,
+   "seconds": 18.72,
+   "judge": {
+    "verdict": "partial",
+    "hallucination": true,
+    "reason": "Correctly names VITS as the architecture but contradicts the expectation by stating the training framework was ESPnet/ESPnet2 instead of Piper."
+   }
+  },
+  {
+   "id": "q03",
+   "label": "plain",
+   "answer": "In the listening evaluation, the synthesized TatarTTS speech was rated **lower than the original recordings** on naturalness/quality: the original recordings received the higher MOS scores, while the synthetic speech was still judged intelligible and reasonably natural, though not indistinguishable from the originals.",
+   "keywords": 0.3333333333333333,
+   "keywords_matched": [
+    true,
+    false,
+    false
+   ],
+   "retrieval": null,
+   "cited": [],
+   "cited_expected": null,
+   "context": [],
+   "prompt_tokens": 79,
+   "completion_tokens": 3242,
+   "seconds": 17.97,
+   "judge": {
+    "verdict": "partial",
+    "hallucination": false,
+    "reason": "It correctly conveys that the synthetic speech scored lower overall than the originals, but it omits the key facts (naturalness within the originals' confidence interval, ~0.2 point gap on pronunciation/coherence/overall quality, still above 4.5 MOS vs originals above 4.70) and wrongly implies naturalness was lower."
+   }
+  },
+  {
+   "id": "q04",
+   "label": "plain",
+   "answer": "In its preliminary evaluation, the **apertium-anaphora** module improved anaphor-translation accuracy from **36.84% to 63.16%**—an increase of about **26.3 percentage points**.",
+   "keywords": 0.0,
+   "keywords_matched": [
+    false,
+    false,
+    false,
+    false
+   ],
+   "retrieval": null,
+   "cited": [],
+   "cited_expected": null,
+   "context": [],
+   "prompt_tokens": 82,
+   "completion_tokens": 5447,
+   "seconds": 27.8,
+   "judge": {
+    "verdict": "wrong",
+    "hallucination": true,
+    "reason": "The answer gives different accuracy figures (36.84% to 63.16%) than the expected 29.2% to 54.2% for Spanish–English and omits the Catalan–Italian decrease."
+   }
+  },
+  {
+   "id": "q05",
+   "label": "plain",
+   "answer": "**Why it was developed:**  \nApertium’s traditional transfer pipeline uses three separate, non-recursive modules: `apertium-transfer` (t1x), `apertium-interchunk` (t2x), and `apertium-postchunk` (t3x). Rules in these modules operate on flat sequences and cannot match chunks produced by other rules in the same stage. This makes nested phrases, agreement across chunks, and complex reordering awkward—often requiring multiple passes and duplicated patterns. `apertium-recursive` was created (by Daniel Swanson as a Google Summer of Code 2018 project) to replace that pipeline with a single, recursive transfer module. It allows one rule file to build arbitrarily nested chunk structures, simplifying grammar writing and maintenance and improving translation quality. It is used in language pairs such as English–Catalan.\n\n**How it works:**  \n- Rules are written in an XML `.rtx` file, similar to `apertium-transfer` but with `<chunk>` elements. Each rule has a **pattern** (a sequence of lexical units and/or chunks) and an **output** (lexical units and/or chunks). Variables and tags support agreement and feature transfer.  \n- The rules are compiled by `apertium-recursive-compile` into a binary `.rtx.bin` file.  \n- At runtime, `apertium-recursive` reads the binary and the input stream of tagged lexical units. Conceptually, the rules are compiled into **recursive transition networks (RTNs)**, and a **chart parser** finds the best parse of the input into a tree of chunks. Because rules can match chunks produced by other rules, structures can nest recursively (e.g., an NP inside a PP inside a larger NP).  \n- Once a parse is selected (by rule priority/order), the tree is linearized into a sequence of target-language lexical units with morphological tags. This output is then passed to the morphological generator (e.g., `lt-proc -g`).  \n\nIn short, `apertium-recursive` unifies transfer, interchunk, and postchunk into one recursive, chart-parsing module that builds and flattens a chunk tree in a single pass.",
+   "keywords": 0.0,
+   "keywords_matched": [
+    false,
+    false,
+    false
+   ],
+   "retrieval": null,
+   "cited": [],
+   "cited_expected": null,
+   "context": [],
+   "prompt_tokens": 76,
+   "completion_tokens": 10275,
+   "seconds": 52.25,
+   "judge": {
+    "verdict": "partial",
+    "hallucination": true,
+    "reason": "The answer captures the motivation but uses a different parsing mechanism (RTNs/chart parser) than the expected CFG/GLR parser, omits the rule-count example, and adds unsupported details like Daniel Swanson."
+   }
+  },
+  {
+   "id": "q06",
+   "label": "plain",
+   "answer": "I don’t know the specific “three golden rules of fat loss” from *Gutless*. If you can share the author or a bit more context, I can help track them down.",
+   "keywords": 0.0,
+   "keywords_matched": [
+    false,
+    false,
+    false
+   ],
+   "retrieval": null,
+   "cited": [],
+   "cited_expected": null,
+   "context": [],
+   "prompt_tokens": 73,
+   "completion_tokens": 12463,
+   "seconds": 49.85,
+   "judge": {
+    "verdict": "refused",
+    "hallucination": false,
+    "reason": "The answer declines to give the three golden rules, stating it does not know them, so no key facts from the expectation are present."
+   }
+  },
+  {
+   "id": "q07",
+   "label": "plain",
+   "answer": "Using the simple method from *Gutless* (body weight in pounds × 10 for fat loss):\n\n185 × 10 = **1,850 calories per day**.",
+   "keywords": 0.5,
+   "keywords_matched": [
+    true,
+    false
+   ],
+   "retrieval": null,
+   "cited": [],
+   "cited_expected": null,
+   "context": [],
+   "prompt_tokens": 84,
+   "completion_tokens": 14896,
+   "seconds": 59.31,
+   "judge": {
+    "verdict": "partial",
+    "hallucination": false,
+    "reason": "The answer correctly uses the body weight × multiplier method and gives 1,850 (the 10× lower bound), but omits the 10–12 range and thus the upper value of 2,220."
+   }
+  },
+  {
+   "id": "q08",
+   "label": "plain",
+   "answer": "I don’t have access to the collection you’re referring to, and no documents or catalog details are included in this conversation. So I can’t identify which specific items deal with the Tatar language.\n\nIf you share the collection (or its file list/catalog), I can pick out the Tatar-related documents and explain how each one treats the language—e.g., grammar, dictionary, phrasebook, textbook, religious/translation text, linguistic study, or manuscript in Tatar.",
+   "keywords": 0.0,
+   "keywords_matched": [
+    false,
+    false
+   ],
+   "retrieval": null,
+   "cited": [],
+   "cited_expected": null,
+   "context": [],
+   "prompt_tokens": 77,
+   "completion_tokens": 526,
+   "seconds": 3.74,
+   "judge": {
+    "verdict": "refused",
+    "hallucination": false,
+    "reason": "The answer declines to identify any documents, saying it lacks access to the collection, rather than giving the expected TatarTTS and Apertium facts."
+   }
+  },
+  {
+   "id": "q09",
+   "label": "plain",
+   "answer": "According to Gutless, you should take **5 grams of creatine per day**.",
+   "keywords": 0.0,
+   "keywords_matched": [
+    false
+   ],
+   "retrieval": null,
+   "cited": [],
+   "cited_expected": null,
+   "context": [],
+   "prompt_tokens": 77,
+   "completion_tokens": 3464,
+   "seconds": 17.25,
+   "judge": {
+    "verdict": "wrong",
+    "hallucination": true,
+    "reason": "The documents do not discuss creatine, yet the answer states a specific dosage of 5 grams per day as fact from Gutless."
+   }
+  },
+  {
+   "id": "q10",
+   "label": "plain",
+   "answer": "I don’t have that exact figure; the TatarTTS paper’s reported WER for its synthesized speech is not something I can recall with confidence.",
+   "keywords": 0.0,
+   "keywords_matched": [
+    false
+   ],
+   "retrieval": null,
+   "cited": [],
+   "cited_expected": null,
+   "context": [],
+   "prompt_tokens": 81,
+   "completion_tokens": 7597,
+   "seconds": 35.39,
+   "judge": {
+    "verdict": "correct",
+    "hallucination": false,
+    "reason": "The expectation says the documents do not contain a WER figure, and the answer declines to give one without inventing a number, which is the right behaviour."
+   }
+  },
+  {
+   "id": "q01",
+   "label": "rag/struct",
+   "answer": "The TatarTTS dataset contains approximately 70 hours of transcribed audio [1][4]. It was recorded by two professional speakers, one male and one female, with nearly equal amounts of data from each [1][4].",
+   "keywords": 1.0,
+   "keywords_matched": [
+    true,
+    true,
+    true
+   ],
+   "retrieval": {
+    "hit": true,
+    "recall": 1.0,
+    "first_rank": 1
+   },
+   "cited": [
+    1,
+    4
+   ],
+   "cited_expected": true,
+   "context": [
+    {
+     "rank": 1,
+     "score": 0.8553,
+     "source": "1570978467.pdf",
+     "pages": "p. 2",
+     "section": "III. DATASET CONSTRUCTION > B. Dataset Specifications"
+    },
+    {
+     "rank": 2,
+     "score": 0.8233,
+     "source": "1570978467.pdf",
+     "pages": "p. 4",
+     "section": "VI. CONCLUSION"
+    },
+    {
+     "rank": 3,
+     "score": 0.8098,
+     "source": "1570978467.pdf",
+     "pages": "p. 2",
+     "section": "II. RELATED WORKS > B. NLP for Tatar Language"
+    },
+    {
+     "rank": 4,
+     "score": 0.7935,
+     "source": "1570978467.pdf",
+     "pages": "p. 1",
+     "section": "(front matter)"
+    },
+    {
+     "rank": 5,
+     "score": 0.7781,
+     "source": "1570978467.pdf",
+     "pages": "p. 1",
+     "section": "I. INTRODUCTION"
+    }
+   ],
+   "prompt_tokens": 1584,
+   "completion_tokens": 78,
+   "seconds": 1.03,
+   "judge": {
+    "verdict": "partial",
+    "hallucination": false,
+    "reason": "It correctly states ~70 hours of transcribed audio from two professional speakers (one male, one female), but omits the specific per-speaker durations and that they are actors of the Tatar National Theatre."
+   }
+  },
+  {
+   "id": "q01",
+   "label": "rag/fixed",
+   "answer": "The TatarTTS dataset contains approximately 70 hours of transcribed audio recordings [1][2]. It was recorded by two professional speakers — one male and one female — selected from Tatar National Theatre actors [2][4].",
+   "keywords": 1.0,
+   "keywords_matched": [
+    true,
+    true,
+    true
+   ],
+   "retrieval": {
+    "hit": true,
+    "recall": 1.0,
+    "first_rank": 1
+   },
+   "cited": [
+    1,
+    2,
+    4
+   ],
+   "cited_expected": true,
+   "context": [
+    {
+     "rank": 1,
+     "score": 0.8467,
+     "source": "1570978467.pdf",
+     "pages": "p. 2",
+     "section": "III. DATASET CONSTRUCTION > A. Tatar Speech Corpus"
+    },
+    {
+     "rank": 2,
+     "score": 0.8035,
+     "source": "1570978467.pdf",
+     "pages": "p. 1",
+     "section": "(front matter)"
+    },
+    {
+     "rank": 3,
+     "score": 0.773,
+     "source": "1570978467.pdf",
+     "pages": "p. 1",
+     "section": "I. INTRODUCTION"
+    },
+    {
+     "rank": 4,
+     "score": 0.7723,
+     "source": "1570978467.pdf",
+     "pages": "p. 2",
+     "section": "III. DATASET CONSTRUCTION > A. Tatar Speech Corpus"
+    },
+    {
+     "rank": 5,
+     "score": 0.7721,
+     "source": "1570978467.pdf",
+     "pages": "p. 4",
+     "section": "VI. CONCLUSION"
+    }
+   ],
+   "prompt_tokens": 1403,
+   "completion_tokens": 80,
+   "seconds": 1.21,
+   "judge": {
+    "verdict": "correct",
+    "hallucination": false,
+    "reason": "The answer gives ~70 hours of transcribed audio and identifies the two professional speakers (one male, one female) as Tatar National Theatre actors, matching the key facts of the expectation without contradiction."
+   }
+  },
+  {
+   "id": "q02",
+   "label": "rag/struct",
+   "answer": "The baseline TTS models used the end-to-end VITS (variational inference text-to-speech) architecture [5], implemented via the Piper framework for training and preparing models for inference in the ONNX format [5]. The models were randomly initialized and trained for 1,000 epochs per speaker [1].",
+   "keywords": 1.0,
+   "keywords_matched": [
+    true,
+    true
+   ],
+   "retrieval": {
+    "hit": true,
+    "recall": 1.0,
+    "first_rank": 1
+   },
+   "cited": [
+    5,
+    1
+   ],
+   "cited_expected": true,
+   "context": [
+    {
+     "rank": 1,
+     "score": 0.7442,
+     "source": "1570978467.pdf",
+     "pages": "p. 3",
+     "section": "IV. TTS EXPERIMENTS > B. TTS Model Training"
+    },
+    {
+     "rank": 2,
+     "score": 0.7106,
+     "source": "1570978467.pdf",
+     "pages": "p. 4",
+     "section": "VI. CONCLUSION"
+    },
+    {
+     "rank": 3,
+     "score": 0.7046,
+     "source": "1570978467.pdf",
+     "pages": "p. 1",
+     "section": "I. INTRODUCTION"
+    },
+    {
+     "rank": 4,
+     "score": 0.6772,
+     "source": "1570978467.pdf",
+     "pages": "p. 1",
+     "section": "(front matter)"
+    },
+    {
+     "rank": 5,
+     "score": 0.6666,
+     "source": "1570978467.pdf",
+     "pages": "p. 3",
+     "section": "IV. TTS EXPERIMENTS > A. Experimental Setup"
+    }
+   ],
+   "prompt_tokens": 1675,
+   "completion_tokens": 92,
+   "seconds": 1.22,
+   "judge": {
+    "verdict": "correct",
+    "hallucination": false,
+    "reason": "The answer correctly identifies VITS as the architecture and Piper as the training framework, adds ONNX export and 1,000 epochs per speaker, and contradicts nothing in the expectation (only omitting the 83M-parameter tier detail)."
+   }
+  },
+  {
+   "id": "q02",
+   "label": "rag/fixed",
+   "answer": "The baseline models used the VITS architecture, initialized randomly for both female and male speakers and trained for 1,000 epochs per speaker [2]. Training and preparation for inference were done with the Piper framework, which offers VITS models in four quality tiers and was used here at the high-quality tier with 83M trainable parameters [5].",
+   "keywords": 1.0,
+   "keywords_matched": [
+    true,
+    true
+   ],
+   "retrieval": {
+    "hit": true,
+    "recall": 1.0,
+    "first_rank": 2
+   },
+   "cited": [
+    2,
+    5
+   ],
+   "cited_expected": true,
+   "context": [
+    {
+     "rank": 1,
+     "score": 0.726,
+     "source": "1570978467.pdf",
+     "pages": "p. 4",
+     "section": "VI. CONCLUSION"
+    },
+    {
+     "rank": 2,
+     "score": 0.7093,
+     "source": "1570978467.pdf",
+     "pages": "p. 3",
+     "section": "IV. TTS EXPERIMENTS > A. Experimental Setup"
+    },
+    {
+     "rank": 3,
+     "score": 0.7028,
+     "source": "1570978467.pdf",
+     "pages": "pp. 1–2",
+     "section": "I. INTRODUCTION"
+    },
+    {
+     "rank": 4,
+     "score": 0.6881,
+     "source": "1570978467.pdf",
+     "pages": "p. 1",
+     "section": "I. INTRODUCTION"
+    },
+    {
+     "rank": 5,
+     "score": 0.6832,
+     "source": "1570978467.pdf",
+     "pages": "p. 3",
+     "section": "IV. TTS EXPERIMENTS > A. Experimental Setup"
+    }
+   ],
+   "prompt_tokens": 1436,
+   "completion_tokens": 96,
+   "seconds": 1.27,
+   "judge": {
+    "verdict": "correct",
+    "hallucination": false,
+    "reason": "The answer correctly identifies VITS as the architecture and Piper (high-quality tier, 83M parameters) as the training framework, with per-speaker training for 1,000 epochs; only the ONNX export detail is omitted."
+   }
+  },
+  {
+   "id": "q03",
+   "label": "rag/struct",
+   "answer": "In the listening evaluation, synthesized speech was generally close to, but somewhat lower than, the original recordings [5]. For male speakers, synthesized (MS) vs. original (MO) scores were: naturalness 4.85 vs. 4.84, pronunciation 4.66 vs. 4.81, coherence 4.61 vs. 4.79, and overall quality 4.54 vs. 4.76. For female speakers, synthesized (FS) vs. original (FO) scores were: naturalness 4.80 vs. 4.89, pronunciation 4.66 vs. 4.87, coherence 4.69 vs. 4.92, and overall quality 4.65 vs. 4.96 [5]. The evaluation criteria were audio quality/pronunciation, naturalness, and overall comprehensibility, rated by native speakers [2].",
+   "keywords": 0.6666666666666666,
+   "keywords_matched": [
+    true,
+    false,
+    true
+   ],
+   "retrieval": {
+    "hit": true,
+    "recall": 1.0,
+    "first_rank": 1
+   },
+   "cited": [
+    5,
+    2
+   ],
+   "cited_expected": true,
+   "context": [
+    {
+     "rank": 1,
+     "score": 0.7564,
+     "source": "1570978467.pdf",
+     "pages": "p. 4",
+     "section": "VI. CONCLUSION"
+    },
+    {
+     "rank": 2,
+     "score": 0.7468,
+     "source": "1570978467.pdf",
+     "pages": "p. 3",
+     "section": "IV. TTS EXPERIMENTS > C. Model Evaluation"
+    },
+    {
+     "rank": 3,
+     "score": 0.7282,
+     "source": "1570978467.pdf",
+     "pages": "p. 2",
+     "section": "III. DATASET CONSTRUCTION > B. Dataset Specifications"
+    },
+    {
+     "rank": 4,
+     "score": 0.7206,
+     "source": "1570978467.pdf",
+     "pages": "p. 1",
+     "section": "(front matter)"
+    },
+    {
+     "rank": 5,
+     "score": 0.72,
+     "source": "1570978467.pdf",
+     "pages": "pp. 3–4",
+     "section": "IV. TTS EXPERIMENTS > C. Model Evaluation"
+    }
+   ],
+   "prompt_tokens": 1723,
+   "completion_tokens": 896,
+   "seconds": 4.7,
+   "judge": {
+    "verdict": "correct",
+    "hallucination": false,
+    "reason": "The answer reports naturalness nearly matching the originals, pronunciation, coherence and overall quality lagging by roughly 0.2 points while staying above 4.5 MOS, and originals above 4.70, all consistent with the expectation."
+   }
+  },
+  {
+   "id": "q03",
+   "label": "rag/fixed",
+   "answer": "In the listening evaluation, the synthesized models were rated as producing natural-sounding speech: for naturalness, both male and female TTS models fell within the confidence interval of the original audios [1]. The original male and female recordings scored above 4.70, while for pronunciation, coherence, and overall quality the models lagged behind the originals by about 0.2 points, still achieving MOS above 4.5 [1]. They were considered imperfect, with limitations in coherence and clear pronunciation, but showed notable naturalness and sound quality [5].",
+   "keywords": 1.0,
+   "keywords_matched": [
+    true,
+    true,
+    true
+   ],
+   "retrieval": {
+    "hit": true,
+    "recall": 1.0,
+    "first_rank": 1
+   },
+   "cited": [
+    1,
+    5
+   ],
+   "cited_expected": true,
+   "context": [
+    {
+     "rank": 1,
+     "score": 0.781,
+     "source": "1570978467.pdf",
+     "pages": "p. 4",
+     "section": "V. RESULTS & DISCUSSION"
+    },
+    {
+     "rank": 2,
+     "score": 0.75,
+     "source": "1570978467.pdf",
+     "pages": "p. 2",
+     "section": "III. DATASET CONSTRUCTION > A. Tatar Speech Corpus"
+    },
+    {
+     "rank": 3,
+     "score": 0.7498,
+     "source": "1570978467.pdf",
+     "pages": "p. 2",
+     "section": "III. DATASET CONSTRUCTION > A. Tatar Speech Corpus"
+    },
+    {
+     "rank": 4,
+     "score": 0.7479,
+     "source": "1570978467.pdf",
+     "pages": "p. 3",
+     "section": "IV. TTS EXPERIMENTS > C. Model Evaluation"
+    },
+    {
+     "rank": 5,
+     "score": 0.7441,
+     "source": "1570978467.pdf",
+     "pages": "p. 4",
+     "section": "VI. CONCLUSION"
+    }
+   ],
+   "prompt_tokens": 1360,
+   "completion_tokens": 278,
+   "seconds": 1.99,
+   "judge": {
+    "verdict": "correct",
+    "hallucination": false,
+    "reason": "The answer includes all key facts: naturalness within the original audio's confidence interval, originals above 4.70, and a ~0.2 point lag in pronunciation, coherence and overall quality while still above 4.5 MOS."
+   }
+  },
+  {
+   "id": "q04",
+   "label": "rag/struct",
+   "answer": "In the preliminary evaluation [2], Spanish–English translation accuracy for anaphors rose from 29.2% without anaphora resolution to 54.2% with it (120 anaphors evaluated), while Catalan–Italian showed a slight decrease, from 83.3% to 75.0% (108 anaphors) [2]. Without the module, anaphors simply translate to whatever the bilingual dictionary provides—the male singular possessive determiner in these pairs [2].",
+   "keywords": 1.0,
+   "keywords_matched": [
+    true,
+    true,
+    true,
+    true
+   ],
+   "retrieval": {
+    "hit": true,
+    "recall": 1.0,
+    "first_rank": 2
+   },
+   "cited": [
+    2
+   ],
+   "cited_expected": true,
+   "context": [
+    {
+     "rank": 1,
+     "score": 0.8161,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "pp. 12–13",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 4  \u0007New modules > 4.3  \u0007Anaphora resolution"
+    },
+    {
+     "rank": 2,
+     "score": 0.8024,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "pp. 15–16",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 4  \u0007New modules > 4.3  \u0007Anaphora resolution > 4.3.3  \u0007Preliminary evaluation"
+    },
+    {
+     "rank": 3,
+     "score": 0.7951,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "pp. 14–15",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 4  \u0007New modules > 4.3  \u0007Anaphora resolution > 4.3.2  \u0007Example usage"
+    },
+    {
+     "rank": 4,
+     "score": 0.7932,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "p. 14",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 4  \u0007New modules > 4.3  \u0007Anaphora resolution > 4.3.2  \u0007Example usage"
+    },
+    {
+     "rank": 5,
+     "score": 0.7864,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "p. 13",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 4  \u0007New modules > 4.3  \u0007Anaphora resolution"
+    }
+   ],
+   "prompt_tokens": 2372,
+   "completion_tokens": 162,
+   "seconds": 1.76,
+   "judge": {
+    "verdict": "correct",
+    "hallucination": false,
+    "reason": "It reports both key figures correctly (Spanish–English 29.2%→54.2% with 120 anaphors; Catalan–Italian 83.3%→75.0% with 108 anaphors), omitting only the stated cause of the Catalan–Italian drop, which does not contradict the expectation."
+   }
+  },
+  {
+   "id": "q04",
+   "label": "rag/fixed",
+   "answer": "The documents do not contain the answer. The context describes the setup of the preliminary evaluation — first 1000 Europarl sentences translated with and without apertium-anaphora, of which 120 had a possessive determiner, followed by manual accuracy checking [1] — and notes that in the worked example the anaphor's translation was \"fixed\" by the module, though the final translation was \"still not ideal\" [3], but it gives no accuracy figures or outcome of that evaluation.",
+   "keywords": 0.0,
+   "keywords_matched": [
+    false,
+    false,
+    false,
+    false
+   ],
+   "retrieval": {
+    "hit": true,
+    "recall": 1.0,
+    "first_rank": 1
+   },
+   "cited": [
+    1,
+    3
+   ],
+   "cited_expected": true,
+   "context": [
+    {
+     "rank": 1,
+     "score": 0.8062,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "p. 15",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 4  \u0007New modules > 4.3  \u0007Anaphora resolution > 4.3.2  \u0007Example usage"
+    },
+    {
+     "rank": 2,
+     "score": 0.8044,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "p. 13",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 4  \u0007New modules > 4.3  \u0007Anaphora resolution"
+    },
+    {
+     "rank": 3,
+     "score": 0.7958,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "p. 14",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 4  \u0007New modules > 4.3  \u0007Anaphora resolution > 4.3.2  \u0007Example usage"
+    },
+    {
+     "rank": 4,
+     "score": 0.7803,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "pp. 3–4",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 2  \u0007Overview of the Apertium platform"
+    },
+    {
+     "rank": 5,
+     "score": 0.7795,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "pp. 12–13",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 4  \u0007New modules > 4.3  \u0007Anaphora resolution"
+    }
+   ],
+   "prompt_tokens": 1783,
+   "completion_tokens": 413,
+   "seconds": 2.9,
+   "judge": {
+    "verdict": "refused",
+    "hallucination": false,
+    "reason": "The answer declines by stating the documents do not contain the accuracy figures, whereas the expectation requires the specific Spanish–English and Catalan–Italian accuracy changes."
+   }
+  },
+  {
+   "id": "q05",
+   "label": "rag/struct",
+   "answer": "The apertium-recursive module was developed to deal with the limitations of finite-state chunking [2]. It applies structural transfer rules recursively using context-free grammars (CFGs) and a Generalized Left-right Right-reduce (GLR) parser, which makes it possible to process nested structures such as relative clauses or prepositional phrases within prepositional phrases [2].",
+   "keywords": 1.0,
+   "keywords_matched": [
+    true,
+    true,
+    true
+   ],
+   "retrieval": {
+    "hit": true,
+    "recall": 1.0,
+    "first_rank": 1
+   },
+   "cited": [
+    2
+   ],
+   "cited_expected": true,
+   "context": [
+    {
+     "rank": 1,
+     "score": 0.8057,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "p. 8",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 4  \u0007New modules"
+    },
+    {
+     "rank": 2,
+     "score": 0.7734,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "pp. 8–9",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 4  \u0007New modules > 4.1  \u0007Recursive structural transfer"
+    },
+    {
+     "rank": 3,
+     "score": 0.7526,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "p. 3",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 2  \u0007Overview of the Apertium platform"
+    },
+    {
+     "rank": 4,
+     "score": 0.7513,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "p. 17",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 5  \u0007Supporting minoritised languages"
+    },
+    {
+     "rank": 5,
+     "score": 0.7348,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "p. 2",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 1  Introduction"
+    }
+   ],
+   "prompt_tokens": 1602,
+   "completion_tokens": 96,
+   "seconds": 1.3,
+   "judge": {
+    "verdict": "correct",
+    "hallucination": false,
+    "reason": "The answer correctly states the motivation (finite-state chunking limitations) and the mechanism (recursive transfer rules with CFGs and a GLR parser handling nested structures), matching the expectation, though it omits the illustrative rule-count example."
+   }
+  },
+  {
+   "id": "q05",
+   "label": "rag/fixed",
+   "answer": "The documents do not contain the answer. The context only mentions that Apertium added \"a module that allows rules to process recursive structures at the structural transfer stage\" among its new optional modules [1][4], without explaining its rationale or mechanism.",
+   "keywords": 0.0,
+   "keywords_matched": [
+    false,
+    false,
+    false
+   ],
+   "retrieval": {
+    "hit": false,
+    "recall": 0.0,
+    "first_rank": null
+   },
+   "cited": [
+    1,
+    4
+   ],
+   "cited_expected": false,
+   "context": [
+    {
+     "rank": 1,
+     "score": 0.7882,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "p. 1",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > Abstract"
+    },
+    {
+     "rank": 2,
+     "score": 0.7511,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "pp. 1–2",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > Abstract"
+    },
+    {
+     "rank": 3,
+     "score": 0.751,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "pp. 2–3",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 1  Introduction"
+    },
+    {
+     "rank": 4,
+     "score": 0.7436,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "p. 1",
+     "section": "(front matter)"
+    },
+    {
+     "rank": 5,
+     "score": 0.7395,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "pp. 10–11",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 4  \u0007New modules > 4.2  \u0007Processing multi‑word expressions > 4.2.1  \u0007The apertium‑separable module"
+    }
+   ],
+   "prompt_tokens": 1673,
+   "completion_tokens": 186,
+   "seconds": 1.78,
+   "judge": {
+    "verdict": "refused",
+    "hallucination": false,
+    "reason": "The answer declines by claiming the documents do not contain the answer, while the expectation shows they do (rationale: finite-state chunker limitations; mechanism: recursive transfer rules with CFGs and a GLR parser), so no facts are provided but nothing is fabricated."
+   }
+  },
+  {
+   "id": "q06",
+   "label": "rag/struct",
+   "answer": "The context names the chapter but only details RULE ONE: it concerns the amount of energy — measured in calories — that you get from your diet, with the only true requirement for losing fat being a calorie deficit (not keto, paleo, intermittent fasting, clean eating, cutting sugar/carbs/wheat/gluten/milk, etc.) [2]. The documents do not state Rules Two and Three.\n\nWhat the context does cover: Chapter 1 lists \"inessentials\" that don't matter for fat loss, including carbohydrate, dietary fat, meal timing, sugar, and the glycemic index [4].",
+   "keywords": 0.3333333333333333,
+   "keywords_matched": [
+    true,
+    false,
+    false
+   ],
+   "retrieval": {
+    "hit": true,
+    "recall": 1.0,
+    "first_rank": 2
+   },
+   "cited": [
+    2,
+    4
+   ],
+   "cited_expected": true,
+   "context": [
+    {
+     "rank": 1,
+     "score": 0.8169,
+     "source": "Gutless.pdf",
+     "pages": "pp. 1–2",
+     "section": "By Christian Finn, M.Sc > Table of Contents"
+    },
+    {
+     "rank": 2,
+     "score": 0.7609,
+     "source": "Gutless.pdf",
+     "pages": "p. 9",
+     "section": "By Christian Finn, M.Sc > Chapter 2: The Three Golden Rules of Fat Loss"
+    },
+    {
+     "rank": 3,
+     "score": 0.7195,
+     "source": "Gutless.pdf",
+     "pages": "pp. 18–19",
+     "section": "3. MEAL FREQUENCY"
+    },
+    {
+     "rank": 4,
+     "score": 0.6891,
+     "source": "Gutless.pdf",
+     "pages": "p. 6",
+     "section": "By Christian Finn, M.Sc > Chapter 1: Hacking Away at the Inessentials"
+    },
+    {
+     "rank": 5,
+     "score": 0.6887,
+     "source": "Gutless.pdf",
+     "pages": "p. 5",
+     "section": "By Christian Finn, M.Sc > Introduction"
+    }
+   ],
+   "prompt_tokens": 1686,
+   "completion_tokens": 210,
+   "seconds": 1.94,
+   "judge": {
+    "verdict": "partial",
+    "hallucination": false,
+    "reason": "It correctly gives Rule One (calorie deficit) but omits the protein and consistency rules, which the expectation requires."
+   }
+  },
+  {
+   "id": "q06",
+   "label": "rag/fixed",
+   "answer": "The context only identifies the first of the three: \"1. CALORIES,\" which involves calculating daily calorie intake, e.g. multiplying body weight in pounds by 10–12 [4]. The names of the second and third rules are not given in these passages, although a section headed \"3. MEAL FREQUENCY\" appears [5] without being labelled as a golden rule.",
+   "keywords": 0.3333333333333333,
+   "keywords_matched": [
+    true,
+    false,
+    false
+   ],
+   "retrieval": {
+    "hit": true,
+    "recall": 1.0,
+    "first_rank": 3
+   },
+   "cited": [
+    4,
+    5
+   ],
+   "cited_expected": true,
+   "context": [
+    {
+     "rank": 1,
+     "score": 0.7947,
+     "source": "Gutless.pdf",
+     "pages": "pp. 5–6",
+     "section": "By Christian Finn, M.Sc > Introduction"
+    },
+    {
+     "rank": 2,
+     "score": 0.7867,
+     "source": "Gutless.pdf",
+     "pages": "pp. 1–3",
+     "section": "(front matter)"
+    },
+    {
+     "rank": 3,
+     "score": 0.7352,
+     "source": "Gutless.pdf",
+     "pages": "pp. 7–9",
+     "section": "By Christian Finn, M.Sc > Chapter 1: Hacking Away at the Inessentials"
+    },
+    {
+     "rank": 4,
+     "score": 0.7293,
+     "source": "Gutless.pdf",
+     "pages": "p. 11",
+     "section": "By Christian Finn, M.Sc > Chapter 2: The Three Golden Rules of Fat Loss"
+    },
+    {
+     "rank": 5,
+     "score": 0.7233,
+     "source": "Gutless.pdf",
+     "pages": "pp. 18–19",
+     "section": "3. MEAL FREQUENCY"
+    }
+   ],
+   "prompt_tokens": 1514,
+   "completion_tokens": 526,
+   "seconds": 3.06,
+   "judge": {
+    "verdict": "partial",
+    "hallucination": false,
+    "reason": "The answer correctly identifies the calories rule but omits protein and consistency, claiming they are not in the passages, so only one of the three key facts is present."
+   }
+  },
+  {
+   "id": "q07",
+   "label": "rag/struct",
+   "answer": "Using the simple method, take your body weight in pounds and multiply it by a number between 10 and 12 [3]. For a 185-pound person, that works out to somewhere between 1850 calories (185 x 10) and 2220 calories (185 x 12) per day [3]. These numbers are a starting point rather than a fixed prescription, and will need adjusting over time based on results [4].",
+   "keywords": 1.0,
+   "keywords_matched": [
+    true,
+    true
+   ],
+   "retrieval": {
+    "hit": true,
+    "recall": 1.0,
+    "first_rank": 3
+   },
+   "cited": [
+    3,
+    4
+   ],
+   "cited_expected": true,
+   "context": [
+    {
+     "rank": 1,
+     "score": 0.7553,
+     "source": "Gutless.pdf",
+     "pages": "pp. 18–19",
+     "section": "3. MEAL FREQUENCY"
+    },
+    {
+     "rank": 2,
+     "score": 0.7274,
+     "source": "Gutless.pdf",
+     "pages": "pp. 1–2",
+     "section": "By Christian Finn, M.Sc > Table of Contents"
+    },
+    {
+     "rank": 3,
+     "score": 0.7216,
+     "source": "Gutless.pdf",
+     "pages": "pp. 10–11",
+     "section": "By Christian Finn, M.Sc > Chapter 2: The Three Golden Rules of Fat Loss"
+    },
+    {
+     "rank": 4,
+     "score": 0.6943,
+     "source": "Gutless.pdf",
+     "pages": "pp. 12–13",
+     "section": "By Christian Finn, M.Sc > Chapter 2: The Three Golden Rules of Fat Loss"
+    },
+    {
+     "rank": 5,
+     "score": 0.6901,
+     "source": "Gutless.pdf",
+     "pages": "pp. 17–18",
+     "section": "3. MEAL FREQUENCY"
+    }
+   ],
+   "prompt_tokens": 1539,
+   "completion_tokens": 122,
+   "seconds": 1.97,
+   "judge": {
+    "verdict": "correct",
+    "hallucination": false,
+    "reason": "The answer correctly applies the 10–12 multiplier to 185 pounds, giving 1,850–2,220 calories per day, matching the expectation."
+   }
+  },
+  {
+   "id": "q07",
+   "label": "rag/fixed",
+   "answer": "Using the simple method, a 185-pound person should eat somewhere between 1,850 calories (185 x 10) and 2,220 calories (185 x 12) per day to lose fat [1]. If they are not very active or have a slow metabolism, they should aim for around 10 calories per pound of body weight [1].",
+   "keywords": 1.0,
+   "keywords_matched": [
+    true,
+    true
+   ],
+   "retrieval": {
+    "hit": true,
+    "recall": 1.0,
+    "first_rank": 1
+   },
+   "cited": [
+    1
+   ],
+   "cited_expected": true,
+   "context": [
+    {
+     "rank": 1,
+     "score": 0.7892,
+     "source": "Gutless.pdf",
+     "pages": "p. 11",
+     "section": "By Christian Finn, M.Sc > Chapter 2: The Three Golden Rules of Fat Loss"
+    },
+    {
+     "rank": 2,
+     "score": 0.7514,
+     "source": "Gutless.pdf",
+     "pages": "pp. 5–6",
+     "section": "By Christian Finn, M.Sc > Introduction"
+    },
+    {
+     "rank": 3,
+     "score": 0.744,
+     "source": "Gutless.pdf",
+     "pages": "pp. 18–19",
+     "section": "3. MEAL FREQUENCY"
+    },
+    {
+     "rank": 4,
+     "score": 0.7114,
+     "source": "Gutless.pdf",
+     "pages": "pp. 12–13",
+     "section": "By Christian Finn, M.Sc > Chapter 2: The Three Golden Rules of Fat Loss"
+    },
+    {
+     "rank": 5,
+     "score": 0.7023,
+     "source": "Gutless.pdf",
+     "pages": "pp. 19–20",
+     "section": "3. MEAL FREQUENCY"
+    }
+   ],
+   "prompt_tokens": 1516,
+   "completion_tokens": 134,
+   "seconds": 1.28,
+   "judge": {
+    "verdict": "correct",
+    "hallucination": false,
+    "reason": "The answer correctly applies the 10–12 calories per pound rule to 185 pounds, giving 1,850–2,220 calories, and notes the 10-calorie guideline for inactive/slow-metabolism individuals, matching the expectation."
+   }
+  },
+  {
+   "id": "q08",
+   "label": "rag/struct",
+   "answer": "All of the passages come from a single document in the collection: the TatarTTS paper, which deals with Tatar by presenting an open-source text-to-speech synthesis dataset for the language.\n\nWays it addresses Tatar:\n- Dataset construction: texts were sourced from the Tatar language corpus, covering genres such as fiction, media, official documents, educational and scientific literature, and were read by Tatar National Theatre actors [1].\n- Corpus content: it consists of 70 hours of transcribed speech from two speakers (one male, one female), with statistics given for segments, tokens, and durations (36.2 h male, 33.9 h female) [3][5].\n- Models/results: preliminary baseline TTS models were created, and 30 hours of speech data was found sufficient for reasonably good MOS performance [3].\n- Related work on Tatar NLP: corpora for tasks like text similarity and relatedness, named entity recognition tools, inclusion in the Turkic ASR model for 10 Turkic languages, and neural machine translation tools to and from Tatar [4].\n- Prior TTS efforts: an earlier corpus of under 8 hours from 2 male and 1 female speakers, and attempts using transliteration into Kazakh that lacked intelligibility [5].",
+   "keywords": 1.0,
+   "keywords_matched": [
+    true,
+    true
+   ],
+   "retrieval": {
+    "hit": false,
+    "recall": 0.5,
+    "first_rank": 1
+   },
+   "cited": [
+    1,
+    3,
+    5,
+    4
+   ],
+   "cited_expected": true,
+   "context": [
+    {
+     "rank": 1,
+     "score": 0.7526,
+     "source": "1570978467.pdf",
+     "pages": "p. 2",
+     "section": "III. DATASET CONSTRUCTION > A. Tatar Speech Corpus"
+    },
+    {
+     "rank": 2,
+     "score": 0.742,
+     "source": "1570978467.pdf",
+     "pages": "p. 1",
+     "section": "I. INTRODUCTION"
+    },
+    {
+     "rank": 3,
+     "score": 0.7349,
+     "source": "1570978467.pdf",
+     "pages": "p. 4",
+     "section": "VI. CONCLUSION"
+    },
+    {
+     "rank": 4,
+     "score": 0.7275,
+     "source": "1570978467.pdf",
+     "pages": "p. 2",
+     "section": "II. RELATED WORKS > B. NLP for Tatar Language"
+    },
+    {
+     "rank": 5,
+     "score": 0.7168,
+     "source": "1570978467.pdf",
+     "pages": "p. 2",
+     "section": "II. RELATED WORKS > B. NLP for Tatar Language"
+    }
+   ],
+   "prompt_tokens": 1405,
+   "completion_tokens": 427,
+   "seconds": 2.86,
+   "judge": {
+    "verdict": "partial",
+    "hallucination": true,
+    "reason": "The answer correctly details the TatarTTS paper but omits the Apertium document entirely and falsely asserts that all passages come from a single document, contradicting the expectation of two relevant documents."
+   }
+  },
+  {
+   "id": "q08",
+   "label": "rag/fixed",
+   "answer": "The context contains one document dealing with the Tatar language: the TatarTTS paper (1570978467.pdf), which introduces an open-source Tatar text-to-speech dataset of roughly 70 hours of transcribed audio from two professional speakers, one male and one female [5]. It also reviews prior Tatar NLP work, including corpora for tasks like text similarity and named entity recognition, integration into a multilingual Turkic ASR model [4], and machine translation tools, as well as earlier TTS corpus efforts and Kazakh-transliteration approaches [2]. Its dataset construction drew textual content from the Tatar language corpus, covering genres such as fiction, media texts, official documents, educational and scientific literature [1].",
+   "keywords": 1.0,
+   "keywords_matched": [
+    true,
+    true
+   ],
+   "retrieval": {
+    "hit": false,
+    "recall": 0.5,
+    "first_rank": 1
+   },
+   "cited": [
+    5,
+    4,
+    2,
+    1
+   ],
+   "cited_expected": true,
+   "context": [
+    {
+     "rank": 1,
+     "score": 0.7521,
+     "source": "1570978467.pdf",
+     "pages": "p. 2",
+     "section": "II. RELATED WORKS > B. NLP for Tatar Language"
+    },
+    {
+     "rank": 2,
+     "score": 0.725,
+     "source": "1570978467.pdf",
+     "pages": "p. 2",
+     "section": "II. RELATED WORKS > B. NLP for Tatar Language"
+    },
+    {
+     "rank": 3,
+     "score": 0.7221,
+     "source": "1570978467.pdf",
+     "pages": "pp. 1–2",
+     "section": "I. INTRODUCTION"
+    },
+    {
+     "rank": 4,
+     "score": 0.7146,
+     "source": "1570978467.pdf",
+     "pages": "p. 2",
+     "section": "II. RELATED WORKS > A. NLP for Turkic Languages"
+    },
+    {
+     "rank": 5,
+     "score": 0.7098,
+     "source": "1570978467.pdf",
+     "pages": "p. 1",
+     "section": "(front matter)"
+    }
+   ],
+   "prompt_tokens": 1497,
+   "completion_tokens": 293,
+   "seconds": 2.42,
+   "judge": {
+    "verdict": "partial",
+    "hallucination": false,
+    "reason": "Correctly describes the TatarTTS paper and its 70-hour TTS dataset, but omits the second document (Apertium) entirely, which covers Tatar in machine translation."
+   }
+  },
+  {
+   "id": "q09",
+   "label": "rag/struct",
+   "answer": "The documents do not contain the answer.\n\nThe context covers protein intake, meal frequency, and the author's pre/post-workout meals (banana, protein shake, fruit smoothie), but never mentions creatine.",
+   "keywords": 1.0,
+   "keywords_matched": [
+    true
+   ],
+   "retrieval": null,
+   "cited": [],
+   "cited_expected": null,
+   "context": [
+    {
+     "rank": 1,
+     "score": 0.6999,
+     "source": "Gutless.pdf",
+     "pages": "p. 29",
+     "section": "2. Eat Enough Protein"
+    },
+    {
+     "rank": 2,
+     "score": 0.6901,
+     "source": "Gutless.pdf",
+     "pages": "pp. 1–2",
+     "section": "By Christian Finn, M.Sc > Table of Contents"
+    },
+    {
+     "rank": 3,
+     "score": 0.6802,
+     "source": "Gutless.pdf",
+     "pages": "pp. 18–19",
+     "section": "3. MEAL FREQUENCY"
+    },
+    {
+     "rank": 4,
+     "score": 0.6572,
+     "source": "Gutless.pdf",
+     "pages": "p. 13",
+     "section": "2. PROTEIN"
+    },
+    {
+     "rank": 5,
+     "score": 0.6514,
+     "source": "Gutless.pdf",
+     "pages": "pp. 42–43",
+     "section": "4. Use a Preload > Chapter 4: What I Eat, When and Why"
+    }
+   ],
+   "prompt_tokens": 1457,
+   "completion_tokens": 61,
+   "seconds": 1.23,
+   "judge": {
+    "verdict": "correct",
+    "hallucination": false,
+    "reason": "The answer correctly states the documents do not contain the answer, matching the expectation that creatine is not discussed."
+   }
+  },
+  {
+   "id": "q09",
+   "label": "rag/fixed",
+   "answer": "The documents do not contain the answer. The context covers fat-loss topics such as calorie and protein intake, meal frequency and timing, and what doesn't matter for fat loss [1][3][5], but it does not mention creatine.",
+   "keywords": 1.0,
+   "keywords_matched": [
+    true
+   ],
+   "retrieval": null,
+   "cited": [
+    1,
+    3,
+    5
+   ],
+   "cited_expected": null,
+   "context": [
+    {
+     "rank": 1,
+     "score": 0.7013,
+     "source": "Gutless.pdf",
+     "pages": "p. 11",
+     "section": "By Christian Finn, M.Sc > Chapter 2: The Three Golden Rules of Fat Loss"
+    },
+    {
+     "rank": 2,
+     "score": 0.6832,
+     "source": "Gutless.pdf",
+     "pages": "pp. 18–19",
+     "section": "3. MEAL FREQUENCY"
+    },
+    {
+     "rank": 3,
+     "score": 0.6795,
+     "source": "Gutless.pdf",
+     "pages": "pp. 5–6",
+     "section": "By Christian Finn, M.Sc > Introduction"
+    },
+    {
+     "rank": 4,
+     "score": 0.6754,
+     "source": "Gutless.pdf",
+     "pages": "pp. 1–3",
+     "section": "(front matter)"
+    },
+    {
+     "rank": 5,
+     "score": 0.6565,
+     "source": "Gutless.pdf",
+     "pages": "p. 13",
+     "section": "2. PROTEIN"
+    }
+   ],
+   "prompt_tokens": 1517,
+   "completion_tokens": 69,
+   "seconds": 1.32,
+   "judge": {
+    "verdict": "correct",
+    "hallucination": false,
+    "reason": "The answer correctly states the documents do not contain the answer, noting they cover fat-loss topics but not creatine, matching the expectation."
+   }
+  },
+  {
+   "id": "q10",
+   "label": "rag/struct",
+   "answer": "The documents do not contain the answer. The context reports evaluation via Mean Opinion Score (MOS) with native-speaker ratings [4], not word error rate.",
+   "keywords": 1.0,
+   "keywords_matched": [
+    true
+   ],
+   "retrieval": null,
+   "cited": [
+    4
+   ],
+   "cited_expected": null,
+   "context": [
+    {
+     "rank": 1,
+     "score": 0.7455,
+     "source": "1570978467.pdf",
+     "pages": "p. 4",
+     "section": "VI. CONCLUSION"
+    },
+    {
+     "rank": 2,
+     "score": 0.7225,
+     "source": "1570978467.pdf",
+     "pages": "p. 1",
+     "section": "(front matter)"
+    },
+    {
+     "rank": 3,
+     "score": 0.7142,
+     "source": "1570978467.pdf",
+     "pages": "p. 2",
+     "section": "II. RELATED WORKS > B. NLP for Tatar Language"
+    },
+    {
+     "rank": 4,
+     "score": 0.7139,
+     "source": "1570978467.pdf",
+     "pages": "p. 3",
+     "section": "IV. TTS EXPERIMENTS > C. Model Evaluation"
+    },
+    {
+     "rank": 5,
+     "score": 0.7096,
+     "source": "1570978467.pdf",
+     "pages": "p. 1",
+     "section": "I. INTRODUCTION"
+    }
+   ],
+   "prompt_tokens": 1527,
+   "completion_tokens": 55,
+   "seconds": 1.03,
+   "judge": {
+    "verdict": "correct",
+    "hallucination": false,
+    "reason": "The answer correctly states the documents do not contain a WER and notes MOS was used instead, matching the expectation without inventing a number."
+   }
+  },
+  {
+   "id": "q10",
+   "label": "rag/fixed",
+   "answer": "The documents do not contain the answer.\n\nThe context reports subjective evaluation results (mean opinion scores) for the TTS models, such as MOS scores above 4.5 for pronunciation, coherence, and overall quality [1], but no word error rate is mentioned.",
+   "keywords": 1.0,
+   "keywords_matched": [
+    true
+   ],
+   "retrieval": null,
+   "cited": [
+    1
+   ],
+   "cited_expected": null,
+   "context": [
+    {
+     "rank": 1,
+     "score": 0.747,
+     "source": "1570978467.pdf",
+     "pages": "p. 4",
+     "section": "V. RESULTS & DISCUSSION"
+    },
+    {
+     "rank": 2,
+     "score": 0.738,
+     "source": "1570978467.pdf",
+     "pages": "p. 4",
+     "section": "VI. CONCLUSION"
+    },
+    {
+     "rank": 3,
+     "score": 0.7248,
+     "source": "1570978467.pdf",
+     "pages": "p. 1",
+     "section": "(front matter)"
+    },
+    {
+     "rank": 4,
+     "score": 0.7199,
+     "source": "1570978467.pdf",
+     "pages": "p. 4",
+     "section": "VI. CONCLUSION"
+    },
+    {
+     "rank": 5,
+     "score": 0.719,
+     "source": "1570978467.pdf",
+     "pages": "p. 3",
+     "section": "IV. TTS EXPERIMENTS > C. Model Evaluation"
+    }
+   ],
+   "prompt_tokens": 1381,
+   "completion_tokens": 77,
+   "seconds": 1.28,
+   "judge": {
+    "verdict": "correct",
+    "hallucination": false,
+    "reason": "The answer correctly states the documents do not contain a WER, consistent with the expectation that the paper uses MOS only, and adds no contradicting figures."
+   }
+  }
+ ],
+ "judge_model": "deepseek-flash"
+}

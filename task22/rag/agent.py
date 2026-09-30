@@ -50,14 +50,17 @@ class Agent:
         self.llm = llm
         self.retriever = retriever
 
-    def answer(self, question: str, mode: str = "rag", strategy: str = DEFAULT_STRATEGY, k: int = DEFAULT_K) -> Answer:
+    def answer(self, question: str, mode: str = "rag", strategy: str = DEFAULT_STRATEGY, k: int = DEFAULT_K,
+               hits: list[Hit] | None = None) -> Answer:
+        """`hits` skips retrieval: the evaluation retrieves up front, then calls the LLM in parallel."""
         if mode == "plain":
             reply = self.llm.chat(prompt.PLAIN_SYSTEM, prompt.plain_user(question))
             return Answer(question, "plain", None, reply.text, [], reply.prompt_tokens, reply.completion_tokens, reply.seconds)
         if mode != "rag":
             raise ValueError(f"unknown mode {mode!r}, expected one of {MODES}")
-        if self.retriever is None:
-            raise ValueError("rag mode needs a retriever")
-        hits = self.retriever.search(question, strategy, k)
+        if hits is None:
+            if self.retriever is None:
+                raise ValueError("rag mode needs a retriever")
+            hits = self.retriever.search(question, strategy, k)
         reply = self.llm.chat(prompt.RAG_SYSTEM, prompt.rag_user(question, hits))
         return Answer(question, "rag", strategy, reply.text, hits, reply.prompt_tokens, reply.completion_tokens, reply.seconds)

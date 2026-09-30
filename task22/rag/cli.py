@@ -4,6 +4,8 @@
   rag chat [--mode rag|plain] [--strategy struct|fixed] [-k N]
            in chat: /rag on|off  /strategy struct|fixed  /k N  /context on|off  /quit
   rag check [--questions FILE] [-k N]            retrieval only: are the expected sources found?
+  rag eval  [--strategies struct,fixed] [--markdown EVAL.md]   all questions × all modes, judged
+  rag eval  --rejudge eval/run-….json            grade saved answers again (or --report to only print)
 """
 
 from __future__ import annotations
@@ -15,7 +17,7 @@ from pathlib import Path
 
 from indexer.embed import EmbedError
 
-from . import evalset
+from . import evalset, evaluate, report
 from .agent import MODES, Agent, Answer
 from .llm import MODELS, DeepSeek, LLMError
 from .retrieve import DEFAULT_DB, DEFAULT_K, DEFAULT_STRATEGY, STRATEGIES, Hit, IndexMissing, Retriever
@@ -49,9 +51,22 @@ def main(argv: list[str] | None = None) -> int:
     check.add_argument("--questions", type=Path, default=evalset.DEFAULT_QUESTIONS)
     check.add_argument("-k", type=int, default=DEFAULT_K)
 
+    ev = sub.add_parser("eval", help="answer every control question in every mode, score, report")
+    ev.add_argument("--db", type=Path, default=DEFAULT_DB)
+    ev.add_argument("--questions", type=Path, default=evalset.DEFAULT_QUESTIONS)
+    ev.add_argument("--model", choices=MODELS, default=MODELS[0], help="model that answers")
+    ev.add_argument("--judge-model", choices=MODELS, help="model that grades (default: --model)")
+    ev.add_argument("--strategies", default=",".join(STRATEGIES), help="comma-separated, e.g. struct or struct,fixed")
+    ev.add_argument("-k", type=int, default=DEFAULT_K)
+    ev.add_argument("--workers", type=int, default=6, help="parallel LLM calls")
+    ev.add_argument("--markdown", type=Path, help="write the tables into this file (between the eval markers)")
+    saved = ev.add_mutually_exclusive_group()
+    saved.add_argument("--rejudge", type=Path, metavar="RUN", help="grade the answers of a saved run again")
+    saved.add_argument("--report", type=Path, metavar="RUN", help="print / write the report of a saved run")
+
     args = ap.parse_args(argv)
     try:
-        return {"ask": cmd_ask, "chat": cmd_chat, "check": cmd_check}[args.cmd](args)
+        return {"ask": cmd_ask, "chat": cmd_chat, "check": cmd_check, "eval": cmd_eval}[args.cmd](args)
     except (EmbedError, IndexMissing, LLMError) as e:
         print(f"error: {e}", file=sys.stderr)
         return 1
@@ -134,6 +149,43 @@ def cmd_check(args) -> int:
     retriever.close()
     print("\nhit@%d over %d answerable questions: " % (args.k, len(answerable))
           + ", ".join(f"{s} {totals[s]}/{len(answerable)}" for s in STRATEGIES))
+    return 0
+
+
+def cmd_eval(args) -> int:
+    questions = evalset.load(args.questions)
+    if args.report:
+        data = evaluate.load(args.report)
+    else:
+        judge_llm = DeepSeek(args.judge_model or args.model)
+        if args.rejudge:
+            data = evaluate.load(args.rejudge)
+            path = args.rejudge
+        else:
+            strategies = [s.strip() for s in args.strategies.split(",") if s.strip()]
+            bad = [s for s in strategies if s not in STRATEGIES]
+            if bad:
+                print(f"error: unknown strategies {bad}, expected {list(STRATEGIES)}", file=sys.stderr)
+                return 2
+            retriever = Retriever(args.db)
+            print(f"answering {len(questions)} questions × {1 + len(strategies)} modes with {args.model} …")
+            try:
+                data = evaluate.run(questions, retriever, DeepSeek(args.model), strategies, args.k, args.workers)
+            finally:
+                retriever.close()
+            path = evaluate.save(data)
+            print(f"answers saved → {path}")
+        print(f"grading with {judge_llm.model} …")
+        data = evaluate.grade(data, questions, judge_llm, args.workers)
+        evaluate.save(data, path)
+        print(f"verdicts saved → {path}")
+    print()
+    print(report.terminal(data, questions))
+    for line in report.disagreements(data, questions):
+        print(f"  ! {line}")
+    if args.markdown:
+        report.write_markdown(args.markdown, report.markdown(data, questions))
+        print(f"\nwrote {args.markdown}")
     return 0
 
 
