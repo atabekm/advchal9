@@ -1,7 +1,8 @@
 """question → (retrieve → combine) → LLM.
 
   plain               the question goes to the LLM as is (config None)
-  base, rerank, …     the pipeline picks the chunks, which go in front of the question
+  base, rerank, …     the pipeline picks the chunks, which go in front of the question;
+                      when a filter keeps none, the answer is a refusal and the LLM is not called
 """
 
 from __future__ import annotations
@@ -29,6 +30,11 @@ class Answer:
     @property
     def label(self) -> str:
         return "plain" if self.retrieval is None else self.retrieval.config.mode
+
+    @property
+    def early_refusal(self) -> bool:
+        """Refused by the filter, before any LLM call."""
+        return self.retrieval is not None and not self.retrieval.kept
 
     @property
     def hits(self) -> list[Hit]:
@@ -62,5 +68,7 @@ class Agent:
             if self.pipeline is None:
                 raise ValueError("retrieval modes need a pipeline")
             retrieval = self.pipeline.retrieve(question, config)
+        if not retrieval.kept:  # the filter found nothing relevant enough: refuse without the LLM
+            return Answer(question, retrieval, prompt.NOT_FOUND)
         reply = self.llm.chat(prompt.RAG_SYSTEM, prompt.rag_user(question, retrieval.kept))
         return Answer(question, retrieval, reply.text, reply.prompt_tokens, reply.completion_tokens, reply.seconds)

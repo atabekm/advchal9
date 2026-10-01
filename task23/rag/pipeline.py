@@ -1,10 +1,12 @@
 """Question → the chunks that go into the prompt. The one place the retrieval modes are defined.
 
-  base     cosine top-k_after (task 22 rag/struct)
-  rerank   cosine top-k_before → cross-encoder → top-k_after
+  base        cosine top-k_after (task 22 rag/struct)
+  cos-filter  cosine top-k_after, minus chunks more than cos_delta below the best cosine score
+  rerank      cosine top-k_before → cross-encoder → top-k_after, minus chunks under threshold
 
 Every mode searches k_before, so the pool (and its recall) is comparable across modes; base
-just keeps the first k_after of it in cosine order.
+just keeps the first k_after of it in cosine order. A filter may keep nothing: the agent
+then refuses without calling the LLM. The default cutoffs come from `rag calibrate`.
 """
 
 from __future__ import annotations
@@ -15,10 +17,12 @@ from dataclasses import dataclass, field
 from .rerank import Reranker
 from .retrieve import DEFAULT_STRATEGY, Hit, Retriever
 
-MODES = ("base", "rerank")
+MODES = ("base", "cos-filter", "rerank")
 DEFAULT_MODE = "rerank"
 DEFAULT_K_BEFORE = 20
 DEFAULT_K_AFTER = 5
+DEFAULT_THRESHOLD = 0.05  # cross-encoder score, 0..1; from `rag calibrate`
+DEFAULT_COS_DELTA = 0.06  # cosine distance from the best hit; from `rag calibrate`
 
 
 @dataclass(frozen=True)
@@ -26,12 +30,16 @@ class Config:
     mode: str = DEFAULT_MODE
     k_before: int = DEFAULT_K_BEFORE
     k_after: int = DEFAULT_K_AFTER
+    threshold: float = DEFAULT_THRESHOLD
+    cos_delta: float = DEFAULT_COS_DELTA
 
     def __post_init__(self):
         if self.mode not in MODES:
             raise ValueError(f"unknown mode {self.mode!r}, expected one of {MODES}")
         if not 0 < self.k_after <= self.k_before:
             raise ValueError(f"need 0 < k_after ({self.k_after}) <= k_before ({self.k_before})")
+        if not 0 <= self.threshold <= 1 or self.cos_delta < 0:
+            raise ValueError(f"need 0 <= threshold ({self.threshold}) <= 1 and cos_delta ({self.cos_delta}) >= 0")
 
     @property
     def reranks(self) -> bool:
@@ -65,6 +73,10 @@ class Pipeline:
             t = time.monotonic()
             ranked = self.reranker.rerank(question, pool)
             timings["rerank"] = time.monotonic() - t
+            kept = [h for h in ranked[:config.k_after] if h.rerank >= config.threshold]
         else:
             ranked = pool
-        return Retrieval(question, config, pool, ranked, ranked[:config.k_after], timings)
+            kept = ranked[:config.k_after]
+            if config.mode == "cos-filter" and pool:
+                kept = [h for h in kept if h.score >= pool[0].score - config.cos_delta]
+        return Retrieval(question, config, pool, ranked, kept, timings)

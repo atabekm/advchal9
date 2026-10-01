@@ -54,4 +54,4 @@ def test_load_validates(tmp_path):
 
 def test_shipped_questions_load():
     qs = evalset.load()
-    assert len(qs) == 10 and sum(not q.answerable for q in qs) == 2
+    assert len(qs) == 15 and sum(not q.answerable for q in qs) == 5

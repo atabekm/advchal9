@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 import pytest
 
 from rag.pipeline import Config, Pipeline
@@ -52,3 +54,28 @@ def test_config_validation():
         Config("base", k_before=3, k_after=5)
     with pytest.raises(ValueError):
         Pipeline(FakeRetriever(_pool(1))).retrieve("q", Config("rerank", 1, 1))
+
+
+def test_rerank_threshold_drops_low_scores_and_may_keep_nothing():
+    ret = FakeRetriever(_pool(-1, 4, -6, 0))  # sigmoid: .27 .98 .002 .5
+    r = Pipeline(ret, Reranker(encoder=FakeEncoder())).retrieve("q", Config("rerank", 4, 3, threshold=0.3))
+    assert [h.text for h in r.kept] == ["4", "0"] and len(r.ranked) == 4
+    r = Pipeline(ret, Reranker(encoder=FakeEncoder())).retrieve("q", Config("rerank", 4, 3, threshold=0.99))
+    assert r.kept == []
+
+
+def test_cos_filter_keeps_chunks_near_the_best_cosine_score():
+    hits = [replace(h, score=s) for h, s in zip(_pool(1, 2, 3, 4), (0.80, 0.77, 0.72, 0.70))]
+    r = Pipeline(FakeRetriever(hits)).retrieve("q", Config("cos-filter", 4, 3, cos_delta=0.05))
+    assert [h.score for h in r.kept] == [0.80, 0.77]  # 0.72 is too far; 0.70 is outside the top 3 anyway
+
+
+def test_empty_context_refuses_without_the_llm():
+    from rag import prompt
+    from rag.agent import Agent
+    from tests.test_agent import FakeLLM
+    llm = FakeLLM()
+    pipe = Pipeline(FakeRetriever(_pool(-5, -6)), Reranker(encoder=FakeEncoder()))
+    ans = Agent(llm, pipe).answer("q", Config("rerank", 2, 2, threshold=0.5))
+    assert ans.text == prompt.NOT_FOUND and ans.early_refusal and llm.calls == []
+    assert not Agent(llm, pipe).answer("q", Config("base", 2, 2)).early_refusal
