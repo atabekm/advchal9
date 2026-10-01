@@ -3,6 +3,10 @@
   base        cosine top-k_after (task 22 rag/struct)
   cos-filter  cosine top-k_after, minus chunks more than cos_delta below the best cosine score
   rerank      cosine top-k_before → cross-encoder → top-k_after, minus chunks under threshold
+  rewrite     the question and its rewrites each search top-k_before, merged by reciprocal rank
+              fusion → top-k_after
+  rewrite+rerank   the same merged pool → cross-encoder (best score over the question and its
+              rewrites) → top-k_after, minus chunks under threshold
 
 Every mode searches k_before, so the pool (and its recall) is comparable across modes; base
 just keeps the first k_after of it in cosine order. A filter may keep nothing: the agent
@@ -15,13 +19,16 @@ import time
 from dataclasses import dataclass, field
 
 from .rerank import Reranker
+from .rewrite import Rewrite, Rewriter
 from .retrieve import DEFAULT_STRATEGY, Hit, Retriever
 
-MODES = ("base", "cos-filter", "rerank")
+MODES = ("base", "cos-filter", "rerank", "rewrite", "rewrite+rerank")
 DEFAULT_MODE = "rerank"
 DEFAULT_K_BEFORE = 20
 DEFAULT_K_AFTER = 5
-DEFAULT_THRESHOLD = 0.05  # cross-encoder score, 0..1; from `rag calibrate`
+# cross-encoder score, 0..1, per mode: the strictest cutoff that loses no hit in `rag calibrate`
+# (`--rewrite` for rewrite+rerank, whose scores are the best over several queries, so higher)
+DEFAULT_THRESHOLDS = {"rerank": 0.05, "rewrite+rerank": 0.3}
 DEFAULT_COS_DELTA = 0.06  # cosine distance from the best hit; from `rag calibrate`
 
 
@@ -30,12 +37,14 @@ class Config:
     mode: str = DEFAULT_MODE
     k_before: int = DEFAULT_K_BEFORE
     k_after: int = DEFAULT_K_AFTER
-    threshold: float = DEFAULT_THRESHOLD
+    threshold: float | None = None  # None: the mode's default
     cos_delta: float = DEFAULT_COS_DELTA
 
     def __post_init__(self):
         if self.mode not in MODES:
             raise ValueError(f"unknown mode {self.mode!r}, expected one of {MODES}")
+        if self.threshold is None:
+            object.__setattr__(self, "threshold", DEFAULT_THRESHOLDS.get(self.mode, 0.0))
         if not 0 < self.k_after <= self.k_before:
             raise ValueError(f"need 0 < k_after ({self.k_after}) <= k_before ({self.k_before})")
         if not 0 <= self.threshold <= 1 or self.cos_delta < 0:
@@ -43,35 +52,51 @@ class Config:
 
     @property
     def reranks(self) -> bool:
-        return self.mode == "rerank"
+        return self.mode.endswith("rerank")
+
+    @property
+    def rewrites(self) -> bool:
+        return self.mode.startswith("rewrite")
 
 
 @dataclass
 class Retrieval:
     question: str
     config: Config
-    pool: list[Hit]  # cosine top-k_before, cosine order
+    queries: list[str]  # what was searched: the question, then its rewrites
+    pool: list[Hit]  # cosine top-k_before (fused over the queries), in that order
     ranked: list[Hit]  # the pool in final order (reranked or not), numbered [1..]
     kept: list[Hit]  # the head of `ranked` that goes into the prompt
     timings: dict[str, float] = field(default_factory=dict)  # stage → seconds
+    rewrite: Rewrite | None = None
 
 
 class Pipeline:
-    def __init__(self, retriever: Retriever, reranker: Reranker | None = None):
+    def __init__(self, retriever: Retriever, reranker: Reranker | None = None, rewriter: Rewriter | None = None):
         self.retriever = retriever
         self.reranker = reranker
+        self.rewriter = rewriter
 
     def retrieve(self, question: str, config: Config) -> Retrieval:
-        timings = {}
+        timings, queries, rewrite = {}, [question], None
+        if config.rewrites:
+            if self.rewriter is None:
+                raise ValueError(f"mode {config.mode!r} needs a rewriter")
+            rewrite = self.rewriter.rewrite(question)
+            timings["rewrite"] = rewrite.seconds
+            queries += [q for q in rewrite.queries if q != question]
         t = time.monotonic()
-        pool = self.retriever.search(question, DEFAULT_STRATEGY, config.k_before)
+        if len(queries) == 1:
+            pool = self.retriever.search(question, DEFAULT_STRATEGY, config.k_before)
+        else:
+            pool = self.retriever.search_many(queries, DEFAULT_STRATEGY, config.k_before)
         timings["search"] = time.monotonic() - t
         if config.reranks:
             if self.reranker is None:
                 raise ValueError(f"mode {config.mode!r} needs a reranker")
             self.reranker.encoder  # load the model outside the timing
             t = time.monotonic()
-            ranked = self.reranker.rerank(question, pool)
+            ranked = self.reranker.rerank(queries, pool)
             timings["rerank"] = time.monotonic() - t
             kept = [h for h in ranked[:config.k_after] if h.rerank >= config.threshold]
         else:
@@ -79,4 +104,4 @@ class Pipeline:
             kept = ranked[:config.k_after]
             if config.mode == "cos-filter" and pool:
                 kept = [h for h in kept if h.score >= pool[0].score - config.cos_delta]
-        return Retrieval(question, config, pool, ranked, kept, timings)
+        return Retrieval(question, config, queries, pool, ranked, kept, timings, rewrite)

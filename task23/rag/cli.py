@@ -5,7 +5,8 @@
            best cosine score), rerank (cosine pool → cross-encoder → top-k over --threshold)
   rag chat [--mode rerank] …
            in chat: /rag on|off  /mode M  /threshold T  /k-before N  /k-after N  /context on|off  /quit
-  rag check [--questions FILE] [--k-before N] [--k-after N]   retrieval only: ranks before and after reranking
+           rewrite (the question + 1-3 LLM rewrites, fused), rewrite+rerank (that pool → cross-encoder)
+  rag check [--rewrite] [--k-before N] [--k-after N]   retrieval only: ranks before and after reranking
   rag calibrate [--k-before N] [--k-after N]     score distributions and the cutoff sweeps, no LLM
   rag eval  [--modes base,rerank] [--markdown EVAL.md]        all questions × all modes, judged
   rag eval  --rejudge eval/run-….json            grade saved answers again (or --report to only print)
@@ -24,10 +25,11 @@ from . import evalset, evaluate, report
 from .agent import Agent, Answer
 from .llm import MODELS, DeepSeek, LLMError
 from . import calibrate
-from .pipeline import (DEFAULT_COS_DELTA, DEFAULT_K_AFTER, DEFAULT_K_BEFORE, DEFAULT_MODE, DEFAULT_THRESHOLD, MODES,
+from .pipeline import (DEFAULT_COS_DELTA, DEFAULT_K_AFTER, DEFAULT_K_BEFORE, DEFAULT_MODE, DEFAULT_THRESHOLDS, MODES,
                        Config, Pipeline, Retrieval)
 from .rerank import DEFAULT_MODEL as DEFAULT_RERANKER
 from .rerank import Reranker
+from .rewrite import Rewriter
 from .retrieve import DEFAULT_DB, IndexMissing, Retriever
 
 WIDTH = 100
@@ -50,7 +52,8 @@ def main(argv: list[str] | None = None) -> int:
         p.add_argument("--db", type=Path, default=DEFAULT_DB)
         p.add_argument("--k-before", type=int, default=DEFAULT_K_BEFORE, help="cosine candidates for the reranker")
         p.add_argument("--k-after", type=int, default=DEFAULT_K_AFTER, help="chunks that go into the prompt")
-        p.add_argument("--threshold", type=float, default=DEFAULT_THRESHOLD, help="rerank: minimum cross-encoder score")
+        p.add_argument("--threshold", type=float, help="rerank modes: minimum cross-encoder score (default: "
+                       + ", ".join(f"{m} {t:g}" for m, t in DEFAULT_THRESHOLDS.items()) + ")")
         p.add_argument("--cos-delta", type=float, default=DEFAULT_COS_DELTA,
                        help="cos-filter: maximum distance from the best cosine score")
         p.add_argument("--reranker-model", default=DEFAULT_RERANKER)
@@ -70,10 +73,14 @@ def main(argv: list[str] | None = None) -> int:
 
     check = sub.add_parser("check", help="retrieval check of the control questions, no LLM")
     check.add_argument("--questions", type=Path, default=evalset.DEFAULT_QUESTIONS)
+    check.add_argument("--rewrite", action="store_true", help="search with the question and its rewrites (calls the LLM)")
+    check.add_argument("--model", choices=MODELS, default=MODELS[0], help="model that rewrites")
     retrieval(check)
 
     cal = sub.add_parser("calibrate", help="pick the cutoffs: score distributions and sweeps, no LLM")
     cal.add_argument("--questions", type=Path, default=evalset.DEFAULT_QUESTIONS)
+    cal.add_argument("--rewrite", action="store_true", help="calibrate rewrite+rerank (calls the LLM)")
+    cal.add_argument("--model", choices=MODELS, default=MODELS[0], help="model that rewrites")
     retrieval(cal)
 
     ev = sub.add_parser("eval", help="answer every control question in every mode, score, report")
@@ -96,8 +103,10 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
 
-def _pipeline(args) -> Pipeline:
-    return Pipeline(Retriever(args.db), Reranker(args.reranker_model))
+def _pipeline(args, llm: DeepSeek | None = None) -> Pipeline:
+    """`llm` enables the rewrite modes."""
+    retriever = Retriever(args.db)
+    return Pipeline(retriever, Reranker(args.reranker_model), Rewriter(llm, retriever.titles()) if llm else None)
 
 
 def _config(args, mode: str) -> Config | None:
@@ -105,7 +114,8 @@ def _config(args, mode: str) -> Config | None:
 
 
 def cmd_ask(args) -> int:
-    agent = Agent(DeepSeek(args.model), _pipeline(args))
+    llm = DeepSeek(args.model)
+    agent = Agent(llm, _pipeline(args, llm))
     for mode in args.mode:
         ans = agent.answer(args.question, _config(args, mode))
         if ans.retrieval and args.show_context:
@@ -115,13 +125,14 @@ def cmd_ask(args) -> int:
 
 
 def cmd_chat(args) -> int:
-    agent = Agent(DeepSeek(args.model), _pipeline(args))
+    llm = DeepSeek(args.model)
+    agent = Agent(llm, _pipeline(args, llm))
     rag, mode = args.mode != "plain", (args.mode if args.mode != "plain" else DEFAULT_MODE)
     k_before, k_after, threshold, show = args.k_before, args.k_after, args.threshold, args.show_context
     print(f"rag chat · {args.model} · type /help for commands")
     while True:
         config = Config(mode, k_before, k_after, threshold, args.cos_delta) if rag else None
-        prompt_label = "plain" if config is None else f"{mode} {k_before}→{k_after}" + (f" ≥{threshold:g}" if mode == "rerank" else "")
+        prompt_label = "plain" if config is None else f"{mode} {k_before}→{k_after}" + (f" ≥{config.threshold:g}" if config.reranks else "")
         try:
             line = input(f"\n[{prompt_label}] › ").strip()
         except (EOFError, KeyboardInterrupt):
@@ -169,17 +180,20 @@ def _float01(text: str) -> float | None:
 def cmd_check(args) -> int:
     """Where the first expected chunk ranks in the cosine pool, and where the reranker puts it."""
     questions = evalset.load(args.questions)
-    pipeline = _pipeline(args)
-    config = Config("rerank", args.k_before, args.k_after)
+    pipeline = _pipeline(args, DeepSeek(args.model) if args.rewrite else None)
+    config = Config("rewrite+rerank" if args.rewrite else "rerank", args.k_before, args.k_after, threshold=0.0)
     kb, ka = args.k_before, args.k_after
     answerable = [q for q in questions if q.answerable]
     totals = {"pool": 0, "base": 0, "rerank": 0}
-    print(f"{'id':4}  {'kind':12}  {f'pool@{kb}':>10}  {f'cosine@{ka}':>10}  {f'rerank@{ka}':>10}   top after rerank")
+    first = "fused" if args.rewrite else "cosine"
+    print(f"{'id':4}  {'kind':12}  {f'pool@{kb}':>10}  {f'{first}@{ka}':>10}  {f'rerank@{ka}':>10}   top after rerank")
     for q in questions:
         r = pipeline.retrieve(q.question, config)
+        if args.rewrite:
+            print(f"{'':20}" + " | ".join(r.queries[1:]) + (f"  ({r.rewrite.error})" if r.rewrite.error else ""))
         ranked = r.ranked  # the whole reranked pool, to see where misses land
         top = ranked[0]
-        top_txt = f"{top.rerank:.3f}  {top.source} {top.pages}  (cosine #{top.cosine_rank})"
+        top_txt = f"{top.rerank:.3f}  {top.source} {top.pages}  ({first} #{top.cosine_rank})"
         checks = {"pool": evalset.retrieval_check(q, r.pool), "base": evalset.retrieval_check(q, r.pool),
                   "rerank": evalset.retrieval_check(q, ranked)}
         if checks["pool"] is None:
@@ -195,15 +209,15 @@ def cmd_check(args) -> int:
         print(f"{q.id:4}  {q.kind:12}  " + "  ".join(cells) + f"   {top_txt}")
     pipeline.retriever.close()
     n = len(answerable)
-    print(f"\nover {n} answerable questions: in the pool of {kb}: {totals['pool']}/{n}, "
-          f"in the top {ka} by cosine: {totals['base']}/{n}, after reranking: {totals['rerank']}/{n}")
+    print(f"\nover {n} answerable questions: in the pool ({kb} per query): {totals['pool']}/{n}, "
+          f"in the top {ka} by {first}: {totals['base']}/{n}, after reranking: {totals['rerank']}/{n}")
     return 0
 
 
 def cmd_calibrate(args) -> int:
     questions = evalset.load(args.questions)
-    pipeline = _pipeline(args)
-    scored = calibrate.collect(questions, pipeline, args.k_before)
+    pipeline = _pipeline(args, DeepSeek(args.model) if args.rewrite else None)
+    scored = calibrate.collect(questions, pipeline, args.k_before, "rewrite+rerank" if args.rewrite else "rerank")
     pipeline.retriever.close()
     ka = args.k_after
 
@@ -221,9 +235,10 @@ def cmd_calibrate(args) -> int:
     n_ans = sum(q.answerable for q in questions)
     n_un = len(questions) - n_ans
     for title, name, rows in (
-        (f"rerank: cosine top {args.k_before} → cross-encoder → top {ka}, keep score ≥ threshold", "threshold",
+        (f"{'rewrite+' if args.rewrite else ''}rerank: cosine top {args.k_before} → cross-encoder → top {ka}, keep score ≥ threshold", "threshold",
          calibrate.rerank_sweep(scored, ka)),
-        (f"cos-filter: cosine top {ka}, keep cosine ≥ best − delta", "delta", calibrate.cosine_sweep(scored, ka)),
+        *([] if args.rewrite else [
+            (f"cos-filter: cosine top {ka}, keep cosine ≥ best − delta", "delta", calibrate.cosine_sweep(scored, ka))]),
     ):
         print(f"\n{title}\n")
         print(f"{name:>9}  {f'hit@{ka}':>8}  {'answerable':>10}  {'unanswerable':>12}  {'relevant':>8}  {'irrelevant':>10}  {'chunks':>6}")
@@ -246,10 +261,11 @@ def cmd_eval(args) -> int:
             data = evaluate.load(args.rejudge)
             path = args.rejudge
         else:
-            pipeline = _pipeline(args)
+            llm = DeepSeek(args.model)
+            pipeline = _pipeline(args, llm)
             print(f"answering {len(questions)} questions × {len(args.modes)} modes with {args.model} …")
             try:
-                data = evaluate.run(questions, pipeline, DeepSeek(args.model), args.modes, args.k_before,
+                data = evaluate.run(questions, pipeline, llm, args.modes, args.k_before,
                                     args.k_after, args.workers)
             finally:
                 pipeline.retriever.close()
@@ -274,11 +290,16 @@ def print_context(r: Retrieval) -> None:
     reranked = c.reranks
     head = {"base": f"base: cosine top {c.k_after}",
             "cos-filter": f"cos-filter: cosine top {c.k_after} within {c.cos_delta:g} of the best",
-            "rerank": f"rerank: cosine top {c.k_before} → cross-encoder → top {c.k_after} ≥ {c.threshold:g}"}[c.mode]
+            "rerank": f"rerank: cosine top {c.k_before} → cross-encoder → top {c.k_after} ≥ {c.threshold:g}",
+            "rewrite": f"rewrite: {len(r.queries)} queries × cosine top {c.k_before}, fused → top {c.k_after}",
+            "rewrite+rerank": f"rewrite+rerank: {len(r.queries)} queries × cosine top {c.k_before}, fused ({len(r.pool)}) "
+                              f"→ cross-encoder → top {c.k_after} ≥ {c.threshold:g}"}[c.mode]
     t = "  ".join(f"{k} {v:.2f}s" for k, v in r.timings.items())
     print(f"── context ({head};  {t})")
+    if c.rewrites:
+        print("  queries: " + "\n           ".join(r.queries) + (f"\n  rewrite failed: {r.rewrite.error}" if r.rewrite.error else ""))
     for h in r.kept:
-        scores = f"rerank {h.rerank:.3f} · cos #{h.cosine_rank} {h.score:.3f}" if reranked else f"cos {h.score:.3f}"
+        scores = f"rerank {h.rerank:.3f} · {'fused' if c.rewrites else 'cos'} #{h.cosine_rank} {h.score:.3f}" if reranked else f"cos {h.score:.3f}"
         print(f"  [{h.rank}] {scores}  {h.source}  {h.pages}  {h.section or '—'}")
         snippet = " ".join(h.text.split())
         snippet = snippet[:300] + ("…" if len(snippet) > 300 else "")

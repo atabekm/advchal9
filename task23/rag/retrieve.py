@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from indexer import embed as embed_mod
@@ -14,6 +14,7 @@ DEFAULT_DB = TASK_DIR / "index" / "index.db"
 STRATEGIES = ("struct", "fixed")
 DEFAULT_STRATEGY = "struct"
 DEFAULT_K = 5
+RRF_K = 60  # reciprocal rank fusion constant, the usual value
 
 
 @dataclass(frozen=True)
@@ -57,6 +58,24 @@ class Retriever:
                 section=row["section"] or "", page_start=row["page_start"], page_end=row["page_end"], text=row["text"])
             for i, (score, row) in enumerate(self.store.search(strategy, vec, k), start=1)
         ]
+
+    def titles(self) -> list[str]:
+        return [row["title"] for row in self.store.documents()]
+
+    def search_many(self, queries: list[str], strategy: str = DEFAULT_STRATEGY, k: int = DEFAULT_K) -> list[Hit]:
+        """Each query's top k, merged by reciprocal rank fusion: a chunk found by several queries,
+        or near the top for one, comes first. `score` is the chunk's best cosine over the queries."""
+        if len(queries) == 1:
+            return self.search(queries[0], strategy, k)
+        fused: dict[str, float] = {}
+        best: dict[str, Hit] = {}
+        for q in queries:
+            for h in self.search(q, strategy, k):
+                fused[h.chunk_id] = fused.get(h.chunk_id, 0.0) + 1 / (RRF_K + h.rank)
+                if h.chunk_id not in best or h.score > best[h.chunk_id].score:
+                    best[h.chunk_id] = h
+        order = sorted(fused, key=lambda c: -fused[c])
+        return [replace(best[c], rank=i) for i, c in enumerate(order, start=1)]
 
     def close(self) -> None:
         self.store.close()

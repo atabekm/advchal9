@@ -18,10 +18,10 @@ for reranking.
 | reranker | cross-encoder `BAAI/bge-reranker-base` via `sentence-transformers`, MPS on the M1, `--reranker-model` to swap in `bge-reranker-v2-m3` | it reads the question and the chunk together, unlike cosine over two separate vectors; struct chunks are ≤ 1,500 chars (~350 tokens), inside its 512-token window |
 | rerank score | sigmoid of the cross-encoder logit, 0..1 | a fixed threshold means the same thing for every question, which cosine scores (all bunched around 0.5–0.8) do not give |
 | K | `--k-before 20` (cosine pool) → rerank → threshold → `--k-after 5` | task 22's misses sat at ranks 6–11; a pool of 20 holds all of them |
-| threshold | `--threshold`, default picked in stage 2 from a sweep, not guessed | it is the one number this task is about |
+| threshold | `--threshold`, default per mode from `rag calibrate`: the strictest cutoff that loses no hit (rerank 0.05, rewrite+rerank 0.3) | it is the one number this task is about; the two modes score differently (see merging queries) |
 | empty context | every chunk under the threshold → answer "The documents do not contain the answer." without calling the LLM | the filter can refuse unanswerable questions on its own; counted separately in the eval |
-| rewrite | DeepSeek turns the question into 1–3 search queries (JSON): resolve vague wording, add the terms a document would use, split multi-part questions | q08 needs one query per document; a conversational question needs the document's vocabulary |
-| merging queries | each query retrieves `k-before`; the pools are unioned by chunk id. With the reranker: rerank the union against the **original** question. Without it: reciprocal rank fusion, top `k-after` | the reranker judges relevance to what was asked, not to the rewrite |
+| rewrite | DeepSeek turns the question into 1–3 search queries (JSON): resolve vague wording, add the terms a document would use, split multi-part questions. It sees the document titles from the index. The original question is always searched too | q08 needs one query per document; a conversational question needs the document's vocabulary; without the titles "that Turkic voice dataset" can't become "TatarTTS" |
+| merging queries | each query retrieves `k-before`; the pools are fused by reciprocal rank (RRF). Without the reranker: top `k-after` of the fused order. With it: each chunk scores its **best** cross-encoder score over the question and its rewrites | the plan was to rerank against the original question only; stage 3 showed that scores q08's Apertium chunks ≤ 0.007 (vs 0.99 against the Apertium rewrite), which undoes the rewrite |
 | cheap baseline | a cosine-threshold filter mode (relative: keep chunks within Δ of the top cosine score) | shows what the cross-encoder adds over a free heuristic |
 
 ## The pipeline
@@ -60,7 +60,8 @@ task23/
   rag/
     retrieve.py           + search_many(queries, k) → pooled hits; keeps the cosine rank
     rerank.py             CrossEncoder wrapper: score(question, hits) → hits with rerank score, new rank
-    rewrite.py            question → queries (DeepSeek, JSON), with a fallback to the question itself
+    rewrite.py            question → queries (DeepSeek, JSON, sees the document titles), cached per
+                          question; falls back to the question alone on a bad reply
     pipeline.py           Config(rewrite, stage2, k_before, k_after, threshold) → Retrieval (queries,
                           pool, kept, timings); the one place the modes are defined
     agent.py              takes a Retrieval; empty → refusal without the LLM

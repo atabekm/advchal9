@@ -25,7 +25,11 @@ RUNS_DIR = TASK_DIR / "eval"
 def run(questions: list[Question], pipeline: Pipeline, llm: DeepSeek, modes: list[str], k_before: int, k_after: int,
         workers: int = 6, log=print) -> dict:
     """`modes`: "plain" and/or pipeline modes, in report column order."""
-    # Retrieval first, on this thread: the SQLite connection must not cross threads.
+    # Rewrites in parallel (the rewriter caches them, so every rewrite mode uses the same queries),
+    # then retrieval on this thread: the SQLite connection must not cross threads.
+    if pipeline.rewriter and any(Config(m).rewrites for m in modes if m != "plain"):
+        with ThreadPoolExecutor(workers) as pool:
+            list(pool.map(pipeline.rewriter.rewrite, [q.question for q in questions]))
     retrievals: dict[tuple[str, str], Retrieval] = {
         (q.id, m): pipeline.retrieve(q.question, Config(m, k_before, k_after))
         for q in questions for m in modes if m != "plain"
@@ -58,6 +62,10 @@ def run(questions: list[Question], pipeline: Pipeline, llm: DeepSeek, modes: lis
                          "rerank": None if h.rerank is None else round(h.rerank, 4),
                          "source": h.source, "pages": h.pages, "section": h.section} for h in ans.hits],
             "timings": {k: round(v, 3) for k, v in ans.retrieval.timings.items()} if rag else {},
+            "queries": ans.retrieval.queries[1:] if rag else [],
+            "rewrite_tokens": [ans.retrieval.rewrite.prompt_tokens, ans.retrieval.rewrite.completion_tokens]
+                              if rag and ans.retrieval.rewrite else None,
+            "early_refusal": ans.early_refusal,
             "prompt_tokens": ans.prompt_tokens, "completion_tokens": ans.completion_tokens,
             "seconds": round(ans.seconds, 2),
         })

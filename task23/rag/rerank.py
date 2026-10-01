@@ -40,8 +40,15 @@ class Reranker:
                             dtype=np.float64)
         return (1 / (1 + np.exp(-logits))).tolist()
 
-    def rerank(self, question: str, hits: list[Hit]) -> list[Hit]:
-        """The hits ordered by cross-encoder score, renumbered from 1; the cosine rank is kept."""
-        scored = sorted(zip(self.scores(question, [h.text for h in hits]), hits), key=lambda p: -p[0])
+    def rerank(self, queries: str | list[str], hits: list[Hit]) -> list[Hit]:
+        """The hits ordered by cross-encoder score, renumbered from 1; the cosine rank is kept.
+
+        With several queries (the question and its rewrites) a chunk scores its best over them:
+        a multi-part question's rewrite "Apertium … Tatar" is what makes an Apertium chunk
+        relevant, and the question as a whole scores it near 0."""
+        queries = [queries] if isinstance(queries, str) else queries
+        texts = [h.text for h in hits]
+        best = [max(col) for col in zip(*(self.scores(q, texts) for q in queries))] if texts else []
+        scored = sorted(zip(best, hits), key=lambda p: -p[0])
         return [replace(h, rank=i, cosine_rank=h.cosine_rank or h.rank, rerank=s)
                 for i, (s, h) in enumerate(scored, start=1)]

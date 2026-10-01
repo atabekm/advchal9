@@ -44,8 +44,8 @@ class Row:
     mean_kept: float
 
 
-def collect(questions: list[Question], pipeline: Pipeline, k_before: int) -> list[Scored]:
-    config = Config("rerank", k_before, k_before, threshold=0.0)
+def collect(questions: list[Question], pipeline: Pipeline, k_before: int, mode: str = "rerank") -> list[Scored]:
+    config = Config(mode, k_before, k_before, threshold=0.0)
     return [Scored(q, pipeline.retrieve(q.question, config).ranked) for q in questions]
 
 
