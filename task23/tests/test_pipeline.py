@@ -79,3 +79,11 @@ def test_empty_context_refuses_without_the_llm():
     ans = Agent(llm, pipe).answer("q", Config("rerank", 2, 2, threshold=0.5))
     assert ans.text == prompt.NOT_FOUND and ans.early_refusal and llm.calls == []
     assert not Agent(llm, pipe).answer("q", Config("base", 2, 2)).early_refusal
+
+
+def test_mode_specs_and_labels():
+    assert Config.parse("rerank@0.3").threshold == 0.3 and Config.parse("rerank@0.3").label == "rerank@0.3"
+    assert Config.parse("rerank").label == "rerank" and Config.parse("rerank@0.05").label == "rerank"
+    assert Config.parse("rewrite", k_after=3).k_after == 3
+    with pytest.raises(ValueError):
+        Config.parse("rerank@x")

@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import sys
 import textwrap
+from dataclasses import replace
 from pathlib import Path
 
 from indexer.embed import EmbedError
@@ -37,10 +38,17 @@ ALL_MODES = ("plain", *MODES)
 
 
 def _modes(text: str) -> list[str]:
+    """Comma-separated modes; a rerank mode may carry its own threshold: rerank@0.3."""
     modes = [m.strip() for m in text.split(",") if m.strip()]
-    bad = [m for m in modes if m not in ALL_MODES]
-    if bad or not modes:
-        raise argparse.ArgumentTypeError(f"unknown modes {bad}, expected a comma-separated list of {list(ALL_MODES)}")
+    for m in modes:
+        if m == "plain":
+            continue
+        try:
+            Config.parse(m)
+        except ValueError as e:
+            raise argparse.ArgumentTypeError(f"{m}: {e}; modes are {list(ALL_MODES)}, optionally mode@threshold")
+    if not modes:
+        raise argparse.ArgumentTypeError("no modes")
     return modes
 
 
@@ -60,7 +68,7 @@ def main(argv: list[str] | None = None) -> int:
 
     ask = sub.add_parser("ask", help="answer one question")
     ask.add_argument("question")
-    ask.add_argument("--mode", type=_modes, default=["base", "rerank"], help=f"comma-separated: {','.join(ALL_MODES)}")
+    ask.add_argument("--mode", type=_modes, default=["base", "rerank"], help=f"comma-separated: {','.join(ALL_MODES)}; rerank@0.3 sets a threshold")
     ask.add_argument("--model", choices=MODELS, default=MODELS[0])
     ask.add_argument("--show-context", action="store_true", help="print the retrieved chunks")
     retrieval(ask)
@@ -87,7 +95,7 @@ def main(argv: list[str] | None = None) -> int:
     ev.add_argument("--questions", type=Path, default=evalset.DEFAULT_QUESTIONS)
     ev.add_argument("--model", choices=MODELS, default=MODELS[0], help="model that answers")
     ev.add_argument("--judge-model", choices=MODELS, help="model that grades (default: --model)")
-    ev.add_argument("--modes", type=_modes, default=list(MODES), help=f"comma-separated: {','.join(ALL_MODES)}")
+    ev.add_argument("--modes", type=_modes, default=list(MODES), help=f"comma-separated: {','.join(ALL_MODES)}; rerank@0.3 sets a threshold")
     ev.add_argument("--workers", type=int, default=6, help="parallel LLM calls")
     ev.add_argument("--markdown", type=Path, help="write the tables into this file (between the eval markers)")
     saved = ev.add_mutually_exclusive_group()
@@ -110,7 +118,10 @@ def _pipeline(args, llm: DeepSeek | None = None) -> Pipeline:
 
 
 def _config(args, mode: str) -> Config | None:
-    return None if mode == "plain" else Config(mode, args.k_before, args.k_after, args.threshold, args.cos_delta)
+    if mode == "plain":
+        return None
+    config = Config.parse(mode, k_before=args.k_before, k_after=args.k_after, cos_delta=args.cos_delta)
+    return config if args.threshold is None or "@" in mode else replace(config, threshold=args.threshold)
 
 
 def cmd_ask(args) -> int:

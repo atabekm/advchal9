@@ -50,6 +50,17 @@ class Config:
         if not 0 <= self.threshold <= 1 or self.cos_delta < 0:
             raise ValueError(f"need 0 <= threshold ({self.threshold}) <= 1 and cos_delta ({self.cos_delta}) >= 0")
 
+    @classmethod
+    def parse(cls, spec: str, **kw) -> Config:
+        """"rerank" or "rerank@0.3": a mode, optionally with its own threshold."""
+        mode, _, threshold = spec.partition("@")
+        return cls(mode, threshold=float(threshold) if threshold else None, **kw)
+
+    @property
+    def label(self) -> str:
+        default = DEFAULT_THRESHOLDS.get(self.mode, 0.0)
+        return self.mode if not self.reranks or self.threshold == default else f"{self.mode}@{self.threshold:g}"
+
     @property
     def reranks(self) -> bool:
         return self.mode.endswith("rerank")

@@ -141,3 +141,21 @@ task 22).
 - `ollama serve` with `nomic-embed-text`
 - `DEEPSEEK_API_KEY` in the environment or `task23/.env`
 - the first rerank downloads `bge-reranker-base` (~1.1 GB) into the Hugging Face cache
+
+## What the build changed
+
+- **`check` was reworked in stage 1, not stage 2.** It looped over both chunking
+  strategies, so it had to change when the pipeline went struct-only.
+- **Rerank by the best score over the queries, not against the question alone.** Stage 3
+  showed that the original question scores q08's Apertium chunks ≤ 0.007, against 0.99 for
+  the rewritten query, so reranking against the question undid the rewrite.
+- **One threshold per mode.** Best-over-queries scores run higher, so calibration gives
+  0.05 for rerank and 0.3 for rewrite+rerank. `mode@T` (e.g. `rerank@0.3`) puts other
+  thresholds side by side in one eval run, and `@0` separates reranking from filtering.
+- **The rewriter sees the document titles** from the index. Without them, "that voice dataset
+  for a Turkic language" has nothing to resolve to.
+- **The threshold could not recognise the near-miss questions** (q13 scores 0.956). The early
+  refusal only catches the off-topic one, so the threshold is set as a cost control: the
+  strictest cutoff that empties no answerable question.
+- **Rewrites are cached per question**, so the rewrite modes in one run search with the same
+  queries, and the eval runs them in parallel before retrieval.

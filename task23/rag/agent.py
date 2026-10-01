@@ -29,7 +29,7 @@ class Answer:
 
     @property
     def label(self) -> str:
-        return "plain" if self.retrieval is None else self.retrieval.config.mode
+        return "plain" if self.retrieval is None else self.retrieval.config.label
 
     @property
     def early_refusal(self) -> bool:
