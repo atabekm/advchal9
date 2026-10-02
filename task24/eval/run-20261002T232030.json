@@ -1,0 +1,2338 @@
+{
+ "created": "2026-10-02T23:20:30",
+ "model": "deepseek-flash",
+ "k": 5,
+ "k_before": 20,
+ "min_match": 90.0,
+ "labels": [
+  "legacy:rewrite+rerank",
+  "rewrite+rerank"
+ ],
+ "wall_seconds": 25.9,
+ "results": [
+  {
+   "id": "q01",
+   "label": "legacy:rewrite+rerank",
+   "answer": "The TatarTTS dataset contains approximately 70 hours of transcribed audio recordings [1][3], with over 38,000 segments and nearly equal amounts of data from each speaker [1]. The recordings come from two professional speakers, one male and one female [1][3]. Per Table I, this breaks down as 36.2 hours for the male speaker and 33.9 hours for the female speaker [4].",
+   "keywords": 1.0,
+   "keywords_matched": [
+    true,
+    true,
+    true
+   ],
+   "retrieval": {
+    "hit": true,
+    "recall": 1.0,
+    "first_rank": 1
+   },
+   "pool": {
+    "hit": true,
+    "first_rank": 1,
+    "size": 24
+   },
+   "style": "legacy",
+   "status": "answer",
+   "clarification": "",
+   "sources": [
+    {
+     "ref": 1,
+     "source": "1570978467.pdf",
+     "section": "III. DATASET CONSTRUCTION > B. Dataset Specifications",
+     "pages": "p. 2",
+     "chunk_id": "1570978467:struct:0009"
+    },
+    {
+     "ref": 3,
+     "source": "1570978467.pdf",
+     "section": "(front matter)",
+     "pages": "p. 1",
+     "chunk_id": "1570978467:struct:0000"
+    },
+    {
+     "ref": 4,
+     "source": "1570978467.pdf",
+     "section": "II. RELATED WORKS > B. NLP for Tatar Language",
+     "pages": "p. 2",
+     "chunk_id": "1570978467:struct:0006"
+    }
+   ],
+   "quotes": [],
+   "failed_quotes": [],
+   "attempts": 1,
+   "format_error": null,
+   "cited": [
+    1,
+    3,
+    4
+   ],
+   "cited_expected": true,
+   "context": [
+    {
+     "rank": 1,
+     "cosine_rank": 1,
+     "score": 0.8553,
+     "rerank": 0.9997,
+     "source": "1570978467.pdf",
+     "pages": "p. 2",
+     "section": "III. DATASET CONSTRUCTION > B. Dataset Specifications"
+    },
+    {
+     "rank": 2,
+     "cosine_rank": 2,
+     "score": 0.8233,
+     "rerank": 0.9991,
+     "source": "1570978467.pdf",
+     "pages": "p. 4",
+     "section": "VI. CONCLUSION"
+    },
+    {
+     "rank": 3,
+     "cosine_rank": 3,
+     "score": 0.7961,
+     "rerank": 0.999,
+     "source": "1570978467.pdf",
+     "pages": "p. 1",
+     "section": "(front matter)"
+    },
+    {
+     "rank": 4,
+     "cosine_rank": 4,
+     "score": 0.8098,
+     "rerank": 0.9981,
+     "source": "1570978467.pdf",
+     "pages": "p. 2",
+     "section": "II. RELATED WORKS > B. NLP for Tatar Language"
+    },
+    {
+     "rank": 5,
+     "cosine_rank": 5,
+     "score": 0.7781,
+     "rerank": 0.997,
+     "source": "1570978467.pdf",
+     "pages": "p. 1",
+     "section": "I. INTRODUCTION"
+    }
+   ],
+   "timings": {
+    "rewrite": 1.454,
+    "search": 0.104,
+    "rerank": 3.114,
+    "answer": 1.65
+   },
+   "queries": [
+    "TatarTTS dataset hours of speech",
+    "TatarTTS dataset who recorded it"
+   ],
+   "rewrite_tokens": [
+    258,
+    90
+   ],
+   "early_refusal": false,
+   "prompt_tokens": 1584,
+   "completion_tokens": 138,
+   "seconds": 1.65,
+   "judge": {
+    "verdict": "correct",
+    "hallucination": false,
+    "reason": "The answer gives ~70 hours, 38,000+ segments, two professional speakers (male 36.2 h, female 33.9 h), matching the expectation; only the Tatar National Theatre detail is omitted, which is a minor elaboration."
+   },
+   "faithful": null
+  },
+  {
+   "id": "q04",
+   "label": "legacy:rewrite+rerank",
+   "answer": "In the preliminary evaluation, using apertium-anaphora increased Spanish–English anaphor translation accuracy from 29.2% without anaphora resolution to 54.2% with it, but for Catalan–Italian it caused a slight decrease from 83.3% to 75.0% [2].",
+   "keywords": 1.0,
+   "keywords_matched": [
+    true,
+    true,
+    true,
+    true
+   ],
+   "retrieval": {
+    "hit": true,
+    "recall": 1.0,
+    "first_rank": 1
+   },
+   "pool": {
+    "hit": true,
+    "first_rank": 2,
+    "size": 21
+   },
+   "style": "legacy",
+   "status": "answer",
+   "clarification": "",
+   "sources": [
+    {
+     "ref": 2,
+     "source": "s10590-021-09260-6.pdf",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 4  \u0007New modules > 4.3  \u0007Anaphora resolution > 4.3.3  \u0007Preliminary evaluation",
+     "pages": "pp. 15–16",
+     "chunk_id": "s10590-021-09260-6:struct:0039"
+    }
+   ],
+   "quotes": [],
+   "failed_quotes": [],
+   "attempts": 1,
+   "format_error": null,
+   "cited": [
+    2
+   ],
+   "cited_expected": true,
+   "context": [
+    {
+     "rank": 1,
+     "cosine_rank": 4,
+     "score": 0.7817,
+     "rerank": 0.9993,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "p. 15",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 4  \u0007New modules > 4.3  \u0007Anaphora resolution > 4.3.3  \u0007Preliminary evaluation"
+    },
+    {
+     "rank": 2,
+     "cosine_rank": 2,
+     "score": 0.8024,
+     "rerank": 0.9986,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "pp. 15–16",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 4  \u0007New modules > 4.3  \u0007Anaphora resolution > 4.3.3  \u0007Preliminary evaluation"
+    },
+    {
+     "rank": 3,
+     "cosine_rank": 1,
+     "score": 0.8161,
+     "rerank": 0.9736,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "pp. 12–13",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 4  \u0007New modules > 4.3  \u0007Anaphora resolution"
+    },
+    {
+     "rank": 4,
+     "cosine_rank": 7,
+     "score": 0.7677,
+     "rerank": 0.9628,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "p. 4",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 2  \u0007Overview of the Apertium platform"
+    },
+    {
+     "rank": 5,
+     "cosine_rank": 6,
+     "score": 0.7864,
+     "rerank": 0.9103,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "p. 13",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 4  \u0007New modules > 4.3  \u0007Anaphora resolution"
+    }
+   ],
+   "timings": {
+    "rewrite": 2.438,
+    "search": 0.071,
+    "rerank": 1.326,
+    "answer": 1.65
+   },
+   "queries": [
+    "apertium-anaphora module anaphor translation accuracy preliminary evaluation"
+   ],
+   "rewrite_tokens": [
+    261,
+    404
+   ],
+   "early_refusal": false,
+   "prompt_tokens": 2297,
+   "completion_tokens": 147,
+   "seconds": 1.65,
+   "judge": {
+    "verdict": "correct",
+    "hallucination": false,
+    "reason": "The answer correctly reports both the Spanish–English increase (29.2% → 54.2%) and the Catalan–Italian decrease (83.3% → 75.0%) without contradicting the expectation; it only omits the stated cause of the Catalan–Italian drop."
+   },
+   "faithful": null
+  },
+  {
+   "id": "q05",
+   "label": "legacy:rewrite+rerank",
+   "answer": "The apertium-recursive module was developed to deal with the limitations of finite-state chunking [3]. It applies structural transfer rules recursively using context-free grammars (CFGs) and a Generalized Left-right Right-reduce (GLR) parser, making it possible to process nested structures such as relative clauses or prepositional phrases within prepositional phrases [3]. It is described as providing true recursive transfer [4].",
+   "keywords": 1.0,
+   "keywords_matched": [
+    true,
+    true,
+    true
+   ],
+   "retrieval": {
+    "hit": true,
+    "recall": 1.0,
+    "first_rank": 3
+   },
+   "pool": {
+    "hit": true,
+    "first_rank": 1,
+    "size": 24
+   },
+   "style": "legacy",
+   "status": "answer",
+   "clarification": "",
+   "sources": [
+    {
+     "ref": 3,
+     "source": "s10590-021-09260-6.pdf",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 4  \u0007New modules > 4.1  \u0007Recursive structural transfer",
+     "pages": "pp. 8–9",
+     "chunk_id": "s10590-021-09260-6:struct:0022"
+    },
+    {
+     "ref": 4,
+     "source": "s10590-021-09260-6.pdf",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 4  \u0007New modules",
+     "pages": "p. 8",
+     "chunk_id": "s10590-021-09260-6:struct:0020"
+    }
+   ],
+   "quotes": [],
+   "failed_quotes": [],
+   "attempts": 1,
+   "format_error": null,
+   "cited": [
+    3,
+    4
+   ],
+   "cited_expected": true,
+   "context": [
+    {
+     "rank": 1,
+     "cosine_rank": 8,
+     "score": 0.7241,
+     "rerank": 0.9908,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "p. 1",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > Abstract"
+    },
+    {
+     "rank": 2,
+     "cosine_rank": 16,
+     "score": 0.6806,
+     "rerank": 0.9892,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "p. 18",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 5  \u0007Supporting minoritised languages > 5.1  \u0007Released translation pairs"
+    },
+    {
+     "rank": 3,
+     "cosine_rank": 2,
+     "score": 0.7734,
+     "rerank": 0.9886,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "pp. 8–9",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 4  \u0007New modules > 4.1  \u0007Recursive structural transfer"
+    },
+    {
+     "rank": 4,
+     "cosine_rank": 1,
+     "score": 0.8096,
+     "rerank": 0.9867,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "p. 8",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 4  \u0007New modules"
+    },
+    {
+     "rank": 5,
+     "cosine_rank": 10,
+     "score": 0.7116,
+     "rerank": 0.9744,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "p. 4",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 2  \u0007Overview of the Apertium platform"
+    }
+   ],
+   "timings": {
+    "rewrite": 1.672,
+    "search": 0.058,
+    "rerank": 2.238,
+    "answer": 1.49
+   },
+   "queries": [
+    "apertium-recursive module purpose and development rationale",
+    "apertium-recursive module how it works"
+   ],
+   "rewrite_tokens": [
+    255,
+    235
+   ],
+   "early_refusal": false,
+   "prompt_tokens": 1900,
+   "completion_tokens": 210,
+   "seconds": 1.49,
+   "judge": {
+    "verdict": "correct",
+    "hallucination": false,
+    "reason": "The answer correctly states that apertium-recursive addresses finite-state chunking limitations by applying recursive transfer rules with CFGs and a GLR parser for nested structures, matching the expectation's key facts (though it omits the rule-count example)."
+   },
+   "faithful": null
+  },
+  {
+   "id": "q06",
+   "label": "legacy:rewrite+rerank",
+   "answer": "The three golden rules of fat loss are calories, protein, and consistency [1].",
+   "keywords": 1.0,
+   "keywords_matched": [
+    true,
+    true,
+    true
+   ],
+   "retrieval": {
+    "hit": true,
+    "recall": 1.0,
+    "first_rank": 1
+   },
+   "pool": {
+    "hit": true,
+    "first_rank": 2,
+    "size": 21
+   },
+   "style": "legacy",
+   "status": "answer",
+   "clarification": "",
+   "sources": [
+    {
+     "ref": 1,
+     "source": "Gutless.pdf",
+     "section": "By Christian Finn, M.Sc > Chapter 2: The Three Golden Rules of Fat Loss",
+     "pages": "pp. 10–11",
+     "chunk_id": "gutless:struct:0012"
+    }
+   ],
+   "quotes": [],
+   "failed_quotes": [],
+   "attempts": 1,
+   "format_error": null,
+   "cited": [
+    1
+   ],
+   "cited_expected": true,
+   "context": [
+    {
+     "rank": 1,
+     "cosine_rank": 6,
+     "score": 0.6873,
+     "rerank": 0.9958,
+     "source": "Gutless.pdf",
+     "pages": "pp. 10–11",
+     "section": "By Christian Finn, M.Sc > Chapter 2: The Three Golden Rules of Fat Loss"
+    },
+    {
+     "rank": 2,
+     "cosine_rank": 1,
+     "score": 0.8169,
+     "rerank": 0.909,
+     "source": "Gutless.pdf",
+     "pages": "pp. 1–2",
+     "section": "By Christian Finn, M.Sc > Table of Contents"
+    },
+    {
+     "rank": 3,
+     "cosine_rank": 5,
+     "score": 0.6887,
+     "rerank": 0.9084,
+     "source": "Gutless.pdf",
+     "pages": "p. 5",
+     "section": "By Christian Finn, M.Sc > Introduction"
+    },
+    {
+     "rank": 4,
+     "cosine_rank": 2,
+     "score": 0.7609,
+     "rerank": 0.8738,
+     "source": "Gutless.pdf",
+     "pages": "p. 9",
+     "section": "By Christian Finn, M.Sc > Chapter 2: The Three Golden Rules of Fat Loss"
+    },
+    {
+     "rank": 5,
+     "cosine_rank": 12,
+     "score": 0.6375,
+     "rerank": 0.4557,
+     "source": "Gutless.pdf",
+     "pages": "p. 39",
+     "section": "4. Use a Preload > Chapter 4: What I Eat, When and Why"
+    }
+   ],
+   "timings": {
+    "rewrite": 1.609,
+    "search": 0.046,
+    "rerank": 1.266,
+    "answer": 1.78
+   },
+   "queries": [
+    "three golden rules of fat loss in GUTLESS"
+   ],
+   "rewrite_tokens": [
+    252,
+    155
+   ],
+   "early_refusal": false,
+   "prompt_tokens": 1684,
+   "completion_tokens": 115,
+   "seconds": 1.78,
+   "judge": {
+    "verdict": "correct",
+    "hallucination": false,
+    "reason": "The answer names exactly the three golden rules—calories, protein, and consistency—matching the expectation's key facts without adding anything contradictory."
+   },
+   "faithful": null
+  },
+  {
+   "id": "q07",
+   "label": "legacy:rewrite+rerank",
+   "answer": "A 185-pound person should eat between 1850 calories (185 × 10) and 2220 calories (185 × 12) per day [1].",
+   "keywords": 1.0,
+   "keywords_matched": [
+    true,
+    true
+   ],
+   "retrieval": {
+    "hit": true,
+    "recall": 1.0,
+    "first_rank": 1
+   },
+   "pool": {
+    "hit": true,
+    "first_rank": 3,
+    "size": 23
+   },
+   "style": "legacy",
+   "status": "answer",
+   "clarification": "",
+   "sources": [
+    {
+     "ref": 1,
+     "source": "Gutless.pdf",
+     "section": "By Christian Finn, M.Sc > Chapter 2: The Three Golden Rules of Fat Loss",
+     "pages": "pp. 10–11",
+     "chunk_id": "gutless:struct:0012"
+    }
+   ],
+   "quotes": [],
+   "failed_quotes": [],
+   "attempts": 1,
+   "format_error": null,
+   "cited": [
+    1
+   ],
+   "cited_expected": true,
+   "context": [
+    {
+     "rank": 1,
+     "cosine_rank": 3,
+     "score": 0.7216,
+     "rerank": 0.9986,
+     "source": "Gutless.pdf",
+     "pages": "pp. 10–11",
+     "section": "By Christian Finn, M.Sc > Chapter 2: The Three Golden Rules of Fat Loss"
+    },
+    {
+     "rank": 2,
+     "cosine_rank": 1,
+     "score": 0.7553,
+     "rerank": 0.6003,
+     "source": "Gutless.pdf",
+     "pages": "pp. 18–19",
+     "section": "3. MEAL FREQUENCY"
+    }
+   ],
+   "timings": {
+    "rewrite": 2.787,
+    "search": 0.042,
+    "rerank": 1.44,
+    "answer": 1.1
+   },
+   "queries": [
+    "GUTLESS simple method calories per day for a 185-pound person to lose fat"
+   ],
+   "rewrite_tokens": [
+    263,
+    329
+   ],
+   "early_refusal": false,
+   "prompt_tokens": 832,
+   "completion_tokens": 63,
+   "seconds": 1.1,
+   "judge": {
+    "verdict": "correct",
+    "hallucination": false,
+    "reason": "The answer correctly applies the 10–12 calories per pound rule to 185 pounds, giving 1,850–2,220 calories per day as the expectation requires."
+   },
+   "faithful": null
+  },
+  {
+   "id": "q08",
+   "label": "legacy:rewrite+rerank",
+   "answer": "Documents [1], [2], and [5] deal with the Tatar language through the TatarTTS open-source text-to-speech synthesis dataset: it contains about 70 hours of transcribed audio from two Tatar speakers, and baseline TTS models were built for Tatar [1][2][5].\n\nDocument [3] deals with Tatar in the context of the Apertium rule-based machine translation platform, listing Tatar and Crimean Tatar among its released languages/translation pairs, and mentioning a Tatar spell checker [3]. Document [4] discusses Apertium for low-resource languages generally but does not specifically mention Tatar.",
+   "keywords": 1.0,
+   "keywords_matched": [
+    true,
+    true
+   ],
+   "retrieval": {
+    "hit": false,
+    "recall": 0.5,
+    "first_rank": 1
+   },
+   "pool": {
+    "hit": true,
+    "first_rank": 1,
+    "size": 36
+   },
+   "style": "legacy",
+   "status": "answer",
+   "clarification": "",
+   "sources": [
+    {
+     "ref": 1,
+     "source": "1570978467.pdf",
+     "section": "(front matter)",
+     "pages": "p. 1",
+     "chunk_id": "1570978467:struct:0000"
+    },
+    {
+     "ref": 2,
+     "source": "1570978467.pdf",
+     "section": "III. DATASET CONSTRUCTION > B. Dataset Specifications",
+     "pages": "p. 2",
+     "chunk_id": "1570978467:struct:0009"
+    },
+    {
+     "ref": 5,
+     "source": "1570978467.pdf",
+     "section": "VI. CONCLUSION",
+     "pages": "p. 4",
+     "chunk_id": "1570978467:struct:0016"
+    },
+    {
+     "ref": 3,
+     "source": "s10590-021-09260-6.pdf",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 7  \u0007Conclusion",
+     "pages": "p. 23",
+     "chunk_id": "s10590-021-09260-6:struct:0059"
+    },
+    {
+     "ref": 4,
+     "source": "s10590-021-09260-6.pdf",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 1  Introduction",
+     "pages": "p. 2",
+     "chunk_id": "s10590-021-09260-6:struct:0003"
+    }
+   ],
+   "quotes": [],
+   "failed_quotes": [],
+   "attempts": 1,
+   "format_error": null,
+   "cited": [
+    1,
+    2,
+    5,
+    3,
+    4
+   ],
+   "cited_expected": true,
+   "context": [
+    {
+     "rank": 1,
+     "cosine_rank": 7,
+     "score": 0.9215,
+     "rerank": 0.9985,
+     "source": "1570978467.pdf",
+     "pages": "p. 1",
+     "section": "(front matter)"
+    },
+    {
+     "rank": 2,
+     "cosine_rank": 13,
+     "score": 0.8036,
+     "rerank": 0.9982,
+     "source": "1570978467.pdf",
+     "pages": "p. 2",
+     "section": "III. DATASET CONSTRUCTION > B. Dataset Specifications"
+    },
+    {
+     "rank": 3,
+     "cosine_rank": 24,
+     "score": 0.7903,
+     "rerank": 0.9962,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "p. 23",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 7  \u0007Conclusion"
+    },
+    {
+     "rank": 4,
+     "cosine_rank": 22,
+     "score": 0.8058,
+     "rerank": 0.9958,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "p. 2",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 1  Introduction"
+    },
+    {
+     "rank": 5,
+     "cosine_rank": 8,
+     "score": 0.8596,
+     "rerank": 0.9936,
+     "source": "1570978467.pdf",
+     "pages": "p. 4",
+     "section": "VI. CONCLUSION"
+    }
+   ],
+   "timings": {
+    "rewrite": 5.219,
+    "search": 0.073,
+    "rerank": 5.395,
+    "answer": 2.49
+   },
+   "queries": [
+    "Tatar language text-to-speech synthesis dataset TatarTTS",
+    "Apertium rule-based machine translation low-resource languages Tatar",
+    "GUTLESS Tatar language"
+   ],
+   "rewrite_tokens": [
+    256,
+    1029
+   ],
+   "early_refusal": false,
+   "prompt_tokens": 1797,
+   "completion_tokens": 372,
+   "seconds": 2.49,
+   "judge": {
+    "verdict": "partial",
+    "hallucination": true,
+    "reason": "It correctly reports the TatarTTS 70-hour dataset and baseline models and that Apertium covers Tatar in MT, but it misses the released Kazakh–Tatar pair, Tatar's Turkic minority status and the unreleased Tatar–Bashqort pair, and it asserts unsupported specifics (Crimean Tatar among released pairs, a Tatar spell checker) and three TatarTTS documents instead of two."
+   },
+   "faithful": null
+  },
+  {
+   "id": "q11",
+   "label": "legacy:rewrite+rerank",
+   "answer": "The context describes the resulting dataset but not the recording procedure in detail. It was assembled from recordings of two professional speakers — one male and one female — totaling around 70 hours of audio with over 38,000 segments, split nearly equally between the speakers [4]. The data for each speaker is stored in a separate folder containing a CSV file (with columns for audio file name and its corresponding text) and a sub-folder of audio recordings in WAV format [4]. Tatar is a Turkic language, and this is described as the first publicly available large-scale TTS dataset for it [1].\n\nThe context notes that the paper \"describes the procedures for developing the dataset\" but does not state those recording or transcription steps themselves [1].",
+   "keywords": 0.3333333333333333,
+   "keywords_matched": [
+    false,
+    false,
+    true
+   ],
+   "retrieval": {
+    "hit": true,
+    "recall": 1.0,
+    "first_rank": 4
+   },
+   "pool": {
+    "hit": true,
+    "first_rank": 3,
+    "size": 23
+   },
+   "style": "legacy",
+   "status": "answer",
+   "clarification": "",
+   "sources": [
+    {
+     "ref": 4,
+     "source": "1570978467.pdf",
+     "section": "III. DATASET CONSTRUCTION > B. Dataset Specifications",
+     "pages": "p. 2",
+     "chunk_id": "1570978467:struct:0009"
+    },
+    {
+     "ref": 1,
+     "source": "1570978467.pdf",
+     "section": "(front matter)",
+     "pages": "p. 1",
+     "chunk_id": "1570978467:struct:0000"
+    }
+   ],
+   "quotes": [],
+   "failed_quotes": [],
+   "attempts": 1,
+   "format_error": null,
+   "cited": [
+    4,
+    1
+   ],
+   "cited_expected": true,
+   "context": [
+    {
+     "rank": 1,
+     "cosine_rank": 1,
+     "score": 0.9119,
+     "rerank": 0.9978,
+     "source": "1570978467.pdf",
+     "pages": "p. 1",
+     "section": "(front matter)"
+    },
+    {
+     "rank": 2,
+     "cosine_rank": 2,
+     "score": 0.8311,
+     "rerank": 0.952,
+     "source": "1570978467.pdf",
+     "pages": "p. 1",
+     "section": "I. INTRODUCTION"
+    },
+    {
+     "rank": 3,
+     "cosine_rank": 4,
+     "score": 0.8478,
+     "rerank": 0.8959,
+     "source": "1570978467.pdf",
+     "pages": "p. 4",
+     "section": "VI. CONCLUSION"
+    },
+    {
+     "rank": 4,
+     "cosine_rank": 3,
+     "score": 0.7987,
+     "rerank": 0.8625,
+     "source": "1570978467.pdf",
+     "pages": "p. 2",
+     "section": "III. DATASET CONSTRUCTION > B. Dataset Specifications"
+    },
+    {
+     "rank": 5,
+     "cosine_rank": 5,
+     "score": 0.8257,
+     "rerank": 0.8244,
+     "source": "1570978467.pdf",
+     "pages": "p. 2",
+     "section": "II. RELATED WORKS > B. NLP for Tatar Language"
+    }
+   ],
+   "timings": {
+    "rewrite": 1.695,
+    "search": 0.037,
+    "rerank": 1.823,
+    "answer": 3.12
+   },
+   "queries": [
+    "How was the TatarTTS open-source text-to-speech synthesis dataset for the Tatar language put together?"
+   ],
+   "rewrite_tokens": [
+    253,
+    166
+   ],
+   "early_refusal": false,
+   "prompt_tokens": 1579,
+   "completion_tokens": 542,
+   "seconds": 3.12,
+   "judge": {
+    "verdict": "wrong",
+    "hallucination": true,
+    "reason": "The answer omits the expected TatarTTS construction details and even says the recording/transcription steps are not stated, while adding unsupported specific facts such as 70 hours and 38,000 segments."
+   },
+   "faithful": null
+  },
+  {
+   "id": "q09",
+   "label": "legacy:rewrite+rerank",
+   "answer": "I don't know: the documents do not contain the answer.",
+   "keywords": 0.5,
+   "keywords_matched": [
+    true,
+    false
+   ],
+   "retrieval": null,
+   "pool": null,
+   "style": "legacy",
+   "status": "unknown",
+   "clarification": "",
+   "sources": [],
+   "quotes": [],
+   "failed_quotes": [],
+   "attempts": 0,
+   "format_error": null,
+   "cited": [],
+   "cited_expected": null,
+   "context": [],
+   "timings": {
+    "rewrite": 1.478,
+    "search": 0.04,
+    "rerank": 1.533,
+    "answer": 0.0
+   },
+   "queries": [
+    "GUTLESS creatine grams per day dosage"
+   ],
+   "rewrite_tokens": [
+    256,
+    139
+   ],
+   "early_refusal": true,
+   "prompt_tokens": 0,
+   "completion_tokens": 0,
+   "seconds": 0.0,
+   "judge": {
+    "verdict": "correct",
+    "hallucination": false,
+    "reason": "The answer declines and states the documents do not contain the answer, matching the expectation that Gutless does not discuss creatine."
+   },
+   "faithful": null
+  },
+  {
+   "id": "q13",
+   "label": "legacy:rewrite+rerank",
+   "answer": "The documents do not contain the answer. The context describes the evaluation setup (a Telegram bot, 200 test utterances, 30 recordings per session, and 1–5 ratings on audio quality, pronunciation, naturalness, and comprehensibility [2]), but it never states how many native speakers participated.",
+   "keywords": 0.5,
+   "keywords_matched": [
+    true,
+    false
+   ],
+   "retrieval": null,
+   "pool": null,
+   "style": "legacy",
+   "status": "unknown",
+   "clarification": "",
+   "sources": [
+    {
+     "ref": 2,
+     "source": "1570978467.pdf",
+     "section": "IV. TTS EXPERIMENTS > C. Model Evaluation",
+     "pages": "p. 3",
+     "chunk_id": "1570978467:struct:0013"
+    }
+   ],
+   "quotes": [],
+   "failed_quotes": [],
+   "attempts": 1,
+   "format_error": null,
+   "cited": [
+    2
+   ],
+   "cited_expected": null,
+   "context": [
+    {
+     "rank": 1,
+     "cosine_rank": 6,
+     "score": 0.7594,
+     "rerank": 0.9558,
+     "source": "1570978467.pdf",
+     "pages": "p. 1",
+     "section": "I. INTRODUCTION"
+    },
+    {
+     "rank": 2,
+     "cosine_rank": 5,
+     "score": 0.7505,
+     "rerank": 0.9106,
+     "source": "1570978467.pdf",
+     "pages": "p. 3",
+     "section": "IV. TTS EXPERIMENTS > C. Model Evaluation"
+    },
+    {
+     "rank": 3,
+     "cosine_rank": 4,
+     "score": 0.7681,
+     "rerank": 0.8779,
+     "source": "1570978467.pdf",
+     "pages": "p. 2",
+     "section": "III. DATASET CONSTRUCTION > B. Dataset Specifications"
+    },
+    {
+     "rank": 4,
+     "cosine_rank": 1,
+     "score": 0.7982,
+     "rerank": 0.8462,
+     "source": "1570978467.pdf",
+     "pages": "p. 4",
+     "section": "VI. CONCLUSION"
+    },
+    {
+     "rank": 5,
+     "cosine_rank": 8,
+     "score": 0.6998,
+     "rerank": 0.8184,
+     "source": "1570978467.pdf",
+     "pages": "p. 3",
+     "section": "IV. TTS EXPERIMENTS > B. TTS Model Training"
+    }
+   ],
+   "timings": {
+    "rewrite": 2.365,
+    "search": 0.048,
+    "rerank": 1.663,
+    "answer": 1.61
+   },
+   "queries": [
+    "TatarTTS listening evaluation number of native Tatar speakers"
+   ],
+   "rewrite_tokens": [
+    256,
+    313
+   ],
+   "early_refusal": false,
+   "prompt_tokens": 1609,
+   "completion_tokens": 166,
+   "seconds": 1.61,
+   "judge": {
+    "verdict": "correct",
+    "hallucination": false,
+    "reason": "The answer correctly states the documents do not give the number of native speakers, matching the expectation that the question is unanswerable from the collection."
+   },
+   "faithful": null
+  },
+  {
+   "id": "q16",
+   "label": "legacy:rewrite+rerank",
+   "answer": "The evaluation of the baseline TTS models showed that \"reasonably good performance in terms of MOS can be achieved\" even with a relatively limited amount of training data — specifically 30 hours of speech data — and the models demonstrated \"notable naturalness and sound quality,\" though they still had limitations in coherence and clear pronunciation [5]. The baseline end-to-end TTS models were built and assessed using the subjective mean opinion score (MOS) measure [3].",
+   "keywords": 0.0,
+   "keywords_matched": [
+    false,
+    false
+   ],
+   "retrieval": null,
+   "pool": null,
+   "style": "legacy",
+   "status": "answer",
+   "clarification": "",
+   "sources": [
+    {
+     "ref": 5,
+     "source": "1570978467.pdf",
+     "section": "VI. CONCLUSION",
+     "pages": "p. 4",
+     "chunk_id": "1570978467:struct:0016"
+    },
+    {
+     "ref": 3,
+     "source": "1570978467.pdf",
+     "section": "(front matter)",
+     "pages": "p. 1",
+     "chunk_id": "1570978467:struct:0000"
+    }
+   ],
+   "quotes": [],
+   "failed_quotes": [],
+   "attempts": 1,
+   "format_error": null,
+   "cited": [
+    5,
+    3
+   ],
+   "cited_expected": null,
+   "context": [
+    {
+     "rank": 1,
+     "cosine_rank": 16,
+     "score": 0.855,
+     "rerank": 0.9968,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "p. 2",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 1  Introduction"
+    },
+    {
+     "rank": 2,
+     "cosine_rank": 19,
+     "score": 0.8528,
+     "rerank": 0.9891,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "p. 1",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > Abstract"
+    },
+    {
+     "rank": 3,
+     "cosine_rank": 14,
+     "score": 0.8476,
+     "rerank": 0.9855,
+     "source": "1570978467.pdf",
+     "pages": "p. 1",
+     "section": "(front matter)"
+    },
+    {
+     "rank": 4,
+     "cosine_rank": 27,
+     "score": 0.7416,
+     "rerank": 0.9851,
+     "source": "1570978467.pdf",
+     "pages": "p. 3",
+     "section": "IV. TTS EXPERIMENTS > B. TTS Model Training"
+    },
+    {
+     "rank": 5,
+     "cosine_rank": 17,
+     "score": 0.8127,
+     "rerank": 0.9555,
+     "source": "1570978467.pdf",
+     "pages": "p. 4",
+     "section": "VI. CONCLUSION"
+    }
+   ],
+   "timings": {
+    "rewrite": 1.475,
+    "search": 0.069,
+    "rerank": 8.95,
+    "answer": 1.79
+   },
+   "queries": [
+    "evaluation results of the TatarTTS text-to-speech synthesis dataset",
+    "GUTLESS evaluation findings",
+    "evaluation of Apertium rule-based machine translation platform"
+   ],
+   "rewrite_tokens": [
+    245,
+    109
+   ],
+   "early_refusal": false,
+   "prompt_tokens": 1759,
+   "completion_tokens": 222,
+   "seconds": 1.79,
+   "judge": {
+    "verdict": "partial",
+    "hallucination": false,
+    "reason": "The answer picks one of the multiple possible evaluations (the TatarTTS MOS test) rather than flagging the ambiguity and asking which one, which is acceptable but not the preferred behaviour, and its figures are not contradicted by the expectation."
+   },
+   "faithful": null
+  },
+  {
+   "id": "q01",
+   "label": "rewrite+rerank",
+   "answer": "The TatarTTS dataset contains around 70 hours of audio in total [1], or approximately 70 hours of transcribed audio recordings [3]. It was recorded by two professional speakers, one male and one female [1][3], with 36.2 h from the male speaker and 33.9 h from the female speaker [4].",
+   "keywords": 1.0,
+   "keywords_matched": [
+    true,
+    true,
+    true
+   ],
+   "retrieval": {
+    "hit": true,
+    "recall": 1.0,
+    "first_rank": 1
+   },
+   "pool": {
+    "hit": true,
+    "first_rank": 1,
+    "size": 24
+   },
+   "style": "cited",
+   "status": "answer",
+   "clarification": "",
+   "sources": [
+    {
+     "ref": 1,
+     "source": "1570978467.pdf",
+     "section": "III. DATASET CONSTRUCTION > B. Dataset Specifications",
+     "pages": "p. 2",
+     "chunk_id": "1570978467:struct:0009"
+    },
+    {
+     "ref": 3,
+     "source": "1570978467.pdf",
+     "section": "(front matter)",
+     "pages": "p. 1",
+     "chunk_id": "1570978467:struct:0000"
+    },
+    {
+     "ref": 4,
+     "source": "1570978467.pdf",
+     "section": "II. RELATED WORKS > B. NLP for Tatar Language",
+     "pages": "p. 2",
+     "chunk_id": "1570978467:struct:0006"
+    }
+   ],
+   "quotes": [
+    {
+     "ref": 1,
+     "quote": "In total, the dataset contains around 70 hours of audio consisting of over 38,000 segments.",
+     "match": 100.0
+    },
+    {
+     "ref": 1,
+     "quote": "The TatarTTS dataset comprises speech recordings from two speakers, one male and one female speaker.",
+     "match": 100.0
+    },
+    {
+     "ref": 3,
+     "quote": "The dataset comprises approximately 70 hours of transcribed audio recordings, featuring two professional speakers (one male and one female).",
+     "match": 100.0
+    },
+    {
+     "ref": 4,
+     "quote": "Category M F # Segments 20,508 18,274 # Tokens 201,606 168,614 # Unique tokens 37,684 30,329 Duration 36.2 h 33.9 h",
+     "match": 100.0
+    }
+   ],
+   "failed_quotes": [],
+   "attempts": 1,
+   "format_error": null,
+   "cited": [
+    1,
+    3,
+    4
+   ],
+   "cited_expected": true,
+   "context": [
+    {
+     "rank": 1,
+     "cosine_rank": 1,
+     "score": 0.8553,
+     "rerank": 0.9997,
+     "source": "1570978467.pdf",
+     "pages": "p. 2",
+     "section": "III. DATASET CONSTRUCTION > B. Dataset Specifications"
+    },
+    {
+     "rank": 2,
+     "cosine_rank": 2,
+     "score": 0.8233,
+     "rerank": 0.9991,
+     "source": "1570978467.pdf",
+     "pages": "p. 4",
+     "section": "VI. CONCLUSION"
+    },
+    {
+     "rank": 3,
+     "cosine_rank": 3,
+     "score": 0.7961,
+     "rerank": 0.999,
+     "source": "1570978467.pdf",
+     "pages": "p. 1",
+     "section": "(front matter)"
+    },
+    {
+     "rank": 4,
+     "cosine_rank": 4,
+     "score": 0.8098,
+     "rerank": 0.9981,
+     "source": "1570978467.pdf",
+     "pages": "p. 2",
+     "section": "II. RELATED WORKS > B. NLP for Tatar Language"
+    },
+    {
+     "rank": 5,
+     "cosine_rank": 5,
+     "score": 0.7781,
+     "rerank": 0.997,
+     "source": "1570978467.pdf",
+     "pages": "p. 1",
+     "section": "I. INTRODUCTION"
+    }
+   ],
+   "timings": {
+    "rewrite": 1.454,
+    "search": 0.104,
+    "rerank": 3.114,
+    "answer": 1.87
+   },
+   "queries": [
+    "TatarTTS dataset hours of speech",
+    "TatarTTS dataset who recorded it"
+   ],
+   "rewrite_tokens": [
+    258,
+    90
+   ],
+   "early_refusal": false,
+   "prompt_tokens": 1910,
+   "completion_tokens": 366,
+   "seconds": 1.87,
+   "judge": {
+    "verdict": "correct",
+    "hallucination": false,
+    "reason": "The answer gives the ~70 hours total and the two professional speakers with the correct 36.2 h male / 33.9 h female split, matching the expectation; it only omits the segments count and theatre affiliation."
+   },
+   "faithful": {
+    "verdict": "supported",
+    "unsupported_claims": [],
+    "reason": "The quotes state ~70 hours of audio by two professional speakers (one male, one female), and the duration table gives 36.2 h (M) and 33.9 h (F), matching every claim in the answer."
+   }
+  },
+  {
+   "id": "q04",
+   "label": "rewrite+rerank",
+   "answer": "In the preliminary evaluation, the apertium-anaphora module raised Spanish–English anaphor translation accuracy from 29.2% without anaphora resolution to 54.2% with it [2], but slightly lowered Catalan–Italian accuracy from 83.3% to 75.0% [2]. Overall, use of the module increased accuracy for Spanish–English while causing a slight decrease for Catalan–Italian [2].",
+   "keywords": 1.0,
+   "keywords_matched": [
+    true,
+    true,
+    true,
+    true
+   ],
+   "retrieval": {
+    "hit": true,
+    "recall": 1.0,
+    "first_rank": 1
+   },
+   "pool": {
+    "hit": true,
+    "first_rank": 2,
+    "size": 21
+   },
+   "style": "cited",
+   "status": "answer",
+   "clarification": "",
+   "sources": [
+    {
+     "ref": 2,
+     "source": "s10590-021-09260-6.pdf",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 4  \u0007New modules > 4.3  \u0007Anaphora resolution > 4.3.3  \u0007Preliminary evaluation",
+     "pages": "pp. 15–16",
+     "chunk_id": "s10590-021-09260-6:struct:0039"
+    }
+   ],
+   "quotes": [
+    {
+     "ref": 2,
+     "quote": "For Spanish–English translation, use of the module led to an increase in accuracy of anaphor translation, but for Catalan–Italian it resulted in a slight decrease in the accuracy of resolution.",
+     "match": 100.0
+    },
+    {
+     "ref": 2,
+     "quote": "Systems Number of anaphors evaluated",
+     "match": 100.0
+    },
+    {
+     "ref": 2,
+     "quote": "Spanish–English 120 29.2 54.2",
+     "match": 100.0
+    },
+    {
+     "ref": 2,
+     "quote": "Catalan–Italian 108 83.3 75.0",
+     "match": 100.0
+    }
+   ],
+   "failed_quotes": [],
+   "attempts": 1,
+   "format_error": null,
+   "cited": [
+    2
+   ],
+   "cited_expected": true,
+   "context": [
+    {
+     "rank": 1,
+     "cosine_rank": 4,
+     "score": 0.7817,
+     "rerank": 0.9993,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "p. 15",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 4  \u0007New modules > 4.3  \u0007Anaphora resolution > 4.3.3  \u0007Preliminary evaluation"
+    },
+    {
+     "rank": 2,
+     "cosine_rank": 2,
+     "score": 0.8024,
+     "rerank": 0.9986,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "pp. 15–16",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 4  \u0007New modules > 4.3  \u0007Anaphora resolution > 4.3.3  \u0007Preliminary evaluation"
+    },
+    {
+     "rank": 3,
+     "cosine_rank": 1,
+     "score": 0.8161,
+     "rerank": 0.9736,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "pp. 12–13",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 4  \u0007New modules > 4.3  \u0007Anaphora resolution"
+    },
+    {
+     "rank": 4,
+     "cosine_rank": 7,
+     "score": 0.7677,
+     "rerank": 0.9628,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "p. 4",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 2  \u0007Overview of the Apertium platform"
+    },
+    {
+     "rank": 5,
+     "cosine_rank": 6,
+     "score": 0.7864,
+     "rerank": 0.9103,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "p. 13",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 4  \u0007New modules > 4.3  \u0007Anaphora resolution"
+    }
+   ],
+   "timings": {
+    "rewrite": 2.438,
+    "search": 0.071,
+    "rerank": 1.326,
+    "answer": 3.76
+   },
+   "queries": [
+    "apertium-anaphora module anaphor translation accuracy preliminary evaluation"
+   ],
+   "rewrite_tokens": [
+    261,
+    404
+   ],
+   "early_refusal": false,
+   "prompt_tokens": 2623,
+   "completion_tokens": 844,
+   "seconds": 3.76,
+   "judge": {
+    "verdict": "correct",
+    "hallucination": false,
+    "reason": "The answer accurately reports both the Spanish–English rise (29.2% to 54.2%) and the Catalan–Italian drop (83.3% to 75.0%) without contradicting the expectation, though it omits the explanation about skewed test data."
+   },
+   "faithful": {
+    "verdict": "supported",
+    "unsupported_claims": [],
+    "reason": "The quotes directly state the increase for Spanish–English (29.2 to 54.2) and the slight decrease for Catalan–Italian (83.3 to 75.0), matching all factual claims in the answer."
+   }
+  },
+  {
+   "id": "q05",
+   "label": "rewrite+rerank",
+   "answer": "The apertium-recursive module was developed to deal with the limitations of finite-state chunking, created by Daniel Swanson as part of Google Summer of Code 2019 [3]. It works by applying structural transfer rules recursively using context-free grammars (CFGs) and a Generalized Left-right Right-reduce (GLR) parser [3], which makes it possible to process nested structures such as relative clauses or prepositional phrases within prepositional phrases [3]. In short, it provides for true recursive transfer in the Apertium pipeline [4].",
+   "keywords": 1.0,
+   "keywords_matched": [
+    true,
+    true,
+    true
+   ],
+   "retrieval": {
+    "hit": true,
+    "recall": 1.0,
+    "first_rank": 3
+   },
+   "pool": {
+    "hit": true,
+    "first_rank": 1,
+    "size": 24
+   },
+   "style": "cited",
+   "status": "answer",
+   "clarification": "",
+   "sources": [
+    {
+     "ref": 3,
+     "source": "s10590-021-09260-6.pdf",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 4  \u0007New modules > 4.1  \u0007Recursive structural transfer",
+     "pages": "pp. 8–9",
+     "chunk_id": "s10590-021-09260-6:struct:0022"
+    },
+    {
+     "ref": 4,
+     "source": "s10590-021-09260-6.pdf",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 4  \u0007New modules",
+     "pages": "p. 8",
+     "chunk_id": "s10590-021-09260-6:struct:0020"
+    }
+   ],
+   "quotes": [
+    {
+     "ref": 3,
+     "quote": "To deal with the limitations of finite-state chunking, the apertium-recursive module (Swanson et al. 2021) was developed by Daniel Swanson as part of Google Summer of Code 2019",
+     "match": 100.0
+    },
+    {
+     "ref": 3,
+     "quote": "to apply structural transfer rules recursively using contextfree grammars (CFGs) and a Generalized Left-right Right-reduce (GLR) parser.",
+     "match": 100.0
+    },
+    {
+     "ref": 3,
+     "quote": "This makes it possible to process nested structures such as relative clauses or prepositional phrases within prepositional phrases.",
+     "match": 100.0
+    },
+    {
+     "ref": 4,
+     "quote": "Discussed in this section are apertium-recursive, which provides for true recursive transfer",
+     "match": 100.0
+    }
+   ],
+   "failed_quotes": [],
+   "attempts": 1,
+   "format_error": null,
+   "cited": [
+    3,
+    4
+   ],
+   "cited_expected": true,
+   "context": [
+    {
+     "rank": 1,
+     "cosine_rank": 8,
+     "score": 0.7241,
+     "rerank": 0.9908,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "p. 1",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > Abstract"
+    },
+    {
+     "rank": 2,
+     "cosine_rank": 16,
+     "score": 0.6806,
+     "rerank": 0.9892,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "p. 18",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 5  \u0007Supporting minoritised languages > 5.1  \u0007Released translation pairs"
+    },
+    {
+     "rank": 3,
+     "cosine_rank": 2,
+     "score": 0.7734,
+     "rerank": 0.9886,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "pp. 8–9",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 4  \u0007New modules > 4.1  \u0007Recursive structural transfer"
+    },
+    {
+     "rank": 4,
+     "cosine_rank": 1,
+     "score": 0.8096,
+     "rerank": 0.9867,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "p. 8",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 4  \u0007New modules"
+    },
+    {
+     "rank": 5,
+     "cosine_rank": 10,
+     "score": 0.7116,
+     "rerank": 0.9744,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "p. 4",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 2  \u0007Overview of the Apertium platform"
+    }
+   ],
+   "timings": {
+    "rewrite": 1.672,
+    "search": 0.058,
+    "rerank": 2.238,
+    "answer": 2.7
+   },
+   "queries": [
+    "apertium-recursive module purpose and development rationale",
+    "apertium-recursive module how it works"
+   ],
+   "rewrite_tokens": [
+    255,
+    235
+   ],
+   "early_refusal": false,
+   "prompt_tokens": 2226,
+   "completion_tokens": 553,
+   "seconds": 2.7,
+   "judge": {
+    "verdict": "partial",
+    "hallucination": true,
+    "reason": "It correctly gives the rationale (finite-state chunking limits) and the CFG/GLR recursive mechanism, but omits the key example of 30+ English–Spanish NP rules shrinking to fewer than 10, and adds unsupported specifics (Daniel Swanson, Google Summer of Code 2019) not present in the expectation."
+   },
+   "faithful": {
+    "verdict": "supported",
+    "unsupported_claims": [],
+    "reason": "All factual claims—the module's purpose (limitations of finite-state chunking), its author and GSoC 2019 origin, its CFG/GLR recursive transfer mechanism, its handling of nested structures, and its provision of true recursive transfer—are directly stated in the cited quotes."
+   }
+  },
+  {
+   "id": "q06",
+   "label": "rewrite+rerank",
+   "answer": "The three golden rules of fat loss are calories, protein, and consistency [1]. Following those three principles is what leads to fat loss [1]. The first rule concerns the amount of energy, measured in calories, that you get from your diet [4].",
+   "keywords": 1.0,
+   "keywords_matched": [
+    true,
+    true,
+    true
+   ],
+   "retrieval": {
+    "hit": true,
+    "recall": 1.0,
+    "first_rank": 1
+   },
+   "pool": {
+    "hit": true,
+    "first_rank": 2,
+    "size": 21
+   },
+   "style": "cited",
+   "status": "answer",
+   "clarification": "",
+   "sources": [
+    {
+     "ref": 1,
+     "source": "Gutless.pdf",
+     "section": "By Christian Finn, M.Sc > Chapter 2: The Three Golden Rules of Fat Loss",
+     "pages": "pp. 10–11",
+     "chunk_id": "gutless:struct:0012"
+    },
+    {
+     "ref": 4,
+     "source": "Gutless.pdf",
+     "section": "By Christian Finn, M.Sc > Chapter 2: The Three Golden Rules of Fat Loss",
+     "pages": "p. 9",
+     "chunk_id": "gutless:struct:0010"
+    }
+   ],
+   "quotes": [
+    {
+     "ref": 1,
+     "quote": "1. Calories 2. Protein\n\n3. Consistency",
+     "match": 100.0
+    },
+    {
+     "ref": 1,
+     "quote": "As long as you’re following those three principles, you’re going to lose fat.",
+     "match": 100.0
+    },
+    {
+     "ref": 4,
+     "quote": "RULE ONE​: Rule number one concerns the amount of energy - measured in calories - that you get from your diet.",
+     "match": 100.0
+    }
+   ],
+   "failed_quotes": [],
+   "attempts": 1,
+   "format_error": null,
+   "cited": [
+    1,
+    4
+   ],
+   "cited_expected": true,
+   "context": [
+    {
+     "rank": 1,
+     "cosine_rank": 6,
+     "score": 0.6873,
+     "rerank": 0.9958,
+     "source": "Gutless.pdf",
+     "pages": "pp. 10–11",
+     "section": "By Christian Finn, M.Sc > Chapter 2: The Three Golden Rules of Fat Loss"
+    },
+    {
+     "rank": 2,
+     "cosine_rank": 1,
+     "score": 0.8169,
+     "rerank": 0.909,
+     "source": "Gutless.pdf",
+     "pages": "pp. 1–2",
+     "section": "By Christian Finn, M.Sc > Table of Contents"
+    },
+    {
+     "rank": 3,
+     "cosine_rank": 5,
+     "score": 0.6887,
+     "rerank": 0.9084,
+     "source": "Gutless.pdf",
+     "pages": "p. 5",
+     "section": "By Christian Finn, M.Sc > Introduction"
+    },
+    {
+     "rank": 4,
+     "cosine_rank": 2,
+     "score": 0.7609,
+     "rerank": 0.8738,
+     "source": "Gutless.pdf",
+     "pages": "p. 9",
+     "section": "By Christian Finn, M.Sc > Chapter 2: The Three Golden Rules of Fat Loss"
+    },
+    {
+     "rank": 5,
+     "cosine_rank": 12,
+     "score": 0.6375,
+     "rerank": 0.4557,
+     "source": "Gutless.pdf",
+     "pages": "p. 39",
+     "section": "4. Use a Preload > Chapter 4: What I Eat, When and Why"
+    }
+   ],
+   "timings": {
+    "rewrite": 1.609,
+    "search": 0.046,
+    "rerank": 1.266,
+    "answer": 2.55
+   },
+   "queries": [
+    "three golden rules of fat loss in GUTLESS"
+   ],
+   "rewrite_tokens": [
+    252,
+    155
+   ],
+   "early_refusal": false,
+   "prompt_tokens": 2010,
+   "completion_tokens": 401,
+   "seconds": 2.55,
+   "judge": {
+    "verdict": "correct",
+    "hallucination": false,
+    "reason": "The answer correctly names all three golden rules (calories, protein, consistency) and adds a consistent detail about calories without contradicting the expectation."
+   },
+   "faithful": {
+    "verdict": "supported",
+    "unsupported_claims": [],
+    "reason": "Quotes [1] list the three items (calories, protein, consistency) and state that following those three principles leads to fat loss, and [4] confirms rule one concerns energy measured in calories from the diet."
+   }
+  },
+  {
+   "id": "q07",
+   "label": "rewrite+rerank",
+   "answer": "Using the simple method, a 185-pound person should eat somewhere between 1850 calories and 2220 calories per day to lose fat [1]. The method is to take your current body weight in pounds and multiply it by a number between 10 and 12 [1].",
+   "keywords": 1.0,
+   "keywords_matched": [
+    true,
+    true
+   ],
+   "retrieval": {
+    "hit": true,
+    "recall": 1.0,
+    "first_rank": 1
+   },
+   "pool": {
+    "hit": true,
+    "first_rank": 3,
+    "size": 23
+   },
+   "style": "cited",
+   "status": "answer",
+   "clarification": "",
+   "sources": [
+    {
+     "ref": 1,
+     "source": "Gutless.pdf",
+     "section": "By Christian Finn, M.Sc > Chapter 2: The Three Golden Rules of Fat Loss",
+     "pages": "pp. 10–11",
+     "chunk_id": "gutless:struct:0012"
+    }
+   ],
+   "quotes": [
+    {
+     "ref": 1,
+     "quote": "Just take your current body weight in pounds and multiply it by a number between 10 and 12.",
+     "match": 100.0
+    },
+    {
+     "ref": 1,
+     "quote": "if you currently weigh 185 pounds, your estimated calorie intake for fat loss is somewhere between 1850 calories (185 x 10 = 1850) and 2220 calories (185 x 12 = 2220) per day.",
+     "match": 100.0
+    }
+   ],
+   "failed_quotes": [],
+   "attempts": 1,
+   "format_error": null,
+   "cited": [
+    1
+   ],
+   "cited_expected": true,
+   "context": [
+    {
+     "rank": 1,
+     "cosine_rank": 3,
+     "score": 0.7216,
+     "rerank": 0.9986,
+     "source": "Gutless.pdf",
+     "pages": "pp. 10–11",
+     "section": "By Christian Finn, M.Sc > Chapter 2: The Three Golden Rules of Fat Loss"
+    },
+    {
+     "rank": 2,
+     "cosine_rank": 1,
+     "score": 0.7553,
+     "rerank": 0.6003,
+     "source": "Gutless.pdf",
+     "pages": "pp. 18–19",
+     "section": "3. MEAL FREQUENCY"
+    }
+   ],
+   "timings": {
+    "rewrite": 2.787,
+    "search": 0.042,
+    "rerank": 1.44,
+    "answer": 1.81
+   },
+   "queries": [
+    "GUTLESS simple method calories per day for a 185-pound person to lose fat"
+   ],
+   "rewrite_tokens": [
+    263,
+    329
+   ],
+   "early_refusal": false,
+   "prompt_tokens": 1158,
+   "completion_tokens": 272,
+   "seconds": 1.81,
+   "judge": {
+    "verdict": "correct",
+    "hallucination": false,
+    "reason": "The answer correctly gives 1,850–2,220 calories per day by multiplying 185 pounds by 10–12, matching the expectation."
+   },
+   "faithful": {
+    "verdict": "supported",
+    "unsupported_claims": [],
+    "reason": "Both the range (1850–2220 calories for 185 lb) and the method (body weight × 10–12) are stated directly in the cited quotes."
+   }
+  },
+  {
+   "id": "q08",
+   "label": "rewrite+rerank",
+   "answer": "The TatarTTS paper introduces an open-source dataset for speech synthesis in the Tatar language [1]; the dataset comprises approximately 70 hours of transcribed audio recordings from two professional speakers, one male and one female [1], and is described as the first large-scale dataset of its kind that is publicly available, aimed at promoting Tatar TTS applications [1]. The Apertium paper includes Tatar in its list of released languages [3].",
+   "keywords": 1.0,
+   "keywords_matched": [
+    true,
+    true
+   ],
+   "retrieval": {
+    "hit": false,
+    "recall": 0.5,
+    "first_rank": 1
+   },
+   "pool": {
+    "hit": true,
+    "first_rank": 1,
+    "size": 36
+   },
+   "style": "cited",
+   "status": "answer",
+   "clarification": "",
+   "sources": [
+    {
+     "ref": 1,
+     "source": "1570978467.pdf",
+     "section": "(front matter)",
+     "pages": "p. 1",
+     "chunk_id": "1570978467:struct:0000"
+    },
+    {
+     "ref": 3,
+     "source": "s10590-021-09260-6.pdf",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 7  \u0007Conclusion",
+     "pages": "p. 23",
+     "chunk_id": "s10590-021-09260-6:struct:0059"
+    }
+   ],
+   "quotes": [
+    {
+     "ref": 1,
+     "quote": "TatarTTS: An Open-Source Text-to-Speech Synthesis Dataset for the Tatar Language",
+     "match": 100.0
+    },
+    {
+     "ref": 1,
+     "quote": "This paper introduces an open-source dataset for speech synthesis in the Tatar language.",
+     "match": 100.0
+    },
+    {
+     "ref": 1,
+     "quote": "The dataset comprises approximately 70 hours of transcribed audio recordings, featuring two professional speakers (one male and one female).",
+     "match": 100.0
+    },
+    {
+     "ref": 1,
+     "quote": "Notably, it is the first large-scale dataset of its kind that is publicly available, aimed at promoting Tatar text-to-speech (TTS) applications in both academic and industrial contexts.",
+     "match": 100.0
+    },
+    {
+     "ref": 3,
+     "quote": "Tatar*",
+     "match": 100.0
+    }
+   ],
+   "failed_quotes": [],
+   "attempts": 1,
+   "format_error": null,
+   "cited": [
+    1,
+    3
+   ],
+   "cited_expected": true,
+   "context": [
+    {
+     "rank": 1,
+     "cosine_rank": 7,
+     "score": 0.9215,
+     "rerank": 0.9985,
+     "source": "1570978467.pdf",
+     "pages": "p. 1",
+     "section": "(front matter)"
+    },
+    {
+     "rank": 2,
+     "cosine_rank": 13,
+     "score": 0.8036,
+     "rerank": 0.9982,
+     "source": "1570978467.pdf",
+     "pages": "p. 2",
+     "section": "III. DATASET CONSTRUCTION > B. Dataset Specifications"
+    },
+    {
+     "rank": 3,
+     "cosine_rank": 24,
+     "score": 0.7903,
+     "rerank": 0.9962,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "p. 23",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 7  \u0007Conclusion"
+    },
+    {
+     "rank": 4,
+     "cosine_rank": 22,
+     "score": 0.8058,
+     "rerank": 0.9958,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "p. 2",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 1  Introduction"
+    },
+    {
+     "rank": 5,
+     "cosine_rank": 8,
+     "score": 0.8596,
+     "rerank": 0.9936,
+     "source": "1570978467.pdf",
+     "pages": "p. 4",
+     "section": "VI. CONCLUSION"
+    }
+   ],
+   "timings": {
+    "rewrite": 5.219,
+    "search": 0.073,
+    "rerank": 5.395,
+    "answer": 22.31
+   },
+   "queries": [
+    "Tatar language text-to-speech synthesis dataset TatarTTS",
+    "Apertium rule-based machine translation low-resource languages Tatar",
+    "GUTLESS Tatar language"
+   ],
+   "rewrite_tokens": [
+    256,
+    1029
+   ],
+   "early_refusal": false,
+   "prompt_tokens": 2123,
+   "completion_tokens": 5062,
+   "seconds": 22.31,
+   "judge": {
+    "verdict": "partial",
+    "hallucination": false,
+    "reason": "The answer identifies both relevant documents and the 70-hour Tatar TTS dataset, but it omits the TatarTTS baseline models and most of the Apertium machine-translation details (Kazakh–Tatar release, Turkic/minority status, and unreleased Tatar–Bashqort pair)."
+   },
+   "faithful": {
+    "verdict": "unsupported",
+    "unsupported_claims": [
+     "The Apertium paper includes Tatar in its list of released languages [3]."
+    ],
+    "reason": "The quote [3] only says \"Tatar*\" and does not identify an Apertium paper or state that Tatar is in a list of released languages."
+   }
+  },
+  {
+   "id": "q11",
+   "label": "rewrite+rerank",
+   "answer": "The open-source TatarTTS dataset for Tatar comprises approximately 70 hours of transcribed audio recordings, featuring two professional speakers (one male and one female) [1]. In total, the dataset contains around 70 hours of audio consisting of over 38,000 segments [4]. The data for the two professional speakers is stored separately in two distinct folders; each folder contains one CSV file and one sub-folder [4]. The first column of the CSV represents the audio file name, while the second one stores the corresponding text, and the sub-folder contains the audio recordings in the WAV format [4]. The paper describes the procedures for developing the dataset, discusses the challenges faced, and outlines important future directions [1].",
+   "keywords": 0.3333333333333333,
+   "keywords_matched": [
+    false,
+    false,
+    true
+   ],
+   "retrieval": {
+    "hit": true,
+    "recall": 1.0,
+    "first_rank": 4
+   },
+   "pool": {
+    "hit": true,
+    "first_rank": 3,
+    "size": 23
+   },
+   "style": "cited",
+   "status": "answer",
+   "clarification": "",
+   "sources": [
+    {
+     "ref": 1,
+     "source": "1570978467.pdf",
+     "section": "(front matter)",
+     "pages": "p. 1",
+     "chunk_id": "1570978467:struct:0000"
+    },
+    {
+     "ref": 4,
+     "source": "1570978467.pdf",
+     "section": "III. DATASET CONSTRUCTION > B. Dataset Specifications",
+     "pages": "p. 2",
+     "chunk_id": "1570978467:struct:0009"
+    }
+   ],
+   "quotes": [
+    {
+     "ref": 1,
+     "quote": "The dataset comprises approximately 70 hours of transcribed audio recordings, featuring two professional speakers (one male and one female).",
+     "match": 100.0
+    },
+    {
+     "ref": 4,
+     "quote": "In total, the dataset contains around 70 hours of audio consisting of over 38,000 segments.",
+     "match": 100.0
+    },
+    {
+     "ref": 4,
+     "quote": "The data for the two professional speakers is stored separately in two distinct folders. Each folder contains one CSV file and one sub-folder.",
+     "match": 100.0
+    },
+    {
+     "ref": 4,
+     "quote": "The first column represents audio file name, while the second one stores the corresponding text. The sub-folder contains the audio recordings in the WAV format.",
+     "match": 100.0
+    },
+    {
+     "ref": 1,
+     "quote": "The paper describes the procedures for developing the dataset, discusses the challenges faced, and outlines important future directions.",
+     "match": 100.0
+    }
+   ],
+   "failed_quotes": [],
+   "attempts": 1,
+   "format_error": null,
+   "cited": [
+    1,
+    4
+   ],
+   "cited_expected": true,
+   "context": [
+    {
+     "rank": 1,
+     "cosine_rank": 1,
+     "score": 0.9119,
+     "rerank": 0.9978,
+     "source": "1570978467.pdf",
+     "pages": "p. 1",
+     "section": "(front matter)"
+    },
+    {
+     "rank": 2,
+     "cosine_rank": 2,
+     "score": 0.8311,
+     "rerank": 0.952,
+     "source": "1570978467.pdf",
+     "pages": "p. 1",
+     "section": "I. INTRODUCTION"
+    },
+    {
+     "rank": 3,
+     "cosine_rank": 4,
+     "score": 0.8478,
+     "rerank": 0.8959,
+     "source": "1570978467.pdf",
+     "pages": "p. 4",
+     "section": "VI. CONCLUSION"
+    },
+    {
+     "rank": 4,
+     "cosine_rank": 3,
+     "score": 0.7987,
+     "rerank": 0.8625,
+     "source": "1570978467.pdf",
+     "pages": "p. 2",
+     "section": "III. DATASET CONSTRUCTION > B. Dataset Specifications"
+    },
+    {
+     "rank": 5,
+     "cosine_rank": 5,
+     "score": 0.8257,
+     "rerank": 0.8244,
+     "source": "1570978467.pdf",
+     "pages": "p. 2",
+     "section": "II. RELATED WORKS > B. NLP for Tatar Language"
+    }
+   ],
+   "timings": {
+    "rewrite": 1.695,
+    "search": 0.037,
+    "rerank": 1.823,
+    "answer": 5.17
+   },
+   "queries": [
+    "How was the TatarTTS open-source text-to-speech synthesis dataset for the Tatar language put together?"
+   ],
+   "rewrite_tokens": [
+    253,
+    166
+   ],
+   "early_refusal": false,
+   "prompt_tokens": 1905,
+   "completion_tokens": 1140,
+   "seconds": 5.17,
+   "judge": {
+    "verdict": "partial",
+    "hallucination": false,
+    "reason": "It correctly notes the dataset has two speakers and adds plausible structural details, but omits the key facts about the text sources, the Tatar National Theatre actors, the studio recording setup (Neumann mics, Cubase, 44.1 kHz/32 bit) and the manual sentence segmentation."
+   },
+   "faithful": {
+    "verdict": "partial",
+    "unsupported_claims": [
+     "The dataset is named 'TatarTTS' and is for the Tatar language",
+     "The dataset is described as open-source"
+    ],
+    "reason": "The composition details (70 hours, two speakers, 38,000 segments, folder/CSV/WAV structure, paper contents) are all directly backed by the quotes, but the quotes never name the dataset 'TatarTTS', identify it as Tatar, or call it open-source."
+   }
+  },
+  {
+   "id": "q09",
+   "label": "rewrite+rerank",
+   "answer": "I don't know: the documents do not contain the answer. The closest GUTLESS sections cover fat loss, protein intake, and meal frequency rather than creatine. Would you like details on protein or fat loss guidelines from GUTLESS instead?",
+   "keywords": 1.0,
+   "keywords_matched": [
+    true,
+    true
+   ],
+   "retrieval": null,
+   "pool": null,
+   "style": "cited",
+   "status": "unknown",
+   "clarification": "The closest GUTLESS sections cover fat loss, protein intake, and meal frequency rather than creatine. Would you like details on protein or fat loss guidelines from GUTLESS instead?",
+   "sources": [],
+   "quotes": [],
+   "failed_quotes": [],
+   "attempts": 0,
+   "format_error": null,
+   "cited": [],
+   "cited_expected": null,
+   "context": [],
+   "timings": {
+    "rewrite": 1.478,
+    "search": 0.04,
+    "rerank": 1.533,
+    "answer": 2.87
+   },
+   "queries": [
+    "GUTLESS creatine grams per day dosage"
+   ],
+   "rewrite_tokens": [
+    256,
+    139
+   ],
+   "early_refusal": true,
+   "prompt_tokens": 564,
+   "completion_tokens": 452,
+   "seconds": 2.87,
+   "judge": {
+    "verdict": "correct",
+    "hallucination": false,
+    "reason": "The answer states the documents do not cover creatine, asks a clarifying question, and gives no invented dose."
+   },
+   "faithful": null
+  },
+  {
+   "id": "q13",
+   "label": "rewrite+rerank",
+   "answer": "I don't know: the documents do not contain the answer. The passages describe the listening test setup — a Telegram bot evaluating 30 recordings per session on a 1-to-5 scale, with 200 utterances selected as a testing set — but they never state how many native speakers participated. Could you ask instead about what the passages do report, such as the evaluation criteria or the rating scale used?",
+   "keywords": 1.0,
+   "keywords_matched": [
+    true,
+    true
+   ],
+   "retrieval": null,
+   "pool": null,
+   "style": "cited",
+   "status": "unknown",
+   "clarification": "The passages describe the listening test setup — a Telegram bot evaluating 30 recordings per session on a 1-to-5 scale, with 200 utterances selected as a testing set — but they never state how many native speakers participated. Could you ask instead about what the passages do report, such as the evaluation criteria or the rating scale used?",
+   "sources": [],
+   "quotes": [],
+   "failed_quotes": [],
+   "attempts": 1,
+   "format_error": null,
+   "cited": [],
+   "cited_expected": null,
+   "context": [
+    {
+     "rank": 1,
+     "cosine_rank": 6,
+     "score": 0.7594,
+     "rerank": 0.9558,
+     "source": "1570978467.pdf",
+     "pages": "p. 1",
+     "section": "I. INTRODUCTION"
+    },
+    {
+     "rank": 2,
+     "cosine_rank": 5,
+     "score": 0.7505,
+     "rerank": 0.9106,
+     "source": "1570978467.pdf",
+     "pages": "p. 3",
+     "section": "IV. TTS EXPERIMENTS > C. Model Evaluation"
+    },
+    {
+     "rank": 3,
+     "cosine_rank": 4,
+     "score": 0.7681,
+     "rerank": 0.8779,
+     "source": "1570978467.pdf",
+     "pages": "p. 2",
+     "section": "III. DATASET CONSTRUCTION > B. Dataset Specifications"
+    },
+    {
+     "rank": 4,
+     "cosine_rank": 1,
+     "score": 0.7982,
+     "rerank": 0.8462,
+     "source": "1570978467.pdf",
+     "pages": "p. 4",
+     "section": "VI. CONCLUSION"
+    },
+    {
+     "rank": 5,
+     "cosine_rank": 8,
+     "score": 0.6998,
+     "rerank": 0.8184,
+     "source": "1570978467.pdf",
+     "pages": "p. 3",
+     "section": "IV. TTS EXPERIMENTS > B. TTS Model Training"
+    }
+   ],
+   "timings": {
+    "rewrite": 2.365,
+    "search": 0.048,
+    "rerank": 1.663,
+    "answer": 1.45
+   },
+   "queries": [
+    "TatarTTS listening evaluation number of native Tatar speakers"
+   ],
+   "rewrite_tokens": [
+    256,
+    313
+   ],
+   "early_refusal": false,
+   "prompt_tokens": 1935,
+   "completion_tokens": 161,
+   "seconds": 1.45,
+   "judge": {
+    "verdict": "correct",
+    "hallucination": false,
+    "reason": "The answer correctly states that the number of native speakers is not given in the documents and asks a clarifying question, matching the expected refusal behaviour."
+   },
+   "faithful": null
+  },
+  {
+   "id": "q16",
+   "label": "rewrite+rerank",
+   "answer": "The evaluation showed that the TTS models demonstrate notable naturalness and sound quality [5]. It also found that reasonably good MOS performance can be achieved with a relatively limited amount of training data, specifically 30 hours of speech data [5]. The baseline end-to-end TTS models were built and evaluated using the subjective mean opinion score (MOS) measure [3].",
+   "keywords": 0.0,
+   "keywords_matched": [
+    false,
+    false
+   ],
+   "retrieval": null,
+   "pool": null,
+   "style": "cited",
+   "status": "answer",
+   "clarification": "",
+   "sources": [
+    {
+     "ref": 5,
+     "source": "1570978467.pdf",
+     "section": "VI. CONCLUSION",
+     "pages": "p. 4",
+     "chunk_id": "1570978467:struct:0016"
+    },
+    {
+     "ref": 3,
+     "source": "1570978467.pdf",
+     "section": "(front matter)",
+     "pages": "p. 1",
+     "chunk_id": "1570978467:struct:0000"
+    }
+   ],
+   "quotes": [
+    {
+     "ref": 5,
+     "quote": "Although these models are not without their imperfections and have some limitations in terms of coherence and clear pronunciation, they demonstrate notable naturalness and sound quality.",
+     "match": 100.0
+    },
+    {
+     "ref": 5,
+     "quote": "Our research findings reveal that even with a relatively limited amount of training data, specifically 30 hours of speech data, reasonably good performance in terms of MOS can be achieved for TTS models.",
+     "match": 100.0
+    },
+    {
+     "ref": 3,
+     "quote": "To demonstrate the reliability of the dataset, baseline end-to-end TTS models were built and evaluated using the subjective mean opinion score (MOS) measure.",
+     "match": 100.0
+    }
+   ],
+   "failed_quotes": [],
+   "attempts": 1,
+   "format_error": null,
+   "cited": [
+    5,
+    3
+   ],
+   "cited_expected": null,
+   "context": [
+    {
+     "rank": 1,
+     "cosine_rank": 16,
+     "score": 0.855,
+     "rerank": 0.9968,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "p. 2",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > 1  Introduction"
+    },
+    {
+     "rank": 2,
+     "cosine_rank": 19,
+     "score": 0.8528,
+     "rerank": 0.9891,
+     "source": "s10590-021-09260-6.pdf",
+     "pages": "p. 1",
+     "section": "Recent advances in Apertium, a free/open‑source rule‑based machine translation platform for low‑resource languages > Abstract"
+    },
+    {
+     "rank": 3,
+     "cosine_rank": 14,
+     "score": 0.8476,
+     "rerank": 0.9855,
+     "source": "1570978467.pdf",
+     "pages": "p. 1",
+     "section": "(front matter)"
+    },
+    {
+     "rank": 4,
+     "cosine_rank": 27,
+     "score": 0.7416,
+     "rerank": 0.9851,
+     "source": "1570978467.pdf",
+     "pages": "p. 3",
+     "section": "IV. TTS EXPERIMENTS > B. TTS Model Training"
+    },
+    {
+     "rank": 5,
+     "cosine_rank": 17,
+     "score": 0.8127,
+     "rerank": 0.9555,
+     "source": "1570978467.pdf",
+     "pages": "p. 4",
+     "section": "VI. CONCLUSION"
+    }
+   ],
+   "timings": {
+    "rewrite": 1.475,
+    "search": 0.069,
+    "rerank": 8.95,
+    "answer": 7.99
+   },
+   "queries": [
+    "evaluation results of the TatarTTS text-to-speech synthesis dataset",
+    "GUTLESS evaluation findings",
+    "evaluation of Apertium rule-based machine translation platform"
+   ],
+   "rewrite_tokens": [
+    245,
+    109
+   ],
+   "early_refusal": false,
+   "prompt_tokens": 2085,
+   "completion_tokens": 1754,
+   "seconds": 7.99,
+   "judge": {
+    "verdict": "partial",
+    "hallucination": false,
+    "reason": "The answer picks one of the two evaluations (the TTS MOS test) and reports plausible figures, which the expectation allows but does not prefer, but it never notes the ambiguity or asks which evaluation is meant, and the 30-hour figure is unverifiable against the expectation."
+   },
+   "faithful": {
+    "verdict": "supported",
+    "unsupported_claims": [],
+    "reason": "All factual claims are directly backed by the cited quotes."
+   }
+  }
+ ],
+ "judge_model": "deepseek-flash"
+}
