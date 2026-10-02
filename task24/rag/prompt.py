@@ -39,8 +39,10 @@ Rules:
   Every [n] in the answer needs at least one quote from passage n.
 - If the passages do not state the answer, do not guess. Reply
   {"status": "unknown", "answer": "", "citations": [], "clarification": "..."}
-  where "clarification" is one short question back to the user that would help: say what the
-  passages do cover and ask what they meant, or ask them to narrow the question down.
+  where "clarification" is one or two short sentences back to the user: what the passages do
+  cover near the question, then one question that would help (what they meant, or a narrower
+  question). Do not answer the question there either, and do not use [n] markers: the user
+  does not see the passages.
 - "clarification" is "" when status is "answer"."""
 
 

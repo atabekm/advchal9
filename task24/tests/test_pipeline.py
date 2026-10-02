@@ -81,6 +81,36 @@ def test_empty_context_refuses_without_the_llm():
     assert not Agent(llm, pipe).answer("q", Config("base", 2, 2)).early_refusal
 
 
+
+def test_below_threshold_asks_a_clarifying_question():
+    from rag import prompt
+    from rag.agent import Agent
+    from rag.clarify import Clarifier
+    from tests.test_agent import FakeLLM
+    llm = FakeLLM("The collection covers TatarTTS and Gutless. Do you mean the calorie rules?")
+    pipe = Pipeline(FakeRetriever(_pool(-5, -6)), Reranker(encoder=FakeEncoder()))
+    ans = Agent(llm, pipe, clarifier=Clarifier(llm, ["TatarTTS", "Gutless"])).answer("creatine?", Config("rerank", 2, 2, threshold=0.5))
+    system, user = llm.calls[0]
+    assert len(llm.calls) == 1 and "- TatarTTS\n- Gutless" in system
+    assert user.startswith("Question: creatine?") and "X Paper, 2 Data: -5" in user
+    assert ans.early_refusal and ans.unknown and ans.clarification.startswith("The collection covers")
+    assert ans.text == f"{prompt.IDK} {ans.clarification}" and ans.cited == []
+
+
+def test_failed_clarifier_call_gives_a_bare_i_dont_know():
+    from rag import prompt
+    from rag.agent import Agent
+    from rag.clarify import Clarifier
+    from rag.llm import LLMError
+
+    class Down:
+        def chat(self, *a, **kw):
+            raise LLMError("down")
+
+    pipe = Pipeline(FakeRetriever(_pool(-5)), Reranker(encoder=FakeEncoder()))
+    ans = Agent(Down(), pipe, clarifier=Clarifier(Down(), [])).answer("q", Config("rerank", 1, 1, threshold=0.5))
+    assert ans.text == prompt.IDK and ans.clarification == ""
+
 def test_mode_specs_and_labels():
     assert Config.parse("rerank@0.3").threshold == 0.3 and Config.parse("rerank@0.3").label == "rerank@0.3"
     assert Config.parse("rerank").label == "rerank" and Config.parse("rerank@0.05").label == "rerank"

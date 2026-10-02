@@ -10,7 +10,8 @@ from pathlib import Path
 from .retrieve import TASK_DIR, Hit
 
 DEFAULT_QUESTIONS = TASK_DIR / "questions.json"
-KINDS = ("fact", "explain", "multi", "unanswerable")
+KINDS = ("fact", "explain", "multi", "unanswerable", "ambiguous")
+NO_ANSWER = ("unanswerable", "ambiguous")  # the right reply is "I don't know" and a clarifying question
 
 
 @dataclass(frozen=True)
@@ -43,8 +44,8 @@ def load(path: Path = DEFAULT_QUESTIONS) -> list[Question]:
     for q in json.loads(path.read_text()):
         if q["kind"] not in KINDS:
             raise ValueError(f"{q['id']}: unknown kind {q['kind']!r}")
-        if (q["kind"] == "unanswerable") != (not q["sources"]):
-            raise ValueError(f"{q['id']}: only unanswerable questions have no sources")
+        if (q["kind"] in NO_ANSWER) != (not q["sources"]):
+            raise ValueError(f"{q['id']}: only unanswerable and ambiguous questions have no sources")
         out.append(Question(
             id=q["id"], kind=q["kind"], question=q["question"], expect=q["expect"],
             must_contain=tuple(tuple(g) for g in q["must_contain"]),

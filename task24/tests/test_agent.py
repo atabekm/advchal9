@@ -166,3 +166,9 @@ def test_api_key_from_env_file(tmp_path, monkeypatch):
     assert api_key(env) == "sk-test"
     with pytest.raises(LLMError):
         api_key(tmp_path / "missing")
+
+
+def test_clarification_drops_markers_and_a_repeated_i_dont_know():
+    llm = FakeLLM(_json(status="unknown", clarification="I don't know: the passages cover MOS [3] and anaphora [1, 2]. Which?"))
+    ans, _ = _ask(llm)
+    assert ans.clarification == "the passages cover MOS and anaphora. Which?"

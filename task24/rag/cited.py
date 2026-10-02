@@ -13,6 +13,8 @@ from dataclasses import dataclass, field
 from .retrieve import Hit
 
 CITE = re.compile(r"\[(\d+(?:\s*,\s*\d+)*)\]")
+_LEAD = re.compile(r"^i don['’]t know\s*[:.,—-]?\s*", re.I)
+_SPACE = re.compile(r"[ \t]+")
 
 
 class FormatError(ValueError):
@@ -61,6 +63,7 @@ def parse(text: str, hits: list[Hit]) -> Cited:
         raise FormatError('"citations" must be a list')
 
     if status == "unknown":
+        clarification = tidy(clarification)
         if not clarification:
             raise FormatError('status "unknown" needs a "clarification" question')
         return Cited("unknown", "", [], clarification)
@@ -94,6 +97,12 @@ def sources(cited: Cited, hits: list[Hit]) -> list[Hit]:
     by_rank = {h.rank: h for h in hits}
     order = dict.fromkeys([*markers(cited.answer), *(q.ref for q in cited.quotes)])
     return [by_rank[n] for n in order if n in by_rank]
+
+
+def tidy(clarification: str) -> str:
+    """Drop a repeated "I don't know:" and [n] markers: the user does not see the passages."""
+    text = _LEAD.sub("", clarification.strip())
+    return _SPACE.sub(" ", CITE.sub("", text)).replace(" .", ".").replace(" ,", ",").strip()
 
 
 def _str(data: dict, key: str) -> str:

@@ -14,6 +14,7 @@ from pathlib import Path
 
 from . import evalset, judge
 from .agent import Agent
+from .clarify import Clarifier
 from .evalset import Question
 from .llm import DeepSeek
 from .pipeline import Config, Pipeline, Retrieval
@@ -34,7 +35,7 @@ def run(questions: list[Question], pipeline: Pipeline, llm: DeepSeek, modes: lis
         (q.id, m): pipeline.retrieve(q.question, Config.parse(m, k_before=k_before, k_after=k_after))
         for q in questions for m in modes if m != "plain"
     }
-    agent = Agent(llm)
+    agent = Agent(llm, clarifier=Clarifier(llm, pipeline.retriever.titles()))
     jobs = [(q, m) for m in modes for q in questions]
 
     def one(job):

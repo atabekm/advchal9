@@ -2,7 +2,8 @@
 
   plain               the question goes to the LLM as is (config None)
   base, rerank, …     the pipeline picks the chunks, which go in front of the question;
-                      when a filter keeps none, the answer is "I don't know" and the LLM is not called
+                      when a filter keeps none (gate 1), the answer is "I don't know" plus a clarifying
+                      question from clarify.py; the answering LLM is not called
 
 Two answer styles over the retrieved chunks:
 
@@ -20,6 +21,7 @@ from dataclasses import dataclass, field
 
 from . import cited as fmt
 from . import prompt
+from .clarify import Clarifier
 from .cited import Cited, FormatError, Quote
 from .llm import DeepSeek, Reply
 from .pipeline import Config, Pipeline, Retrieval
@@ -68,12 +70,14 @@ class Answer:
 
 
 class Agent:
-    def __init__(self, llm: DeepSeek, pipeline: Pipeline | None = None, style: str = "cited"):
+    def __init__(self, llm: DeepSeek, pipeline: Pipeline | None = None, style: str = "cited",
+                 clarifier: Clarifier | None = None):
         if style not in STYLES:
             raise ValueError(f"unknown answer style {style!r}")
         self.llm = llm
         self.pipeline = pipeline
         self.style = style
+        self.clarifier = clarifier
 
     def answer(self, question: str, config: Config | None = None, retrieval: Retrieval | None = None) -> Answer:
         """No config and no retrieval: plain mode. `retrieval` skips the pipeline: the evaluation
@@ -86,11 +90,19 @@ class Agent:
             if self.pipeline is None:
                 raise ValueError("retrieval modes need a pipeline")
             retrieval = self.pipeline.retrieve(question, config)
-        if not retrieval.kept:  # the filter found nothing relevant enough: refuse without the LLM
-            return Answer(question, retrieval, prompt.IDK, status="unknown", style=self.style)
+        if not retrieval.kept:  # gate 1: nothing relevant enough, refuse without the answering LLM
+            return self._below_threshold(question, retrieval)
         if self.style == "legacy":
             return self._legacy(question, retrieval)
         return self._cited(question, retrieval)
+
+    def _below_threshold(self, question: str, retrieval: Retrieval) -> Answer:
+        reply = self.clarifier.ask(question, retrieval.ranked) if self.clarifier and self.style == "cited" else None
+        if reply is None:
+            return Answer(question, retrieval, prompt.IDK, status="unknown", style=self.style)
+        return Answer(question, retrieval, f"{prompt.IDK} {reply.text.strip()}", status="unknown",
+                      clarification=reply.text.strip(), style=self.style, prompt_tokens=reply.prompt_tokens,
+                      completion_tokens=reply.completion_tokens, seconds=reply.seconds)
 
     def _legacy(self, question: str, retrieval: Retrieval) -> Answer:
         reply = self.llm.chat(prompt.RAG_SYSTEM, prompt.rag_user(question, retrieval.kept))

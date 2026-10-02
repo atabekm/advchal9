@@ -27,6 +27,7 @@ from indexer.embed import EmbedError
 
 from . import evalset, evaluate, report
 from .agent import STYLES, Agent, Answer
+from .clarify import Clarifier
 from .llm import MODELS, DeepSeek, LLMError
 from . import calibrate
 from .pipeline import (DEFAULT_COS_DELTA, DEFAULT_K_AFTER, DEFAULT_K_BEFORE, DEFAULT_MODE, DEFAULT_THRESHOLDS, MODES,
@@ -118,6 +119,11 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
 
+def _agent(args, llm: DeepSeek) -> Agent:
+    pipeline = _pipeline(args, llm)
+    return Agent(llm, pipeline, args.style, Clarifier(llm, pipeline.retriever.titles()))
+
+
 def _pipeline(args, llm: DeepSeek | None = None) -> Pipeline:
     """`llm` enables the rewrite modes."""
     retriever = Retriever(args.db)
@@ -133,7 +139,7 @@ def _config(args, mode: str) -> Config | None:
 
 def cmd_ask(args) -> int:
     llm = DeepSeek(args.model)
-    agent = Agent(llm, _pipeline(args, llm), args.style)
+    agent = _agent(args, llm)
     answers = []
     for mode in args.mode:
         ans = agent.answer(args.question, _config(args, mode))
@@ -150,7 +156,7 @@ def cmd_ask(args) -> int:
 
 def cmd_chat(args) -> int:
     llm = DeepSeek(args.model)
-    agent = Agent(llm, _pipeline(args, llm), args.style)
+    agent = _agent(args, llm)
     rag, mode = args.mode != "plain", (args.mode if args.mode != "plain" else DEFAULT_MODE)
     k_before, k_after, threshold, show = args.k_before, args.k_after, args.threshold, args.show_context
     print(f"rag chat · {args.model} · type /help for commands")
@@ -350,7 +356,8 @@ def _source_line(h) -> str:
 
 def print_answer(ans: Answer) -> None:
     if ans.early_refusal:
-        print(f"── {ans.label}  (no chunk passed the filter: refused without calling the LLM)")
+        why = f"no chunk passed the threshold {ans.retrieval.config.threshold:g}: I don't know without the answering LLM"
+        print(f"── {ans.label}  ({why}" + (f"; clarifying question {ans.seconds:.1f}s)" if ans.clarification else ")"))
     else:
         tries = f", {ans.attempts} attempts" if ans.attempts > 1 else ""
         print(f"── {ans.label}  ({ans.prompt_tokens}→{ans.completion_tokens} tokens, {ans.seconds:.1f}s{tries})")
