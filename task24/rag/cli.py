@@ -34,6 +34,7 @@ from .pipeline import (DEFAULT_COS_DELTA, DEFAULT_K_AFTER, DEFAULT_K_BEFORE, DEF
 from .rerank import DEFAULT_MODEL as DEFAULT_RERANKER
 from .rerank import Reranker
 from .rewrite import Rewriter
+from .verify import MIN_SCORE
 from .retrieve import DEFAULT_DB, IndexMissing, Retriever
 
 WIDTH = 100
@@ -357,6 +358,10 @@ def print_answer(ans: Answer) -> None:
         print(f"  ! format error{'' if ans.unknown and not ans.clarification else ', fixed on retry'}: {ans.format_error}")
     for para in ans.text.splitlines():
         print(textwrap.fill(para, WIDTH, initial_indent="  ", subsequent_indent="  ") if para.strip() else "")
+    if ans.failed_quotes:
+        print(f"  Dropped quotes (not found in their chunk, match < {MIN_SCORE:g})")
+        for q in ans.failed_quotes:
+            print(textwrap.fill(f'✗ {q.score:5.1f}  [{q.ref}] "{q.text}"', WIDTH, initial_indent="    ", subsequent_indent=" " * 16))
     if ans.retrieval is None or ans.unknown:
         print()
         return
@@ -368,7 +373,7 @@ def print_answer(ans: Answer) -> None:
     if ans.style == "cited":
         print("  Quotes")
         for q in ans.quotes:
-            print(textwrap.fill(f'[{q.ref}] "{q.text}"', WIDTH, initial_indent="    ", subsequent_indent="        "))
+            print(textwrap.fill(f'✓ {q.score:5.1f}  [{q.ref}] "{q.text}"', WIDTH, initial_indent="    ", subsequent_indent=" " * 16))
     print()
 
 
@@ -377,7 +382,8 @@ def answer_json(ans: Answer) -> dict:
         "mode": ans.label, "question": ans.question, "status": ans.status, "answer": ans.text,
         "sources": [{"ref": h.rank, "source": h.source, "title": h.title, "section": h.section, "pages": h.pages,
                      "chunk_id": h.chunk_id} for h in ans.cited],
-        "quotes": [{"ref": q.ref, "quote": q.text} for q in ans.quotes],
+        "quotes": [{"ref": q.ref, "quote": q.text, "match": q.score} for q in ans.quotes],
+        "dropped_quotes": [{"ref": q.ref, "quote": q.text, "match": q.score} for q in ans.failed_quotes],
         "clarification": ans.clarification,
         "attempts": ans.attempts, "format_error": ans.format_error or None,
     }

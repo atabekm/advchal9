@@ -7,8 +7,10 @@
 Two answer styles over the retrieved chunks:
 
   cited (default)     JSON: the answer, citations [{ref, quote}] and, when the passages do not
-                      answer the question, status "unknown" with a clarifying question. A reply
-                      that breaks the format is retried once with the error, then becomes "I don't know".
+                      answer the question, status "unknown" with a clarifying question. Every quote is
+                      matched against the chunk it cites (verify.py). A reply that breaks the format,
+                      or has a quote that is not in its chunk, is retried once with the error. After
+                      that, failed quotes are dropped; no quote left, or no usable reply → "I don't know".
   legacy              task 23's free text with optional [n] markers, kept for comparison
 """
 
@@ -22,6 +24,7 @@ from .cited import Cited, FormatError, Quote
 from .llm import DeepSeek, Reply
 from .pipeline import Config, Pipeline, Retrieval
 from .retrieve import Hit
+from .verify import verify
 
 ATTEMPTS = 2  # the first reply and one retry
 STYLES = ("cited", "legacy")
@@ -34,7 +37,8 @@ class Answer:
     text: str  # what the user reads: the answer, or "I don't know" and the clarifying question
     status: str = "answer"  # "answer" | "unknown"
     cited: list[Hit] = field(default_factory=list)  # the sources, in order of first citation
-    quotes: list[Quote] = field(default_factory=list)
+    quotes: list[Quote] = field(default_factory=list)  # verified, each with its match score
+    failed_quotes: list[Quote] = field(default_factory=list)  # not found in their chunk, dropped
     clarification: str = ""
     style: str = "cited"  # "cited" | "legacy" | "plain"
     attempts: int = 0  # LLM calls for the answer
@@ -101,15 +105,24 @@ class Agent:
         user = prompt.cited_user(question, hits)
         replies: list[Reply] = []
         error = ""
-        result: Cited | None = None
-        for _ in range(ATTEMPTS):
+        result: Cited | None = None  # the last reply that parsed
+        verified: list[Quote] = []
+        failed: list[Quote] = []
+        for attempt in range(ATTEMPTS):
             reply = self.llm.chat(prompt.CITED_SYSTEM, prompt.retry_user(user, error) if error else user, json=True)
             replies.append(reply)
             try:
-                result = fmt.parse(reply.text, hits)
-                break
+                parsed = fmt.parse(reply.text, hits)
             except FormatError as e:
                 error = str(e)
+                continue
+            result = parsed
+            if result.status == "unknown":
+                break
+            verified, failed = verify(result.quotes, hits)
+            if not failed:
+                break
+            error = quote_error(failed)
         usage = dict(attempts=len(replies), format_error=error,
                      prompt_tokens=sum(r.prompt_tokens for r in replies),
                      completion_tokens=sum(r.completion_tokens for r in replies),
@@ -119,4 +132,16 @@ class Agent:
         if result.status == "unknown":
             return Answer(question, retrieval, f"{prompt.IDK} {result.clarification}", status="unknown",
                           clarification=result.clarification, **usage)
-        return Answer(question, retrieval, result.answer, cited=fmt.sources(result, hits), quotes=result.quotes, **usage)
+        if not verified:  # nothing in the answer is backed by the chunks
+            return Answer(question, retrieval, prompt.IDK, status="unknown", failed_quotes=failed, **usage)
+        result.quotes = verified
+        return Answer(question, retrieval, result.answer, cited=fmt.sources(result, hits), quotes=verified,
+                      failed_quotes=failed, **usage)
+
+
+def quote_error(failed: list[Quote]) -> str:
+    """What to tell the model about quotes that are not in their passage."""
+    shown = "; ".join(f'[{q.ref}] "{q.text[:80]}{"…" if len(q.text) > 80 else ""}" (best match {q.score:.0f}%)'
+                      for q in failed[:3])
+    return (f"these quotes are not copied word for word from the passage they cite: {shown}. "
+            "Copy each quote exactly from its passage, and drop any claim you cannot quote")

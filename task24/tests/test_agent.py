@@ -9,7 +9,10 @@ from rag.llm import LLMError, Reply, api_key
 from rag.retrieve import Hit
 
 
-def _hit(rank, text="chunk text", section="2 Data"):
+TEXT = "The corpus holds 70 hours of speech, recorded by two speakers in a studio."
+
+
+def _hit(rank, text=TEXT, section="2 Data"):
     return Hit(rank, 0.9 - rank / 10, f"x:struct:{rank:04d}", "x.pdf", "X Paper", section, rank, rank, text)
 
 
@@ -74,9 +77,9 @@ def test_quoted_but_unmarked_passage_is_a_source():
 @pytest.mark.parametrize("bad, error", [
     ("not json", "not valid JSON"),
     (_json(answer="70 hours [1]."), "at least one citation"),
-    (_json(answer="70 hours [1].", citations=[{"ref": 9, "quote": "x"}]), "ref 9"),
-    (_json(answer="70 hours [4].", citations=[{"ref": 1, "quote": "x"}]), "cites [4]"),
-    (_json(answer="70 hours [1], [2].", citations=[{"ref": 1, "quote": "x"}]), "no citation quotes passage 2"),
+    (_json(answer="70 hours [1].", citations=[{"ref": 9, "quote": "70 hours"}]), "ref 9"),
+    (_json(answer="70 hours [4].", citations=[{"ref": 1, "quote": "70 hours"}]), "cites [4]"),
+    (_json(answer="70 hours [1], [2].", citations=[{"ref": 1, "quote": "70 hours"}]), "no citation quotes passage 2"),
     (_json(status="unknown"), "clarification"),
     (_json(status="maybe"), '"status"'),
 ])
@@ -103,9 +106,31 @@ def test_unknown_status_returns_the_clarifying_question():
 
 
 def test_json_in_a_fence_and_string_refs_are_accepted():
-    fenced = "```json\n" + _json(answer="x [1].", citations=[{"ref": "[1]", "quote": "q"}]) + "\n```"
+    fenced = "```json\n" + _json(answer="x [1].", citations=[{"ref": "[1]", "quote": "two speakers"}]) + "\n```"
     ans, _ = _ask(FakeLLM(fenced))
     assert ans.status == "answer" and ans.quotes[0].ref == 1 and ans.attempts == 1
+
+
+def test_quote_not_in_its_chunk_is_retried_then_dropped():
+    bad = _json(answer="70 hours [1], recorded in Kazan [2].",
+                citations=[{"ref": 1, "quote": "70 hours of speech"}, {"ref": 2, "quote": "recorded in Kazan in 2023"}])
+    llm = FakeLLM(bad)
+    ans, _ = _ask(llm)
+    assert len(llm.calls) == 2 and "not copied word for word" in llm.calls[1][1] and "[2]" in llm.calls[1][1]
+    assert ans.status == "answer" and [q.ref for q in ans.quotes] == [1] and ans.quotes[0].score == 100
+    assert [q.ref for q in ans.failed_quotes] == [2] and ans.failed_quotes[0].score < 90
+
+
+def test_answer_with_no_verified_quote_is_i_dont_know():
+    llm = FakeLLM(_json(answer="Recorded in Kazan [1].", citations=[{"ref": 1, "quote": "recorded in Kazan in 2023"}]))
+    ans, _ = _ask(llm)
+    assert ans.unknown and ans.text == prompt.IDK and ans.cited == [] and len(ans.failed_quotes) == 1
+
+
+def test_fixed_quote_on_retry_is_accepted():
+    bad = _json(answer="70 hours [1].", citations=[{"ref": 1, "quote": "seventy hours of audio"}])
+    ans, _ = _ask(FakeLLM(bad, GOOD))
+    assert ans.status == "answer" and ans.failed_quotes == [] and ans.attempts == 2 and "word for word" in ans.format_error
 
 
 def test_legacy_style_reads_markers_from_free_text():

@@ -23,6 +23,7 @@ class FormatError(ValueError):
 class Quote:
     ref: int
     text: str
+    score: float | None = None  # match against the chunk, 0..100, set by verify
 
 
 @dataclass
