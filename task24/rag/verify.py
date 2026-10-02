@@ -4,6 +4,10 @@ Both texts are normalized (PDF hyphenation, invisible characters, quote marks, d
 whitespace), then fuzzy-matched: `partial_ratio` is the best similarity of the quote against
 any span of the chunk with the quote's length, 0..100. A copied quote scores ~100 even with small
 extraction differences; a paraphrase scores far lower (~60–80).
+
+One gap is allowed: PDF chunks can have a page break inside a sentence (a footnote and the
+running header spliced in). If the whole quote does not match, it may still match as a head and
+a tail, each at least MIN_PART words, in that order; the score is the weaker of the two.
 """
 
 from __future__ import annotations
@@ -17,6 +21,7 @@ from .cited import Quote
 from .retrieve import Hit
 
 MIN_SCORE = 90.0
+MIN_PART = 4  # words on each side of a gap
 
 _INVISIBLE = dict.fromkeys(map(ord, "​‌‍⁠﻿­"))
 _CHARS = str.maketrans({"‘": "'", "’": "'", "‚": "'", "′": "'", "“": '"', "”": '"', "„": '"', "″": '"',
@@ -36,7 +41,24 @@ def match(quote: str, chunk: str) -> float:
     q, c = normalize(quote).strip(" \"'"), normalize(chunk)
     if not q:
         return 0.0
-    return 100.0 if q in c else round(fuzz.partial_ratio(q, c), 1)
+    if q in c:
+        return 100.0
+    whole = fuzz.partial_ratio(q, c)
+    return round(max(whole, _split_match(q, c)) if whole < MIN_SCORE else whole, 1)
+
+
+def _split_match(q: str, c: str) -> float:
+    """The best head + tail match with a gap in the chunk between them."""
+    words = q.split()
+    best = 0.0
+    for i in range(MIN_PART, len(words) - MIN_PART + 1):
+        head, tail = " ".join(words[:i]), " ".join(words[i:])
+        h = fuzz.partial_ratio_alignment(head, c)
+        if h is None or h.score < MIN_SCORE:
+            continue
+        t = fuzz.partial_ratio(tail, c[h.dest_end:])
+        best = max(best, min(h.score, t))
+    return best
 
 
 def verify(quotes: list[Quote], hits: list[Hit], min_score: float = MIN_SCORE) -> tuple[list[Quote], list[Quote]]:

@@ -10,7 +10,7 @@
            rewrite (the question + 1-3 LLM rewrites, fused), rewrite+rerank (that pool → cross-encoder)
   rag check [--rewrite] [--k-before N] [--k-after N]   retrieval only: ranks before and after reranking
   rag calibrate [--k-before N] [--k-after N]     score distributions and the cutoff sweeps, no LLM
-  rag eval  [--modes base,rerank] [--markdown EVAL.md]        all questions × all modes, judged
+  rag eval  [--modes legacy:rewrite+rerank,rewrite+rerank] [--markdown EVAL.md]   all questions × modes, judged
   rag eval  --rejudge eval/run-….json            grade saved answers again (or --report to only print)
 """
 
@@ -46,10 +46,11 @@ def _modes(text: str) -> list[str]:
     """Comma-separated modes; a rerank mode may carry its own threshold: rerank@0.3."""
     modes = [m.strip() for m in text.split(",") if m.strip()]
     for m in modes:
-        if m == "plain":
+        mode = evaluate.split_mode(m)[1]
+        if mode == "plain":
             continue
         try:
-            Config.parse(m)
+            Config.parse(mode)
         except ValueError as e:
             raise argparse.ArgumentTypeError(f"{m}: {e}; modes are {list(ALL_MODES)}, optionally mode@threshold")
     if not modes:
@@ -103,7 +104,9 @@ def main(argv: list[str] | None = None) -> int:
     ev.add_argument("--questions", type=Path, default=evalset.DEFAULT_QUESTIONS)
     ev.add_argument("--model", choices=MODELS, default=MODELS[0], help="model that answers")
     ev.add_argument("--judge-model", choices=MODELS, help="model that grades (default: --model)")
-    ev.add_argument("--modes", type=_modes, default=list(MODES), help=f"comma-separated: {','.join(ALL_MODES)}; rerank@0.3 sets a threshold")
+    ev.add_argument("--modes", type=_modes, default=[f"legacy:{DEFAULT_MODE}", DEFAULT_MODE],
+                    help=f"comma-separated: {','.join(ALL_MODES)}; rerank@0.3 sets a threshold; "
+                         "legacy:MODE answers with task 23's free-text prompt")
     ev.add_argument("--workers", type=int, default=6, help="parallel LLM calls")
     ev.add_argument("--markdown", type=Path, help="write the tables into this file (between the eval markers)")
     saved = ev.add_mutually_exclusive_group()

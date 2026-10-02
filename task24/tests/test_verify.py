@@ -31,3 +31,12 @@ def test_verify_splits_and_scores_against_the_cited_chunk():
     ok, bad = verify([Quote(1, "about 70 hours"), Quote(2, "about 70 hours"), Quote(7, "about 70 hours")], hits)
     assert [q.ref for q in ok] == [1] and ok[0].score == 100
     assert [q.ref for q in bad] == [2, 7] and bad[1].score == 0
+
+
+def test_one_gap_for_a_page_break_inside_the_quote():
+    chunk = ("This makes it possible to process nested structures such as relative clauses or prepositional\n\n"
+             "3 https://example.org/footnote.\n\nRecent advances in Apertium… phrases within prepositional phrases. More.")
+    quote = "This makes it possible to process nested structures such as relative clauses or prepositional phrases within prepositional phrases."
+    assert match(quote, chunk) >= 90
+    assert match("This makes it possible to process nested structures such as noun phrases inside verb phrases in Basque.", chunk) < 90
+    assert match("phrases within prepositional phrases. This makes it possible to process nested structures", chunk) < 90

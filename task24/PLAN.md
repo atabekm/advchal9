@@ -136,3 +136,21 @@ and 23).
 - `ollama serve` with `nomic-embed-text`
 - `DEEPSEEK_API_KEY` in the environment or `task24/.env`
 - `bge-reranker-base` is already in the Hugging Face cache from task 23
+
+## What the build changed
+
+- **Quotes that fail the check trigger the retry too**, not only format errors. The model gets
+  the failed quotes with their match scores; only after the retry are they dropped.
+- **One gap in quote matching.** A real quote scored 81 because a page break (footnote URL and
+  running header) sits inside the sentence in the chunk. A quote may now match as head + tail
+  (≥ 4 words each, in order); a changed tail still fails.
+- **The prompt asks for a quote per fact**, and to drop what cannot be quoted. With only "every
+  [n] needs a quote", 3 of 7 answers were fully supported by their quotes; with it, 5–6.
+- **An ambiguity rule in the prompt.** At temperature 0, q16 ("What did the evaluation show?")
+  went from "I don't know" to an answer about one of the two evaluations between runs; the rule
+  makes the model name both and ask which one.
+- **Clarifications are tidied**: a repeated "I don't know:" and `[n]` markers (the user doesn't
+  see the passages) are removed from both gates' text.
+- **A new question kind, `ambiguous`**, judged like unanswerable: "I don't know" is correct.
+- **`--style legacy`** (and `legacy:MODE` in `rag eval`) instead of a separate mode, so both
+  styles share one retrieval in the eval.

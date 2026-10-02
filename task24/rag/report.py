@@ -25,6 +25,25 @@ def _outcome(r: dict, q: Question) -> str:
     return "correct" if (not q.answerable and v == "refused") else v
 
 
+def _answered(r: dict) -> bool:
+    return r.get("status", "answer") == "answer"
+
+
+def _quotes_total(r: dict) -> tuple[int, int]:
+    """(verified, all) quotes in the final reply, before failed ones were dropped."""
+    ok = len(r.get("quotes") or [])
+    return ok, ok + len(r.get("failed_quotes") or [])
+
+
+def checks(r: dict) -> dict[str, bool | None]:
+    """The task's per-answer checks. None where they do not apply (an "I don't know")."""
+    if not _answered(r) or r["label"] == "plain":
+        return {"sources": None, "quotes": None, "faithful": None}
+    f = r.get("faithful")
+    return {"sources": bool(r.get("sources") or r.get("cited")), "quotes": bool(r.get("quotes")),
+            "faithful": None if f is None else f["verdict"] == "supported"}
+
+
 def summary_rows(data: dict, questions: list[Question]) -> list[tuple[str, list[str]]]:
     qs = {q.id: q for q in questions}
     groups = _by_label(data)
@@ -33,41 +52,49 @@ def summary_rows(data: dict, questions: list[Question]) -> list[tuple[str, list[
     def row(name, fn):
         rows.append((name, [fn(groups[label]) for label in data["labels"]]))
 
-    def count(verdict):
-        return lambda rs: str(sum(_outcome(r, qs[r["id"]]) == verdict for r in rs))
-
     n = len(questions)
-    row("judge score (correct 1, partial ½)", lambda rs: f"{sum({'correct': 1, 'partial': .5}.get(_outcome(r, qs[r['id']]), 0) for r in rs):.1f} / {n}")
-    for v in ("correct", "partial", "wrong", "refused"):
-        row(f"  {v}", count(v))
-    row("hallucinations (judge)", lambda rs: str(sum(r["judge"]["hallucination"] for r in rs)))
-    row("keyword score (mean)", lambda rs: f"{mean(r['keywords'] for r in rs):.0%}")
-    row("keywords all matched", lambda rs: f"{sum(r['keywords'] == 1 for r in rs)} / {n}")
-
-    def rag_only(fn):
-        return lambda rs: "—" if rs[0]["label"] == "plain" else fn(rs)
-
     answerable = [q for q in questions if q.answerable]
-    unanswerable = [q for q in questions if not q.answerable]
+    no_answer = [q for q in questions if not q.answerable]
 
-    def answerable_count(fn):
-        return rag_only(lambda rs: f"{sum(bool(fn(r)) for r in rs if qs[r['id']].answerable)} / {len(answerable)}")
+    def answered(rs):
+        return [r for r in rs if _answered(r)]
 
-    row("in the candidate pool (answerable)", answerable_count(lambda r: r.get("pool") and r["pool"]["hit"]))
-    row(f"in the context, hit@{data['k']} (answerable)", answerable_count(lambda r: r["retrieval"] and r["retrieval"]["hit"]))
-    row("cites an expected source", answerable_count(lambda r: r["cited_expected"]))
-    row("chunks in the context (mean)", rag_only(lambda rs: f"{mean(len(r['context']) for r in rs):.1f}"))
-    row("refused before the LLM: unanswerable", rag_only(
-        lambda rs: f"{sum(r.get('early_refusal', False) for r in rs if not qs[r['id']].answerable)} / {len(unanswerable)}"))
-    row("refused before the LLM: answerable", rag_only(
-        lambda rs: f"{sum(r.get('early_refusal', False) for r in rs if qs[r['id']].answerable)} / {len(answerable)}"))
+    def of_answered(fn):
+        return lambda rs: f"{sum(bool(fn(r)) for r in answered(rs))} / {len(answered(rs))}"
+
+    row("answers / I don't know", lambda rs: f"{len(answered(rs))} / {len(rs) - len(answered(rs))}")
+    row("**sources** in the answer", of_answered(lambda r: checks(r)["sources"]))
+    row("**quotes** in the answer", of_answered(lambda r: checks(r)["quotes"]))
+
+    def verified(rs):
+        ok, total = (sum(x) for x in zip(*(_quotes_total(r) for r in rs))) if rs else (0, 0)
+        return "—" if not total else f"{ok} / {total}"
+    row(f"quotes found in their chunk (match ≥ {data.get('min_match', 90):g})", verified)
+    row("answers retried for format or quotes", lambda rs: str(sum(r.get("attempts", 1) > 1 for r in rs)))
+
+    def faith(verdict):
+        return lambda rs: "—" if not any(r.get("faithful") for r in rs) else \
+            f"{sum((r.get('faithful') or {}).get('verdict') == verdict for r in answered(rs))} / {len(answered(rs))}"
+    row("**meaning matches the quotes** (faithfulness judge): supported", faith("supported"))
+    row("  partial", faith("partial"))
+    row("  unsupported", faith("unsupported"))
+
+    def idk(r):
+        return not _answered(r)
+    row(f"I don't know where expected ({len(no_answer)})", lambda rs: f"{sum(idk(r) for r in rs if not qs[r['id']].answerable)} / {len(no_answer)}")
+    row("  with a clarifying question", lambda rs: f"{sum(idk(r) and bool(r.get('clarification')) for r in rs if not qs[r['id']].answerable)} / {len(no_answer)}")
+    row("  of them before the LLM (relevance below the threshold)", lambda rs: str(sum(r.get("early_refusal", False) for r in rs if not qs[r['id']].answerable)))
+    row(f"I don't know on an answerable question ({len(answerable)})", lambda rs: f"{sum(idk(r) for r in rs if qs[r['id']].answerable)} / {len(answerable)}")
+    row("cites an expected source (answerable)", lambda rs: f"{sum(bool(r['cited_expected']) for r in rs if qs[r['id']].answerable)} / {len(answerable)}")
+    row(f"expected source in the context, hit@{data['k']} (answerable)", lambda rs: f"{sum(bool(r['retrieval'] and r['retrieval']['hit']) for r in rs if qs[r['id']].answerable)} / {len(answerable)}")
+    row("correctness judge (correct 1, partial ½)", lambda rs: f"{sum({'correct': 1, 'partial': .5}.get(_outcome(r, qs[r['id']]), 0) for r in rs):.1f} / {n}")
+    for v in ("correct", "partial", "wrong", "refused"):
+        row(f"  {v}", lambda rs, v=v: str(sum(_outcome(r, qs[r["id"]]) == v for r in rs)))
+    row("hallucinations (correctness judge)", lambda rs: str(sum(r["judge"]["hallucination"] for r in rs)))
+    row("keyword score (mean)", lambda rs: f"{mean(r['keywords'] for r in rs):.0%}")
     row("prompt tokens (mean)", lambda rs: f"{mean(r['prompt_tokens'] for r in rs):,.0f}")
     row("completion tokens (mean)", lambda rs: f"{mean(r['completion_tokens'] for r in rs):,.0f}")
-    row("rewrite tokens (mean, in→out)", lambda rs: "—" if not any(r.get("rewrite_tokens") for r in rs) else
-        f"{mean(r['rewrite_tokens'][0] for r in rs):,.0f}→{mean(r['rewrite_tokens'][1] for r in rs):,.0f}")
-    for stage in ("rewrite", "search", "rerank", "answer"):
-        row(f"latency: {stage} (mean)", lambda rs, st=stage: "—" if not any(st in r.get("timings", {}) for r in rs)
-            else f"{mean(r.get('timings', {}).get(st, 0) for r in rs):.2f}s")
+    row("latency: answer (mean)", lambda rs: f"{mean(r.get('timings', {}).get('answer', r['seconds']) for r in rs):.1f}s")
     row("latency: total (mean)", lambda rs: f"{mean(_total(r) for r in rs):.1f}s")
     return rows
 
@@ -77,6 +104,9 @@ def _total(r: dict) -> float:
     return sum(t.values()) if t else r["seconds"]
 
 
+FAITH = {"supported": "✓", "partial": "~", "unsupported": "✗"}
+
+
 def per_question_rows(data: dict, questions: list[Question]) -> list[list[str]]:
     index = {(r["id"], r["label"]): r for r in data["results"]}
     rows = []
@@ -84,17 +114,17 @@ def per_question_rows(data: dict, questions: list[Question]) -> list[list[str]]:
         cells = [q.id, q.kind]
         for label in data["labels"]:
             r = index[(q.id, label)]
-            cell = f"{MARK[_outcome(r, q)]} {r['keywords']:.0%}"
+            cell = MARK[_outcome(r, q)]
+            if _answered(r):
+                ok, total = _quotes_total(r)
+                cell += f" {len(r.get('sources') or r.get('cited') or [])}S"
+                cell += f" {ok}/{total}Q" if total else " 0Q"
+                if r.get("faithful"):
+                    cell += f" F{FAITH[r['faithful']['verdict']]}"
+            else:
+                cell += " IDK" + ("+?" if r.get("clarification") else "") + (" ∅" if r.get("early_refusal") else "")
             if r["judge"]["hallucination"]:
                 cell += " H"
-            if r.get("early_refusal"):
-                cell += " ∅"
-            if r["retrieval"] is not None:
-                rank = r["retrieval"]["first_rank"]
-                cell += f" · r{rank}" if r["retrieval"]["hit"] else (f" · r{rank} partial" if rank else " · miss")
-                pool = (r.get("pool") or {}).get("first_rank")
-                if pool and pool != rank:
-                    cell += f" ←#{pool}"
             cells.append(cell)
         rows.append(cells)
     return rows
@@ -132,11 +162,11 @@ def markdown(data: dict, questions: list[Question]) -> str:
         "",
         "### Per question",
         "",
-        "✅ correct · 🟡 partial · ❌ wrong · ⛔ refused, then the keyword score, `H` when the judge flagged a "
-        "hallucination, `∅` when the filter left no chunk and the answer is a refusal made without the LLM, "
-        "then the rank of the first chunk from an expected source in the context (`rN`, or `miss`) and, "
-        "when different, its rank in the candidate pool before stage 2 (`←#N`: cosine order, or fused order "
-        "for the rewrite modes). On the unanswerable questions, a refusal counts as ✅.",
+        "Correctness: ✅ correct · 🟡 partial · ❌ wrong · ⛔ refused (on the unanswerable and ambiguous "
+        "questions, a refusal counts as ✅). Then for an answer: `NS` sources, `a/bQ` quotes found in their "
+        "chunk / quotes given, `F✓` / `F~` / `F✗` the faithfulness verdict (supported / partial / unsupported). "
+        "For an \"I don't know\": `IDK`, `+?` with a clarifying question, `∅` decided before the LLM "
+        "(relevance below the threshold). `H`: the correctness judge flagged a hallucination.",
         "",
         _table(["id", "kind", *labels], per_question_rows(data, questions)),
         "",
@@ -150,11 +180,28 @@ def markdown(data: dict, questions: list[Question]) -> str:
     for q in questions:
         parts += [f"<details><summary><b>{q.id}</b> {q.question}</summary>", "", f"**Expected:** {q.expect}", ""]
         for label in labels:
-            r = index[(q.id, label)]
-            answer = " ".join(r["answer"].split())
-            parts += [f"**{label}**: {MARK[_outcome(r, q)]} *{r['judge']['reason']}*", "", f"> {answer}", ""]
+            parts += _answer_block(label, index[(q.id, label)], q)
         parts += ["</details>", ""]
     return "\n".join(parts).rstrip() + "\n"
+
+
+def _answer_block(label: str, r: dict, q: Question) -> list[str]:
+    answer = " ".join(r["answer"].split())
+    out = [f"**{label}**: {MARK[_outcome(r, q)]} *{r['judge']['reason']}*", "", f"> {answer}", ""]
+    if r.get("sources"):
+        out += ["Sources:", ""] + [f"- [{x['ref']}] `{x['source']}` · {x['section'] or '—'} · {x['pages']} · `{x['chunk_id']}`"
+                                   for x in r["sources"]] + [""]
+    if r.get("quotes") or r.get("failed_quotes"):
+        out += ["Quotes:", ""]
+        out += [f"- ✓ {x['match']:.0f} [{x['ref']}] “{' '.join(x['quote'].split())}”" for x in r.get("quotes") or []]
+        out += [f"- ✗ {x['match']:.0f} [{x['ref']}] “{' '.join(x['quote'].split())}” (dropped)" for x in r.get("failed_quotes") or []]
+        out += [""]
+    if f := r.get("faithful"):
+        claims = "; ".join(f["unsupported_claims"])
+        out += [f"Faithfulness: **{f['verdict']}**. {f['reason']}" + (f" Unsupported: {claims}" if claims else ""), ""]
+    if r.get("format_error"):
+        out += [f"Retried ({r.get('attempts')} attempts): {r['format_error']}", ""]
+    return out
 
 
 def write_markdown(path: Path, block: str) -> None:
@@ -163,13 +210,13 @@ def write_markdown(path: Path, block: str) -> None:
     if path.exists() and START in (text := path.read_text()):
         text = re.sub(re.escape(START) + r".*?" + re.escape(END), lambda _: generated, text, flags=re.S)
     else:
-        text = f"# Reranking, filtering and query rewriting\n\n{generated}\n"
+        text = f"# Citations, sources and I don't know\n\n{generated}\n"
     path.write_text(text)
 
 
 def terminal(data: dict, questions: list[Question]) -> str:
     labels = data["labels"]
-    rows = summary_rows(data, questions)
+    rows = [(name.replace("**", ""), cells) for name, cells in summary_rows(data, questions)]
     w0 = max(len(name) for name, _ in rows)
     widths = [max(len(label), *(len(cells[i]) for _, cells in rows)) for i, label in enumerate(labels)]
     lines = [" " * w0 + "  " + "  ".join(label.rjust(w) for label, w in zip(labels, widths))]

@@ -34,9 +34,16 @@ Rules:
   the passage it comes from, as [n] right after the claim, e.g. "... 70 hours [2]."
   Be concise: a few sentences, or a short list when the question asks for several items.
 - "citations": at least one. "ref" is the passage number n. "quote" is copied word for word
-  from passage n: one sentence or a short span (at most ~40 words) that supports a claim in the
-  answer. Do not paraphrase, shorten with "...", or join text from two places in one quote.
+  from passage n: one sentence or a short span (at most ~40 words). Do not paraphrase, shorten
+  with "...", or join text from two places in one quote.
+- Every fact in the answer (number, name, claim) must be stated in one of your quotes. Give one
+  quote per fact or sentence, as many as needed. If you cannot quote a fact, leave it out of the
+  answer; a shorter answer that is fully quoted is better than a longer one.
   Every [n] in the answer needs at least one quote from passage n.
+- If the question is ambiguous (it could mean different things the passages describe, e.g.
+  "the evaluation" when they describe several evaluations of different systems), do not pick
+  one: reply with status "unknown" and ask which one is meant, naming the options. A question
+  that asks about several things at once ("which documents …") is not ambiguous; answer it.
 - If the passages do not state the answer, do not guess. Reply
   {"status": "unknown", "answer": "", "citations": [], "clarification": "..."}
   where "clarification" is one or two short sentences back to the user: what the passages do
