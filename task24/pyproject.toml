@@ -1,0 +1,30 @@
+[project]
+name = "rag"
+version = "0.1.0"
+requires-python = ">=3.13"
+dependencies = [
+    "numpy>=2.5.3",
+    "pymupdf>=1.28.2",
+    "requests>=2.34.2",
+    "sentence-transformers>=6.1.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
+
+[project.scripts]
+indexer = "indexer.cli:main"
+rag = "rag.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["indexer", "rag"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+filterwarnings = ["ignore:builtin type .* has no __module__:DeprecationWarning"]
