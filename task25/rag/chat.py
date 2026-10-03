@@ -145,8 +145,9 @@ class ChatService:
         condensed = self.condenser.condense(message, history, memory.block() if memory else "")
         timings = {"condense": condensed.seconds}
         conversation = conversation_block(history, memory)
+        constraints = [i.text for i in memory.constraints] if memory else []
         if condensed.meta:
-            reply = self.llm.chat(prompt.META_SYSTEM, prompt.meta_user(message, conversation))
+            reply = self.llm.chat(prompt.META_SYSTEM, prompt.meta_user(message, conversation, constraints))
             timings["meta"] = reply.seconds
             turn = Turn(session_id, number, message, condensed, reply.text.strip(), meta_reply=reply)
         else:
@@ -154,7 +155,7 @@ class ChatService:
             # the raw message too: the standalone question leaves out the user's details ("I weigh 82 kg")
             has_context = bool(history) or (memory is not None and not memory.empty) or message != condensed.standalone
             context = f"{conversation}\n\nThe user's message as written: {message}" if has_context else ""
-            answer = self.agent.answer(condensed.standalone, config, conversation=context)
+            answer = self.agent.answer(condensed.standalone, config, conversation=context, constraints=constraints)
             if answer.retrieval is not None:
                 timings.update(answer.retrieval.timings)
             timings["answer"] = answer.seconds

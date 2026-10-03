@@ -9,6 +9,9 @@
            into standalone questions, small talk skips retrieval
            [--no-memory]   in chat: /new  /sessions  /open ID  /history  /memory  /context on|off  /quit
   rag web  [--port 8025] [--no-memory]     the same chat as a web page: http://127.0.0.1:8025
+  rag scenario [--only s1] [--memory on,off] [--markdown EVAL.md]   the long scripted conversations,
+           with and without the task memory, checked and judged
+  rag scenario --report eval/scenario-….json [--markdown EVAL.md]   (or --rejudge RUN)
   rag check [--rewrite] [--k-before N] [--k-after N]   retrieval only: ranks before and after reranking
   rag calibrate [--k-before N] [--k-after N]     score distributions and the cutoff sweeps, no LLM
   rag eval  [--modes legacy:rewrite+rerank,rewrite+rerank] [--markdown EVAL.md]   all questions × modes, judged
@@ -26,7 +29,7 @@ from pathlib import Path
 
 from indexer.embed import EmbedError
 
-from . import evalset, evaluate, report
+from . import evalset, evaluate, report, scenario, scenario_report
 from .agent import STYLES, Agent, Answer
 from .clarify import Clarifier
 from .llm import MODELS, DeepSeek, LLMError
@@ -37,7 +40,7 @@ from .rerank import DEFAULT_MODEL as DEFAULT_RERANKER
 from .rerank import Reranker
 from .rewrite import Rewriter
 from .verify import MIN_SCORE
-from .chat import FLOOR, Turn
+from .chat import FLOOR, ChatService, Turn
 from .memory import TaskMemory
 from .chat import build as build_chat
 from .store import DEFAULT_CHAT_DB, ChatStore, SessionMissing
@@ -105,6 +108,20 @@ def main(argv: list[str] | None = None) -> int:
     web.add_argument("--no-memory", action="store_true", help="history window only: no task memory, no scope")
     retrieval(web)
 
+    sc = sub.add_parser("scenario", help="run the scripted conversations with and without memory, judge them")
+    sc.add_argument("--scenarios", type=Path, default=scenario.DEFAULT_SCENARIOS)
+    sc.add_argument("--only", help="comma-separated scenario ids")
+    sc.add_argument("--memory", default="on,off", help="on, off or on,off")
+    sc.add_argument("--mode", choices=MODES, default=DEFAULT_MODE)
+    sc.add_argument("--model", choices=MODELS, default=MODELS[0], help="model that chats")
+    sc.add_argument("--judge-model", choices=MODELS, help="model that grades (default: --model)")
+    sc.add_argument("--workers", type=int, default=6, help="parallel judge calls")
+    sc.add_argument("--markdown", type=Path, help="write the report into this file (between the scenario markers)")
+    sc_saved = sc.add_mutually_exclusive_group()
+    sc_saved.add_argument("--rejudge", type=Path, metavar="RUN", help="grade a saved run again")
+    sc_saved.add_argument("--report", type=Path, metavar="RUN", help="print / write the report of a saved run")
+    retrieval(sc)
+
     check = sub.add_parser("check", help="retrieval check of the control questions, no LLM")
     check.add_argument("--questions", type=Path, default=evalset.DEFAULT_QUESTIONS)
     check.add_argument("--rewrite", action="store_true", help="search with the question and its rewrites (calls the LLM)")
@@ -133,7 +150,7 @@ def main(argv: list[str] | None = None) -> int:
 
     args = ap.parse_args(argv)
     try:
-        return {"ask": cmd_ask, "chat": cmd_chat, "web": cmd_web, "check": cmd_check, "calibrate": cmd_calibrate, "eval": cmd_eval}[args.cmd](args)
+        return {"ask": cmd_ask, "chat": cmd_chat, "web": cmd_web, "scenario": cmd_scenario, "check": cmd_check, "calibrate": cmd_calibrate, "eval": cmd_eval}[args.cmd](args)
     except (EmbedError, IndexMissing, LLMError, ValueError, SessionMissing) as e:
         print(f"error: {e}", file=sys.stderr)
         return 1
@@ -245,6 +262,45 @@ def cmd_web(args) -> int:
           f"loading the reranker …")
     print(f"open http://{args.host}:{args.port}  (Ctrl+C to stop)")
     serve(service, args.host, args.port, {"documents": documents})
+    return 0
+
+
+def cmd_scenario(args) -> int:
+    scenarios = scenario.load(args.scenarios)
+    if args.only:
+        wanted = {x.strip() for x in args.only.split(",")}
+        scenarios = [s for s in scenarios if s.id in wanted]
+        if not scenarios:
+            raise ValueError(f"no scenario among {sorted(wanted)}")
+    if args.report:
+        data = scenario.load_run(args.report)
+    else:
+        judge_llm = DeepSeek(args.judge_model or args.model)
+        if args.rejudge:
+            data, path = scenario.load_run(args.rejudge), args.rejudge
+        else:
+            modes = [m.strip() for m in args.memory.split(",") if m.strip()]
+            if not modes or set(modes) - {"on", "off"}:
+                raise ValueError("--memory takes on, off or on,off")
+            args.chat_db, args.no_memory = ":memory:", False
+            on = _chat_service(args)
+            services = {}
+            for m in modes:
+                services[f"memory {m}"] = on if m == "on" else ChatService(
+                    ChatStore(":memory:"), on.llm, on.agent, on.condenser, None, on.config, on.window)
+            print(f"{len(scenarios)} scenarios × {len(services)} ({', '.join(services)}) with {args.model} …")
+            data = scenario.run(scenarios, services)
+            path = scenario.save(data)
+            print(f"conversations saved → {path}")
+        print(f"grading with {judge_llm.model} …")
+        data = scenario.grade(data, scenarios, judge_llm, args.workers)
+        scenario.save(data, path)
+        print(f"verdicts saved → {path}")
+    print()
+    print(scenario_report.terminal(data, scenarios))
+    if args.markdown:
+        scenario_report.write_markdown(args.markdown, scenario_report.markdown(data, scenarios))
+        print(f"\nwrote {args.markdown}")
     return 0
 
 

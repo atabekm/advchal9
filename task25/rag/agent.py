@@ -80,10 +80,11 @@ class Agent:
         self.clarifier = clarifier
 
     def answer(self, question: str, config: Config | None = None, retrieval: Retrieval | None = None,
-               conversation: str = "") -> Answer:
+               conversation: str = "", constraints: list[str] = ()) -> Answer:
         """No config and no retrieval: plain mode. `retrieval` skips the pipeline: the evaluation
         retrieves up front, then calls the LLM in parallel. `conversation` (cited style): the chat
-        so far, put in front of the passages so the answer can follow it."""
+        so far, put in front of the passages so the answer can follow it; `constraints` are repeated
+        next to the question."""
         if config is None and retrieval is None:
             reply = self.llm.chat(prompt.PLAIN_SYSTEM, prompt.plain_user(question))
             return Answer(question, None, reply.text, style="plain", attempts=1, prompt_tokens=reply.prompt_tokens,
@@ -96,7 +97,7 @@ class Agent:
             return self._below_threshold(question, retrieval)
         if self.style == "legacy":
             return self._legacy(question, retrieval)
-        return self._cited(question, retrieval, conversation)
+        return self._cited(question, retrieval, conversation, constraints)
 
     def _below_threshold(self, question: str, retrieval: Retrieval) -> Answer:
         reply = self.clarifier.ask(question, retrieval.ranked) if self.clarifier and self.style == "cited" else None
@@ -114,9 +115,9 @@ class Agent:
         return Answer(question, retrieval, reply.text, status=status, cited=cited, style="legacy", attempts=1,
                       prompt_tokens=reply.prompt_tokens, completion_tokens=reply.completion_tokens, seconds=reply.seconds)
 
-    def _cited(self, question: str, retrieval: Retrieval, conversation: str = "") -> Answer:
+    def _cited(self, question: str, retrieval: Retrieval, conversation: str = "", constraints: list[str] = ()) -> Answer:
         hits = retrieval.kept
-        user = prompt.cited_user(question, hits, conversation)
+        user = prompt.cited_user(question, hits, conversation, constraints)
         system = prompt.CITED_CHAT_SYSTEM if conversation else prompt.CITED_SYSTEM
         replies: list[Reply] = []
         error = ""

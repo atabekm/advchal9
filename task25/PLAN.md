@@ -171,3 +171,15 @@ One branch, `task25/rag-chat`, one commit per stage, one PR at the end.
   assistant's interpretation, not something to record.
 - **Web**: the index store's SQLite connection is opened with `check_same_thread=False`
   (FastAPI runs a turn in a worker thread); turns run one at a time behind a lock.
+- **Constraints next to the question.** In the first scenario run, answers ignored "short" and
+  "kg" although both were in the memory block at the top of the prompt. They are now repeated
+  right after the question, in the answer prompt and the meta prompt.
+- **The condenser names documents by a short name and adds no facts.** It once put the Apertium
+  paper's full title into the question; that title is in every page header, so front matter
+  outscored the answer. It also once copied "60–120 g of protein" from an earlier answer into the
+  question.
+- **The scenario's own ground truth was wrong once**: "use the Apertium paper as well" means
+  TatarTTS + Apertium, not all documents, which is what the memory recorded.
+- **Scenario turns**: 13 per scenario. The ambiguous "What did the evaluation show?" is answered
+  in s2, because in that conversation it is not ambiguous: "the paper" and the conversation
+  point to TatarTTS. That is the memory doing its job; task 24 tested the ambiguous case alone.

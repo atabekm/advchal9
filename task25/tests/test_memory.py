@@ -194,8 +194,9 @@ def test_memory_reaches_every_prompt_and_its_scope_the_search():
     assert "Task memory" in condense_2 and "Goal: Lose 8 kg with Gutless" in condense_2
     answer_2 = [u for sys, u in llm.calls if sys == prompt.CITED_CHAT_SYSTEM][-1]
     assert answer_2.startswith("Task memory (established earlier") and "- short answers" in answer_2
+    assert "Question: Protein for vegetarians in Gutless?\n\nThe user's constraints for every answer (follow them): short answers." in answer_2
     meta_3 = [u for sys, u in llm.calls if sys == prompt.META_SYSTEM][0]
-    assert "- is vegetarian" in meta_3 and t3.status == "meta"
+    assert "- is vegetarian" in meta_3 and meta_3.endswith("(follow them): short answers.") and t3.status == "meta"
 
     # saved: the memory, its log, and each reply's changes
     saved = svc.memory(s.id)

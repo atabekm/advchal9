@@ -73,9 +73,17 @@ earlier answer is not a source."""
 CITED_CHAT_SYSTEM = CITED_SYSTEM + CHAT_RULES
 
 
-def cited_user(question: str, hits: list[Hit], conversation: str = "") -> str:
+def cited_user(question: str, hits: list[Hit], conversation: str = "", constraints: list[str] = ()) -> str:
     head = f"{conversation}\n\n" if conversation else ""
-    return f"{head}Context:\n\n{context_block(hits)}\n\nQuestion: {question}\n\nReply with the JSON object."
+    return (f"{head}Context:\n\n{context_block(hits)}\n\nQuestion: {question}\n\n"
+            f"{constraints_line(constraints)}Reply with the JSON object.")
+
+
+def constraints_line(constraints: list[str]) -> str:
+    """Repeated next to the question: in the memory block at the top of a long prompt they get lost."""
+    if not constraints:
+        return ""
+    return "The user's constraints for every answer (follow them): " + "; ".join(constraints) + ".\n\n"
 
 
 META_SYSTEM = """\
@@ -90,8 +98,8 @@ If the user actually needs information from the documents, invite them to ask it
 Plain text, no [n] markers."""
 
 
-def meta_user(message: str, conversation: str) -> str:
-    return f"{conversation}\n\nNew message: {message.strip()}"
+def meta_user(message: str, conversation: str, constraints: list[str] = ()) -> str:
+    return f"{conversation}\n\nNew message: {message.strip()}\n\n{constraints_line(constraints)}".rstrip()
 
 
 def retry_user(user: str, error: str) -> str:

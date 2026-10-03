@@ -1,0 +1,176 @@
+[
+  {
+    "id": "s1",
+    "title": "Fat loss with Gutless",
+    "turns": [
+      {
+        "text": "Hi! I want to lose about 8 kg of fat over the next few months, and I want answers from Gutless only. Please keep answers short. What are the main rules?",
+        "expect": "answer",
+        "sources": ["Gutless.pdf"],
+        "sets": {
+          "goal": "lose about 8 kg of fat using Gutless",
+          "clarified": ["wants to lose about 8 kg of fat"],
+          "constraints": ["short answers"],
+          "scope": ["Gutless.pdf"]
+        }
+      },
+      {
+        "text": "Good to know. I'm vegetarian and I weigh 82 kg. Please use kilograms, not pounds.",
+        "expect": "meta",
+        "sets": {
+          "clarified": ["is vegetarian", "weighs 82 kg"],
+          "constraints": ["use kilograms, not pounds"]
+        }
+      },
+      {
+        "text": "How do I work out my calories with the first rule?",
+        "expect": "answer",
+        "sources": ["Gutless.pdf"],
+        "means": "How to work out daily calories for fat loss with Gutless's calorie rule (body weight times 10 to 12), for the user at 82 kg",
+        "must_contain": [["kg", "kilogram"]]
+      },
+      {
+        "text": "And how much protein should I eat?",
+        "expect": "answer",
+        "sources": ["Gutless.pdf"],
+        "means": "How much protein per day Gutless recommends (per kilogram of lean body weight)",
+        "must_contain": [["kg", "kilogram"]]
+      },
+      {
+        "text": "Can I get that much without meat?",
+        "expect": "answer",
+        "sources": ["Gutless.pdf"],
+        "means": "Whether Gutless says one can get enough protein without meat, chicken or fish (vegetarian protein sources)"
+      },
+      {
+        "text": "How many grams of creatine should I take per day?",
+        "expect": "unknown"
+      },
+      {
+        "text": "Does it matter how many meals a day I eat?",
+        "expect": "answer",
+        "sources": ["Gutless.pdf"],
+        "means": "Whether meal frequency matters for fat loss according to Gutless"
+      },
+      {
+        "text": "What is time-restricted feeding?",
+        "expect": "answer",
+        "sources": ["Gutless.pdf"]
+      },
+      {
+        "text": "Would that help me eat less without noticing?",
+        "expect": "answer",
+        "sources": ["Gutless.pdf"],
+        "means": "Whether time-restricted feeding helps you eat less without really noticing, according to Gutless"
+      },
+      {
+        "text": "What's a preload, and what could I use as one?",
+        "expect": "answer",
+        "sources": ["Gutless.pdf"]
+      },
+      {
+        "text": "What should I do if my weight stops going down?",
+        "expect": "answer",
+        "sources": ["Gutless.pdf"],
+        "means": "What Gutless says to do when fat loss stalls (no progress from week to week)"
+      },
+      {
+        "text": "Remind me: what's my goal, and what have we agreed on so far?",
+        "expect": "meta"
+      },
+      {
+        "text": "Last one: recalculate my daily calories for when I'm down to 78 kg.",
+        "expect": "answer",
+        "sources": ["Gutless.pdf"],
+        "means": "Daily calories for fat loss with Gutless's calorie rule for a body weight of 78 kg",
+        "must_contain": [["kg", "kilogram"]]
+      }
+    ]
+  },
+  {
+    "id": "s2",
+    "title": "A TTS dataset for Bashkir, learning from TatarTTS",
+    "turns": [
+      {
+        "text": "I'm planning a text-to-speech dataset for Bashkir, a low-resource Turkic language, and I want to learn from TatarTTS. For now, use only the TatarTTS paper. How much audio does it have, and who recorded it?",
+        "expect": "answer",
+        "sources": ["1570978467.pdf"],
+        "sets": {
+          "goal": "plan a TTS dataset for Bashkir by learning from TatarTTS",
+          "clarified": ["is building a TTS dataset for Bashkir, a low-resource Turkic language"],
+          "scope": ["1570978467.pdf"]
+        }
+      },
+      {
+        "text": "From now on, 'the paper' means the TatarTTS paper. And please answer in bullet points.",
+        "expect": "meta",
+        "sets": {
+          "terms": ["'the paper' = the TatarTTS paper"],
+          "constraints": ["answer in bullet points"]
+        }
+      },
+      {
+        "text": "Where did the paper get its texts from?",
+        "expect": "answer",
+        "sources": ["1570978467.pdf"],
+        "means": "Where the TatarTTS dataset's texts came from (text sources of the corpus)"
+      },
+      {
+        "text": "How were the speakers chosen?",
+        "expect": "answer",
+        "sources": ["1570978467.pdf"],
+        "means": "How the TatarTTS speakers were chosen"
+      },
+      {
+        "text": "And how was the audio split and stored?",
+        "expect": "answer",
+        "sources": ["1570978467.pdf"],
+        "means": "How the TatarTTS audio was segmented and stored (dataset specifications)"
+      },
+      {
+        "text": "What did the evaluation show?",
+        "expect": "answer",
+        "sources": ["1570978467.pdf"],
+        "means": "What the TatarTTS evaluation (the MOS listening test of the baseline models) showed"
+      },
+      {
+        "text": "How many native speakers rated the recordings?",
+        "expect": "unknown",
+        "means": "How many native speakers took part in the TatarTTS MOS evaluation"
+      },
+      {
+        "text": "OK. I also want machine translation for Bashkir later, so from now on use the Apertium paper as well.",
+        "expect": "meta",
+        "sets": {
+          "clarified": ["also wants machine translation for Bashkir later"],
+          "scope": ["1570978467.pdf", "s10590-021-09260-6.pdf"]
+        }
+      },
+      {
+        "text": "Which Turkic language pairs does Apertium have?",
+        "expect": "answer",
+        "sources": ["s10590-021-09260-6.pdf"]
+      },
+      {
+        "text": "How did the anaphora module change translation accuracy?",
+        "expect": "answer",
+        "sources": ["s10590-021-09260-6.pdf"]
+      },
+      {
+        "text": "What does the paper say about the limitations of its models?",
+        "expect": "answer",
+        "sources": ["1570978467.pdf"],
+        "means": "What the TatarTTS paper says about the limitations of its baseline TTS models"
+      },
+      {
+        "text": "Summarize what we've established for my project so far.",
+        "expect": "meta"
+      },
+      {
+        "text": "Last question: what license is the paper's dataset released under?",
+        "expect": "unknown",
+        "means": "Which license the TatarTTS dataset is released under"
+      }
+    ]
+  }
+]

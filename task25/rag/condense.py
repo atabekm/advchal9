@@ -43,8 +43,11 @@ For a "question", write "standalone": the question as one self-contained sentenc
 understood without the conversation. Replace pronouns and vague references ("it", "that",
 "the paper", "the second one") with what they refer to. When the user answers a clarifying
 question, combine their answer with the question it clarifies. Keep the user's names, numbers
-and details; name the document when the conversation makes clear which one is meant. Do not
-answer the question and do not add facts. If the message is already self-contained, copy it.
+and details; name the document when the conversation makes clear which one is meant, by a
+short name ("Gutless", "TatarTTS", "Apertium"), never by its full title: titles are repeated in
+every page header and drown the search. Do not answer the question and do not add facts: no
+numbers or claims from the assistant's earlier answers. If the message is already
+self-contained, copy it.
 Use the task memory, when given, for what the conversation has established: what the user's
 terms mean, what they clarified. The standalone question is for search, so ask what the
 documents would state in general: leave out the user's personal details (their weight, diet,
