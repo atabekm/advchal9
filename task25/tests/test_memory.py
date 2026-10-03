@@ -138,6 +138,8 @@ def test_scope_limits_the_search_to_its_documents(tmp_path):
 class MemoryLLM:
     """Routes by prompt; the memory updater replies with the next of `updates`."""
 
+    model = "fake"
+
     def __init__(self, condensed, updates):
         self.condensed, self.updates, self.calls = list(condensed), list(updates), []
 

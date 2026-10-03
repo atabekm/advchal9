@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Task 25 · RAG chat with memory</title>
+<link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+
+<header class="top">
+  <button id="toggleSessions" class="iconbtn narrow-only" aria-label="sessions">☰</button>
+  <div class="title">
+    <strong>RAG chat with task memory</strong>
+    <span class="dim">every answer from the documents, with sources and checked quotes; the memory keeps the goal and what was agreed</span>
+  </div>
+  <div id="info" class="info dim"></div>
+  <button id="toggleMemory" class="iconbtn narrow-only" aria-label="task memory">◧</button>
+</header>
+
+<main>
+  <aside id="sessions" class="sessions">
+    <button id="newSession" class="new">+ new conversation</button>
+    <ul id="sessionList"></ul>
+  </aside>
+
+  <section class="chat">
+    <div id="log" class="log" aria-live="polite"></div>
+    <form id="composer" class="composer">
+      <textarea id="input" rows="2" placeholder="Ask about the documents…  (Enter to send, Shift+Enter for a new line)" autocomplete="off"></textarea>
+      <button id="send" type="submit">Send</button>
+    </form>
+    <div id="error" class="error" hidden></div>
+  </section>
+
+  <aside id="memory" class="memory">
+    <h2>Task memory</h2>
+    <div id="memoryBody"></div>
+  </aside>
+</main>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

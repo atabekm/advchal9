@@ -164,3 +164,10 @@ One branch, `task25/rag-chat`, one commit per stage, one PR at the end.
   (0.3) still decides whether to answer at all; once the best chunk passes it, the others are
   kept down to the floor. "How much protein does Gutless recommend per day?" put the chunk with
   the number at #2 with 0.278, so with the threshold alone the answer was "I don't know".
+- **The memory updater records only what the user said.** In the first web test it set the
+  scope to TatarTTS because the user wanted to "follow TatarTTS", and stored the condenser's
+  reading of "the evaluation" as an agreed term. The prompt now says the scope changes only
+  when the user explicitly limits or widens the documents, and that "(read as: …)" is the
+  assistant's interpretation, not something to record.
+- **Web**: the index store's SQLite connection is opened with `check_same_thread=False`
+  (FastAPI runs a turn in a worker thread); turns run one at a time behind a lock.

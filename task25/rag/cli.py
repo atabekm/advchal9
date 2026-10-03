@@ -8,6 +8,7 @@
   rag chat [--session ID] [--list] [--show-context]   a saved conversation: follow-ups are condensed
            into standalone questions, small talk skips retrieval
            [--no-memory]   in chat: /new  /sessions  /open ID  /history  /memory  /context on|off  /quit
+  rag web  [--port 8025] [--no-memory]     the same chat as a web page: http://127.0.0.1:8025
   rag check [--rewrite] [--k-before N] [--k-after N]   retrieval only: ranks before and after reranking
   rag calibrate [--k-before N] [--k-after N]     score distributions and the cutoff sweeps, no LLM
   rag eval  [--modes legacy:rewrite+rerank,rewrite+rerank] [--markdown EVAL.md]   all questions × modes, judged
@@ -95,6 +96,15 @@ def main(argv: list[str] | None = None) -> int:
     chat.add_argument("--no-memory", action="store_true", help="history window only: no task memory, no scope")
     retrieval(chat)
 
+    web = sub.add_parser("web", help="the chat as a web page")
+    web.add_argument("--host", default="127.0.0.1")
+    web.add_argument("--port", type=int, default=8025)
+    web.add_argument("--mode", choices=MODES, default=DEFAULT_MODE)
+    web.add_argument("--model", choices=MODELS, default=MODELS[0])
+    web.add_argument("--chat-db", type=Path, default=DEFAULT_CHAT_DB)
+    web.add_argument("--no-memory", action="store_true", help="history window only: no task memory, no scope")
+    retrieval(web)
+
     check = sub.add_parser("check", help="retrieval check of the control questions, no LLM")
     check.add_argument("--questions", type=Path, default=evalset.DEFAULT_QUESTIONS)
     check.add_argument("--rewrite", action="store_true", help="search with the question and its rewrites (calls the LLM)")
@@ -123,7 +133,7 @@ def main(argv: list[str] | None = None) -> int:
 
     args = ap.parse_args(argv)
     try:
-        return {"ask": cmd_ask, "chat": cmd_chat, "check": cmd_check, "calibrate": cmd_calibrate, "eval": cmd_eval}[args.cmd](args)
+        return {"ask": cmd_ask, "chat": cmd_chat, "web": cmd_web, "check": cmd_check, "calibrate": cmd_calibrate, "eval": cmd_eval}[args.cmd](args)
     except (EmbedError, IndexMissing, LLMError, ValueError, SessionMissing) as e:
         print(f"error: {e}", file=sys.stderr)
         return 1
@@ -169,10 +179,8 @@ def cmd_chat(args) -> int:
         store = ChatStore(args.chat_db)
         print_sessions(store)
         return 0
-    config = _config(args, args.mode)
-    if config.reranks:
-        config = replace(config, floor=min(FLOOR, config.threshold))
-    service = build_chat(args.chat_db, args.db, args.model, config, args.reranker_model, memory=not args.no_memory)
+    service = _chat_service(args)
+    config = service.config
     store, show = service.store, args.show_context
     session = store.session(args.session) if args.session else store.create_session()
     print(f"rag chat · {args.model} · {config.label} · memory {'on' if service.memory_on else 'off'} · "
@@ -219,6 +227,25 @@ def cmd_chat(args) -> int:
             print(f"error: {e}")
             continue
         print_turn(turn, show)
+
+
+def _chat_service(args):
+    config = _config(args, args.mode)
+    if config.reranks:
+        config = replace(config, floor=min(FLOOR, config.threshold))
+    return build_chat(args.chat_db, args.db, args.model, config, args.reranker_model, memory=not args.no_memory)
+
+
+def cmd_web(args) -> int:
+    from .server import serve
+
+    service = _chat_service(args)
+    documents = [{"source": s, "title": t} for s, t in service.agent.pipeline.retriever.documents()]
+    print(f"rag web · {args.model} · {service.config.label} · memory {'on' if service.memory_on else 'off'} · "
+          f"loading the reranker …")
+    print(f"open http://{args.host}:{args.port}  (Ctrl+C to stop)")
+    serve(service, args.host, args.port, {"documents": documents})
+    return 0
 
 
 def print_sessions(store: ChatStore) -> None:

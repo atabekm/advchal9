@@ -188,7 +188,9 @@ The memory has:
   focus, things to avoid ("short answers", "use kilograms, not pounds").
 - terms: words or abbreviations the user has given a meaning or uses with a fixed meaning
   ("'the paper' = the TatarTTS paper", "'deficit' = eating below maintenance calories").
-- scope: the documents the user wants answers from; [] means all documents.
+- scope: the documents the user explicitly limited the conversation to ("only use Gutless",
+  "now also look at the Apertium paper"); [] means all documents. Being interested in a
+  document, or asking about one, is not a limit: set the scope only when the user says so.
 
 Edits you can make:
   {{"op": "set_goal", "text": "..."}}
@@ -198,7 +200,9 @@ Edits you can make:
 
 Rules:
 - Record only what the user said or clearly agreed to. Never record the documents' facts or the
-  assistant's answers: those are found again by search when needed.
+  assistant's answers: those are found again by search when needed. "(read as: ...)" is how the
+  assistant interpreted the message, not something the user said: do not record it as a term or
+  a clarification, unless the user's message itself states it (e.g. answers a clarifying question).
 - One short item per fact, written so it is clear without the conversation.
 - Do not add what is already in the memory. If the user changes something, remove the old item
   and add the new one.
