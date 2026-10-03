@@ -11,6 +11,7 @@ Vectors are unit length, so cosine similarity is a dot product.
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Collection
 from pathlib import Path
 
 import numpy as np
@@ -138,12 +139,16 @@ class Store:
             return rows, np.zeros((0, 0), dtype=np.float32)
         return rows, np.vstack([np.frombuffer(r["embedding"], dtype=np.float32) for r in rows])
 
-    def search(self, strategy: str, query_vec: np.ndarray, k: int = 5) -> list[tuple[float, sqlite3.Row]]:
+    def search(self, strategy: str, query_vec: np.ndarray, k: int = 5,
+               sources: Collection[str] = ()) -> list[tuple[float, sqlite3.Row]]:
+        """Top k by cosine; `sources`, when given, keeps only chunks of those documents."""
         rows, mat = self.matrix(strategy)
         if not rows:
             return []
         scores = mat @ query_vec
-        top = np.argsort(-scores)[:k]
+        if sources:
+            scores = np.where([r["source"] in sources for r in rows], scores, -np.inf)
+        top = [i for i in np.argsort(-scores)[:k] if np.isfinite(scores[i])]
         return [(float(scores[i]), rows[i]) for i in top]
 
     def documents(self) -> list[sqlite3.Row]:

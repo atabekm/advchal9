@@ -147,3 +147,20 @@ One branch, `task25/rag-chat`, one commit per stage, one PR at the end.
 - `ollama serve` with `nomic-embed-text`
 - `DEEPSEEK_API_KEY` in the environment or `task25/.env`
 - `bge-reranker-base` is already in the Hugging Face cache
+
+## What the build changed
+
+- **The standalone question leaves out the user's details.** With "I'm vegetarian, how much
+  protein?" the condenser wrote "how much protein should a vegetarian eat", and no chunk passed
+  the threshold. The search question is now what the documents would state in general; the
+  user's situation reaches the answer through the memory and the raw message.
+- **The answer step also sees the message as written.** "I weigh 82 kg" was in neither the
+  standalone question nor the memory yet (the update runs after the answer), so the answer
+  could not use it.
+- **Chat answer rules**: follow the memory's constraints ("short" = two or three sentences),
+  apply a formula from the passages to the user's numbers, convert units with the step shown,
+  and say when the passages don't cover the user's case.
+- **A floor under the rerank threshold** (`Config.floor`, 0.1 in the chat). The threshold
+  (0.3) still decides whether to answer at all; once the best chunk passes it, the others are
+  kept down to the floor. "How much protein does Gutless recommend per day?" put the chunk with
+  the number at #2 with 0.278, so with the threshold alone the answer was "I don't know".

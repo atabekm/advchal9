@@ -117,3 +117,14 @@ def test_mode_specs_and_labels():
     assert Config.parse("rewrite", k_after=3).k_after == 3
     with pytest.raises(ValueError):
         Config.parse("rerank@x")
+
+
+def test_floor_keeps_more_once_the_best_passes_the_threshold():
+    ret = FakeRetriever(_pool(-1, 4, -6, 0))  # sigmoid: .27 .98 .002 .5
+    rr = Reranker(encoder=FakeEncoder())
+    r = Pipeline(ret, rr).retrieve("q", Config("rerank", 4, 4, threshold=0.3, floor=0.1))
+    assert [h.text for h in r.kept] == ["4", "0", "-1"]
+    r = Pipeline(ret, rr).retrieve("q", Config("rerank", 4, 4, threshold=0.99, floor=0.1))
+    assert r.kept == []  # the best (.98) misses the threshold: the floor does not open gate 1
+    with pytest.raises(ValueError):
+        Config("rerank", threshold=0.3, floor=0.5)

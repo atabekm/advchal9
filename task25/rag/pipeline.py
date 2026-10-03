@@ -10,7 +10,13 @@
 
 Every mode searches k_before, so the pool (and its recall) is comparable across modes; base
 just keeps the first k_after of it in cosine order. A filter may keep nothing: the agent
-then refuses without calling the LLM. The default cutoffs come from `rag calibrate`.
+then refuses without calling the LLM.
+
+`floor` splits the rerank threshold's two jobs. The threshold decides whether the question is
+answerable at all: the best chunk must reach it. Once it does, the other chunks of the top k_after
+are kept down to the floor. With no floor (task 24) the threshold does both. The chat uses a
+floor: a follow-up is phrased more loosely than a control question, and the chunk with the
+number often scores just under the best one (0.28 against a 0.3 threshold). The default cutoffs come from `rag calibrate`.
 """
 
 from __future__ import annotations
@@ -39,6 +45,8 @@ class Config:
     k_after: int = DEFAULT_K_AFTER
     threshold: float | None = None  # None: the mode's default
     cos_delta: float = DEFAULT_COS_DELTA
+    sources: tuple[str, ...] = ()  # search only these documents (the chat's scope); empty = all
+    floor: float | None = None  # rerank modes: keep chunks down to this once the best passes the threshold
 
     def __post_init__(self):
         if self.mode not in MODES:
@@ -47,6 +55,8 @@ class Config:
             object.__setattr__(self, "threshold", DEFAULT_THRESHOLDS.get(self.mode, 0.0))
         if not 0 < self.k_after <= self.k_before:
             raise ValueError(f"need 0 < k_after ({self.k_after}) <= k_before ({self.k_before})")
+        if self.floor is not None and not 0 <= self.floor <= self.threshold:
+            raise ValueError(f"need 0 <= floor ({self.floor}) <= threshold ({self.threshold})")
         if not 0 <= self.threshold <= 1 or self.cos_delta < 0:
             raise ValueError(f"need 0 <= threshold ({self.threshold}) <= 1 and cos_delta ({self.cos_delta}) >= 0")
 
@@ -97,10 +107,11 @@ class Pipeline:
             timings["rewrite"] = rewrite.seconds
             queries += [q for q in rewrite.queries if q != question]
         t = time.monotonic()
+        scope = {"sources": config.sources} if config.sources else {}
         if len(queries) == 1:
-            pool = self.retriever.search(question, DEFAULT_STRATEGY, config.k_before)
+            pool = self.retriever.search(question, DEFAULT_STRATEGY, config.k_before, **scope)
         else:
-            pool = self.retriever.search_many(queries, DEFAULT_STRATEGY, config.k_before)
+            pool = self.retriever.search_many(queries, DEFAULT_STRATEGY, config.k_before, **scope)
         timings["search"] = time.monotonic() - t
         if config.reranks:
             if self.reranker is None:
@@ -109,7 +120,9 @@ class Pipeline:
             t = time.monotonic()
             ranked = self.reranker.rerank(queries, pool)
             timings["rerank"] = time.monotonic() - t
-            kept = [h for h in ranked[:config.k_after] if h.rerank >= config.threshold]
+            floor = config.threshold if config.floor is None else config.floor
+            passes = bool(ranked) and ranked[0].rerank >= config.threshold
+            kept = [h for h in ranked[:config.k_after] if h.rerank >= floor] if passes else []
         else:
             ranked = pool
             kept = ranked[:config.k_after]

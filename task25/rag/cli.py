@@ -7,7 +7,7 @@
            rewrite (the question + 1-3 LLM rewrites, fused), rewrite+rerank (that pool → cross-encoder)
   rag chat [--session ID] [--list] [--show-context]   a saved conversation: follow-ups are condensed
            into standalone questions, small talk skips retrieval
-           in chat: /new  /sessions  /open ID  /history  /context on|off  /quit
+           [--no-memory]   in chat: /new  /sessions  /open ID  /history  /memory  /context on|off  /quit
   rag check [--rewrite] [--k-before N] [--k-after N]   retrieval only: ranks before and after reranking
   rag calibrate [--k-before N] [--k-after N]     score distributions and the cutoff sweeps, no LLM
   rag eval  [--modes legacy:rewrite+rerank,rewrite+rerank] [--markdown EVAL.md]   all questions × modes, judged
@@ -36,7 +36,8 @@ from .rerank import DEFAULT_MODEL as DEFAULT_RERANKER
 from .rerank import Reranker
 from .rewrite import Rewriter
 from .verify import MIN_SCORE
-from .chat import Turn
+from .chat import FLOOR, Turn
+from .memory import TaskMemory
 from .chat import build as build_chat
 from .store import DEFAULT_CHAT_DB, ChatStore, SessionMissing
 from .retrieve import DEFAULT_DB, IndexMissing, Retriever
@@ -91,6 +92,7 @@ def main(argv: list[str] | None = None) -> int:
     chat.add_argument("--session", help="resume this session (default: a new one)")
     chat.add_argument("--list", action="store_true", help="list the saved sessions and exit")
     chat.add_argument("--chat-db", type=Path, default=DEFAULT_CHAT_DB)
+    chat.add_argument("--no-memory", action="store_true", help="history window only: no task memory, no scope")
     retrieval(chat)
 
     check = sub.add_parser("check", help="retrieval check of the control questions, no LLM")
@@ -168,10 +170,13 @@ def cmd_chat(args) -> int:
         print_sessions(store)
         return 0
     config = _config(args, args.mode)
-    service = build_chat(args.chat_db, args.db, args.model, config, args.reranker_model)
+    if config.reranks:
+        config = replace(config, floor=min(FLOOR, config.threshold))
+    service = build_chat(args.chat_db, args.db, args.model, config, args.reranker_model, memory=not args.no_memory)
     store, show = service.store, args.show_context
     session = store.session(args.session) if args.session else store.create_session()
-    print(f"rag chat · {args.model} · {config.label} · session {session.id} · type /help for commands")
+    print(f"rag chat · {args.model} · {config.label} · memory {'on' if service.memory_on else 'off'} · "
+          f"session {session.id} · type /help for commands")
     if args.session:
         print_history(store, session.id)
     while True:
@@ -201,10 +206,12 @@ def cmd_chat(args) -> int:
                 print_history(store, session.id)
             elif cmd == "history":
                 print_history(store, session.id)
+            elif cmd == "memory":
+                print_memory(service.memory(session.id), store.memory_log(session.id))
             elif cmd == "context" and arg in ("on", "off"):
                 show = arg == "on"
             else:
-                print("  /new   /sessions   /open ID   /history   /context on|off   /quit")
+                print("  /new   /sessions   /open ID   /history   /memory   /context on|off   /quit")
             continue
         try:
             turn = service.turn(session.id, line)
@@ -233,6 +240,23 @@ def print_history(store: ChatStore, session_id: str) -> None:
             print("      sources: " + "; ".join(f"[{x['ref']}] {x['source']} {x['pages']}" for x in m.data["sources"]))
 
 
+def print_memory(memory: TaskMemory, log: list[dict] = ()) -> None:
+    print("  " + (memory.block(with_ids=True) or "task memory is empty").replace("\n", "\n  "))
+    if log:
+        print("  log:")
+        for c in log:
+            print(f"    t{c['turn']:<3} {_change(c)}")
+
+
+def _change(c: dict) -> str:
+    if c["op"] == "set_goal":
+        return f"goal → {c['text']}"
+    if c["op"] == "set_scope":
+        return f"scope → {c['text']}"
+    sign = "+" if c["op"] == "add" else "−"
+    return f"{sign} {c['field']} [{c['id']}] {c['text']}"
+
+
 def print_turn(turn: Turn, show_context: bool = False) -> None:
     c = turn.condensed
     if c.error:
@@ -241,13 +265,19 @@ def print_turn(turn: Turn, show_context: bool = False) -> None:
         print(f"── turn {turn.turn} · meta, no retrieval  ({turn.seconds:.1f}s)")
         for para in turn.text.splitlines():
             print(textwrap.fill(para, WIDTH, initial_indent="  ", subsequent_indent="  ") if para.strip() else "")
-        return
-    if c.standalone != turn.message:
-        print(textwrap.fill(f"↳ {c.standalone}", WIDTH, initial_indent="  ", subsequent_indent="    "))
-    if show_context and turn.answer.retrieval:
-        print_context(turn.answer.retrieval)
-    print(f"── turn {turn.turn}  ({turn.seconds:.1f}s in all)")
-    print_answer(turn.answer)
+    else:
+        if c.standalone != turn.message:
+            print(textwrap.fill(f"↳ {c.standalone}", WIDTH, initial_indent="  ", subsequent_indent="    "))
+        if show_context and turn.answer.retrieval:
+            print_context(turn.answer.retrieval)
+        scope = turn.answer.retrieval.config.sources if turn.answer.retrieval else ()
+        print(f"── turn {turn.turn}  ({turn.seconds:.1f}s in all" + (f"; scope {', '.join(scope)}" if scope else "") + ")")
+        print_answer(turn.answer)
+    if turn.update is not None:
+        for ch in turn.update.changes:
+            print(f"  memory: {_change(ch.to_dict())}")
+        for e in turn.update.errors:
+            print(f"  memory ! {e}")
 
 
 def cmd_check(args) -> int:
@@ -361,12 +391,13 @@ def cmd_eval(args) -> int:
 def print_context(r: Retrieval) -> None:
     c = r.config
     reranked = c.reranks
+    cut = f"{c.threshold:g}" if c.floor is None else f"{c.threshold:g} (best), keep ≥ {c.floor:g}"
     head = {"base": f"base: cosine top {c.k_after}",
             "cos-filter": f"cos-filter: cosine top {c.k_after} within {c.cos_delta:g} of the best",
-            "rerank": f"rerank: cosine top {c.k_before} → cross-encoder → top {c.k_after} ≥ {c.threshold:g}",
+            "rerank": f"rerank: cosine top {c.k_before} → cross-encoder → top {c.k_after} ≥ {cut}",
             "rewrite": f"rewrite: {len(r.queries)} queries × cosine top {c.k_before}, fused → top {c.k_after}",
             "rewrite+rerank": f"rewrite+rerank: {len(r.queries)} queries × cosine top {c.k_before}, fused ({len(r.pool)}) "
-                              f"→ cross-encoder → top {c.k_after} ≥ {c.threshold:g}"}[c.mode]
+                              f"→ cross-encoder → top {c.k_after} ≥ {cut}"}[c.mode]
     t = "  ".join(f"{k} {v:.2f}s" for k, v in r.timings.items())
     print(f"── context ({head};  {t})")
     if c.rewrites:
@@ -380,7 +411,7 @@ def print_context(r: Retrieval) -> None:
     kept = {h.chunk_id for h in r.kept}
     if reranked:
         dropped = [h for h in r.ranked if h.chunk_id not in kept]
-        print(f"  not kept ({len(dropped)}; top {c.k_after}, score ≥ {c.threshold:g}):")
+        print(f"  not kept ({len(dropped)}; top {c.k_after}, score ≥ {cut}):")
         for h in dropped:
             print(f"    #{h.rank:<2} rerank {h.rerank:.3f} · cos #{h.cosine_rank:<2} {h.score:.3f}  {h.source}  {h.pages}  {h.section or '—'}")
     elif c.mode == "cos-filter":

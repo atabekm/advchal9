@@ -60,7 +60,8 @@ class FakeRetriever:
 def _service(llm, window=6):
     ret = FakeRetriever()
     agent = Agent(llm, Pipeline(ret), "cited")
-    svc = ChatService(ChatStore(":memory:"), llm, agent, Condenser(llm, ["Gutless"]), Config("base", 2, 2), window)
+    svc = ChatService(ChatStore(":memory:"), llm, agent, Condenser(llm, ["Gutless"]), config=Config("base", 2, 2),
+                      window=window)
     return svc, ret
 
 
@@ -85,7 +86,8 @@ def test_store_keeps_sessions_and_messages_in_order(tmp_path):
 
 def test_store_lists_recent_first_and_deletes_with_messages():
     store = ChatStore(":memory:")
-    a, b = store.create_session("a"), store.create_session("b")
+    a = store.create_session("a")
+    store.create_session("b")
     store.add_message(a.id, 1, "user", "later")
     assert [s.title for s in store.sessions()] == ["a", "b"]
     store.delete_session(a.id)

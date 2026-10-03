@@ -1,8 +1,9 @@
-"""The conversation history in SQLite: sessions and their messages.
+"""The conversation history in SQLite: sessions, their messages, task memory and its log.
 
 A message is one side of a turn: the user's text, or the assistant's reply with everything that
 produced it (the standalone question, the retrieval, sources, quotes) as JSON in `data`. The
-web page and the CLI read the same rows, so a session can be resumed from either.
+web page and the CLI read the same rows, so a session can be resumed from either. The task
+memory is one JSON row per session; every edit to it is also appended to `memory_log`.
 """
 
 from __future__ import annotations
@@ -36,6 +37,18 @@ CREATE TABLE IF NOT EXISTS messages (
     created REAL NOT NULL
 );
 CREATE INDEX IF NOT EXISTS messages_session ON messages(session_id, id);
+CREATE TABLE IF NOT EXISTS memory (
+    session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+    data TEXT NOT NULL,
+    updated REAL NOT NULL
+);
+CREATE TABLE IF NOT EXISTS memory_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+    turn INTEGER NOT NULL,
+    change TEXT NOT NULL,
+    created REAL NOT NULL
+);
 """
 
 
@@ -115,6 +128,34 @@ class ChatStore:
                              (session_id, turn, role, text, json.dumps(data or {}, ensure_ascii=False), now))
             self._db.execute("UPDATE sessions SET updated = ? WHERE id = ?", (now, session_id))
         return Message(turn, role, text, data or {}, now)
+
+    def save_turn(self, session_id: str, turn: int, user_text: str, reply: str, data: dict,
+                  memory: dict | None = None, changes: list[dict] = ()) -> None:
+        """A whole turn in one transaction: the message, the reply, and the memory after it."""
+        now = time.time()
+        with self._lock, self._db:
+            self._db.executemany(
+                "INSERT INTO messages (session_id, turn, role, text, data, created) VALUES (?, ?, ?, ?, ?, ?)",
+                [(session_id, turn, "user", user_text, "{}", now),
+                 (session_id, turn, "assistant", reply, json.dumps(data, ensure_ascii=False), now)])
+            if memory is not None:
+                self._db.execute("INSERT INTO memory (session_id, data, updated) VALUES (?, ?, ?) "
+                                 "ON CONFLICT(session_id) DO UPDATE SET data = excluded.data, updated = excluded.updated",
+                                 (session_id, json.dumps(memory, ensure_ascii=False), now))
+            self._db.executemany("INSERT INTO memory_log (session_id, turn, change, created) VALUES (?, ?, ?, ?)",
+                                 [(session_id, turn, json.dumps(c, ensure_ascii=False), now) for c in changes])
+            self._db.execute("UPDATE sessions SET updated = ? WHERE id = ?", (now, session_id))
+
+    def memory(self, session_id: str) -> dict | None:
+        with self._lock:
+            row = self._db.execute("SELECT data FROM memory WHERE session_id = ?", (session_id,)).fetchone()
+        return None if row is None else json.loads(row["data"])
+
+    def memory_log(self, session_id: str) -> list[dict]:
+        with self._lock:
+            rows = self._db.execute("SELECT change FROM memory_log WHERE session_id = ? ORDER BY id",
+                                    (session_id,)).fetchall()
+        return [json.loads(r["change"]) for r in rows]
 
     def messages(self, session_id: str, last: int | None = None) -> list[Message]:
         """All messages in order, or only the `last` n."""

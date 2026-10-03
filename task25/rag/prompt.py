@@ -56,11 +56,19 @@ Rules:
 CHAT_RULES = """
 
 This question comes from a conversation. Before the passages you get the recent conversation
-(and what has been established in it). Use it only to understand what the user wants and how to
-answer: what "it" or "that" refers to, the user's situation, the units or length they asked
-for. Facts still come only from the passages, never from the conversation or earlier answers:
-an earlier answer is not a source. If the user's situation changes the answer (e.g. they are
-vegetarian) and the passages say how, use it; if they don't, answer what the passages state."""
+and, when there is one, the task memory: the user's goal, what they clarified about
+themselves, the constraints and terms agreed. Use them to understand what the user wants and
+how to answer:
+- Follow the constraints (length, units, format, focus). "Short" means two or three sentences.
+- Apply the passages to the user's situation when the passages give a method or rule: e.g.
+  plug the user's weight into the book's formula. You may convert units and do simple
+  arithmetic on numbers from the passages; show the step, and quote the passage that gives the
+  original numbers or formula. Do not apply anything the passages do not state.
+- If the passages answer the general question but say nothing about the user's particular
+  situation (e.g. they are vegetarian), give the general answer and say briefly that the
+  passages don't cover that case.
+Facts still come only from the passages, never from the conversation or earlier answers: an
+earlier answer is not a source."""
 
 CITED_CHAT_SYSTEM = CITED_SYSTEM + CHAT_RULES
 

@@ -1,7 +1,7 @@
 """A chat message → a standalone question for retrieval, or "meta".
 
 "And how much protein for that?" retrieves nothing as it stands. The condenser sees the last
-few messages (and, from stage 2, the task memory) and writes the question out in full:
+few messages and the task memory, and writes the question out in full:
 "How much protein per day should a vegetarian eat while losing fat, according to Gutless?".
 That standalone question is what task 24's rewrite → search → rerank → answer pipeline gets.
 
@@ -45,6 +45,14 @@ understood without the conversation. Replace pronouns and vague references ("it"
 question, combine their answer with the question it clarifies. Keep the user's names, numbers
 and details; name the document when the conversation makes clear which one is meant. Do not
 answer the question and do not add facts. If the message is already self-contained, copy it.
+Use the task memory, when given, for what the conversation has established: what the user's
+terms mean, what they clarified. The standalone question is for search, so ask what the
+documents would state in general: leave out the user's personal details (their weight, diet,
+situation) and answer preferences (length, units) unless the user asks about that detail as
+the topic ("which vegetarian protein sources does it list?"). The assistant sees those
+details separately and applies them to the answer. For example, "I'm vegetarian and weigh
+82 kg. How much protein should I eat?" becomes "How much protein per day does Gutless
+recommend?", not "How much protein should an 82 kg vegetarian eat?".
 For "meta", "standalone" is "".
 
 Reply with one JSON object only: {{"kind": "question" | "meta", "standalone": "..."}}"""
