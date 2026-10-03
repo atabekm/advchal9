@@ -1,0 +1,266 @@
+[
+  {
+    "id": "q01",
+    "kind": "fact",
+    "question": "How many hours of speech does the TatarTTS dataset contain, and who recorded it?",
+    "expect": "About 70 hours of transcribed audio (over 38,000 segments) from two professional speakers, one male (36.2 h) and one female (33.9 h), actors of the Tatar National Theatre.",
+    "must_contain": [
+      [
+        "70"
+      ],
+      [
+        "two"
+      ],
+      [
+        "female"
+      ]
+    ],
+    "sources": [
+      {
+        "source": "1570978467.pdf",
+        "pages": [
+          1,
+          2
+        ]
+      }
+    ]
+  },
+  {
+    "id": "q04",
+    "kind": "fact",
+    "question": "How did the apertium-anaphora module change the accuracy of anaphor translation in its preliminary evaluation?",
+    "expect": "Spanish–English (120 anaphors): accuracy rose from 29.2% to 54.2%. Catalan–Italian (108 anaphors): it fell from 83.3% to 75.0%, because the test data was skewed towards singular antecedents, which the default translation already covers.",
+    "must_contain": [
+      [
+        "29.2"
+      ],
+      [
+        "54.2"
+      ],
+      [
+        "83.3"
+      ],
+      [
+        "75"
+      ]
+    ],
+    "sources": [
+      {
+        "source": "s10590-021-09260-6.pdf",
+        "pages": [
+          15,
+          16
+        ]
+      }
+    ]
+  },
+  {
+    "id": "q05",
+    "kind": "explain",
+    "question": "Why was the apertium-recursive module developed, and how does it work?",
+    "expect": "The finite-state chunker only matches fixed, contiguous word sequences, so long-distance reordering and nested structures (relative clauses, prepositional phrases inside prepositional phrases) need many rules. apertium-recursive applies transfer rules recursively with context-free grammars and a GLR parser. Example: the 30+ English–Spanish noun-phrase rules shrink to fewer than 10 (mostly 3).",
+    "must_contain": [
+      [
+        "context-free",
+        "CFG"
+      ],
+      [
+        "GLR"
+      ],
+      [
+        "contiguous",
+        "finite-state",
+        "fixed sequence"
+      ]
+    ],
+    "sources": [
+      {
+        "source": "s10590-021-09260-6.pdf",
+        "pages": [
+          8,
+          9
+        ]
+      }
+    ]
+  },
+  {
+    "id": "q06",
+    "kind": "fact",
+    "question": "What are the three golden rules of fat loss in Gutless?",
+    "expect": "1. Calories: a calorie deficit is the only requirement for fat loss. 2. Protein: it fills you up and spares muscle. 3. Consistency (sustainability): a diet you can stick to.",
+    "must_contain": [
+      [
+        "calorie"
+      ],
+      [
+        "protein"
+      ],
+      [
+        "consisten",
+        "sustainab"
+      ]
+    ],
+    "sources": [
+      {
+        "source": "Gutless.pdf",
+        "pages": [
+          9,
+          10,
+          11,
+          12
+        ]
+      }
+    ]
+  },
+  {
+    "id": "q07",
+    "kind": "fact",
+    "question": "Using the simple method from Gutless, how many calories per day should a 185-pound person eat to lose fat?",
+    "expect": "Multiply body weight in pounds by 10–12: between 1,850 and 2,220 calories a day (11 per pound if unsure; 10 if inactive, 12 if very active).",
+    "must_contain": [
+      [
+        "1850",
+        "1,850"
+      ],
+      [
+        "2220",
+        "2,220"
+      ]
+    ],
+    "sources": [
+      {
+        "source": "Gutless.pdf",
+        "pages": [
+          10,
+          11
+        ]
+      }
+    ]
+  },
+  {
+    "id": "q08",
+    "kind": "multi",
+    "question": "Which documents in the collection deal with the Tatar language, and in what way?",
+    "expect": "Two documents. The TatarTTS paper introduces a 70-hour open-source text-to-speech dataset and baseline models for Tatar. The Apertium paper covers Tatar in machine translation: a released Kazakh–Tatar pair, Tatar listed as a Turkic language with minority status, and Tatar–Bashqort among unreleased pairs.",
+    "must_contain": [
+      [
+        "speech",
+        "TTS"
+      ],
+      [
+        "Apertium",
+        "machine translation"
+      ]
+    ],
+    "sources": [
+      {
+        "source": "1570978467.pdf",
+        "pages": [
+          1,
+          2,
+          4
+        ]
+      },
+      {
+        "source": "s10590-021-09260-6.pdf",
+        "pages": [
+          17,
+          18,
+          20
+        ]
+      }
+    ]
+  },
+  {
+    "id": "q11",
+    "kind": "explain",
+    "question": "How was that open voice dataset for a Turkic language put together?",
+    "expect": "TatarTTS: texts taken from the Tatar language corpus (fiction, media, official, educational and scientific texts) and checked to be free of grammatical errors; read by two Tatar National Theatre actors experienced in TV and radio narration; recorded in a controlled studio with Neumann microphones and Steinberg Cubase at 44.1 kHz / 32 bit; then transcribers manually segmented the recordings into sentences.",
+    "must_contain": [
+      [
+        "theatre",
+        "theater",
+        "actor"
+      ],
+      [
+        "studio",
+        "neumann"
+      ],
+      [
+        "segment",
+        "sentence"
+      ]
+    ],
+    "sources": [
+      {
+        "source": "1570978467.pdf",
+        "pages": [
+          2
+        ]
+      }
+    ]
+  },
+  {
+    "id": "q09",
+    "kind": "unanswerable",
+    "question": "According to Gutless, how many grams of creatine should you take per day?",
+    "expect": "Gutless does not discuss creatine. The reply should be \"I don't know\" with a clarifying question; it should say the documents do not cover it, not give a dose.",
+    "must_contain": [
+      [
+        "not contain",
+        "does not",
+        "doesn't",
+        "no information",
+        "not mention",
+        "not covered",
+        "not discuss"
+      ],
+      [
+        "?"
+      ]
+    ],
+    "sources": []
+  },
+  {
+    "id": "q13",
+    "kind": "unanswerable",
+    "question": "How many native Tatar speakers took part in the TatarTTS listening evaluation?",
+    "expect": "The paper does not give the number of raters. It says native speakers rated 200 held-out utterances through a Telegram bot, 30 recordings per session, until every audio had at least one rating. The reply should be \"I don't know\" with a clarifying question; it should say the number is not stated.",
+    "must_contain": [
+      [
+        "not contain",
+        "does not",
+        "doesn't",
+        "no information",
+        "not mention",
+        "not report",
+        "not provide"
+      ],
+      [
+        "?"
+      ]
+    ],
+    "sources": []
+  },
+  {
+    "id": "q16",
+    "kind": "ambiguous",
+    "question": "What did the evaluation show?",
+    "expect": "Ambiguous: the collection has several evaluations (the TatarTTS MOS listening test, the apertium-anaphora preliminary evaluation). The reply should be \"I don't know\" and ask which evaluation is meant, ideally naming the options. Answering for one of them with the right figures is acceptable but not preferred; inventing results is wrong.",
+    "must_contain": [
+      [
+        "not contain",
+        "does not",
+        "doesn't",
+        "no information",
+        "not mention",
+        "not report",
+        "not provide"
+      ],
+      [
+        "?"
+      ]
+    ],
+    "sources": []
+  }
+]
