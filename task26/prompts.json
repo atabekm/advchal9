@@ -1,0 +1,17 @@
+[
+  {
+    "level": "simple",
+    "prompt": "What is the capital of Kazakhstan? Answer in one sentence.",
+    "think": false
+  },
+  {
+    "level": "medium",
+    "prompt": "Explain retrieval-augmented generation (RAG) to a junior developer in exactly three sentences: what it is, why it helps, and one limitation.",
+    "think": false
+  },
+  {
+    "level": "complex",
+    "prompt": "A train leaves city A at 09:00 at 80 km/h towards city B, 300 km away. Another leaves B at 10:00 at 100 km/h towards A. At what time do they meet and how far from A? Then write a Python function meet(d, v1, v2, delay_h) that returns (hours_after_first_departure, distance_from_A) and check it on these numbers.",
+    "think": true
+  }
+]
