@@ -102,14 +102,14 @@ def run(args) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     results = []
     for i, item in enumerate(prompts, 1):
-        print(f"\n{BOLD}[{i}/{len(prompts)}] {item['level']}{RESET}  think={item.get('think', False)}")
-        print(f"{GREY}> {item['prompt']}{RESET}\n")
+        print(f"\n{GREY}── [{i}/{len(prompts)}] {item['level']} · think={item.get('think', False)} ──{RESET}")
+        print(f"{BOLD}Q: {item['prompt']}{RESET}\n")
         started = time.perf_counter()
         reply = ollama.chat(
             args.model,
             [{"role": "user", "content": item["prompt"]}],
             think=item.get("think", False),
-            on_token=_printer(),
+            on_token=_printer(labels=True),
         )
         wall = time.perf_counter() - started
         print()
@@ -129,24 +129,30 @@ def run(args) -> None:
     stamp = datetime.now().strftime("%Y%m%dT%H%M%S")
     path = out_dir / f"run-{stamp}.json"
     path.write_text(json.dumps({"model": args.model, "host": ollama.HOST, "results": results}, indent=2, ensure_ascii=False))
-    print(f"\n{BOLD}{'level':<9} {'in':>5} {'out':>6} {'tok/s':>6} {'wall':>7}{RESET}")
+    print(f"\n{BOLD}{'level':<9} {'question':<52} {'in':>5} {'out':>6} {'tok/s':>6} {'wall':>7}{RESET}")
     for r in results:
-        print(f"{r['level']:<9} {r['prompt_tokens']:>5} {r['output_tokens']:>6} {r['tokens_per_s']:>6} {r['wall_s']:>6}s")
+        print(f"{r['level']:<9} {_short(r['prompt'], 50):<52} {r['prompt_tokens']:>5} {r['output_tokens']:>6} {r['tokens_per_s']:>6} {r['wall_s']:>6}s")
     print(f"\nSaved {path.relative_to(Path.cwd()) if path.is_relative_to(Path.cwd()) else path}")
+
+
+def _short(text: str, n: int) -> str:
+    return text if len(text) <= n else text[: n - 1] + "…"
 
 
 def _system(text: str | None) -> list[dict]:
     return [{"role": "system", "content": text}] if text else []
 
 
-def _printer():
-    """Print streamed tokens: thinking dimmed, then the answer."""
+def _printer(labels: bool = False):
+    """Print streamed tokens: thinking dimmed, then the answer, optionally under "Thinking:" / "A:" labels."""
     state = {"kind": None}
 
     def on_token(kind: str, text: str) -> None:
         if kind != state["kind"]:
             if state["kind"] == "thinking":
                 print(f"{RESET}\n")
+            if labels:
+                print(f"{BOLD}{'Thinking:' if kind == 'thinking' else 'A:'}{RESET} ", end="")
             if kind == "thinking":
                 print(f"{DIM}", end="")
             state["kind"] = kind
