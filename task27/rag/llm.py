@@ -44,8 +44,9 @@ class LocalLLM:
         self.timeout = timeout
         self.num_ctx = num_ctx
 
-    def chat(self, system: str, user: str, json: bool = False) -> Reply:
-        """`json` makes Ollama constrain the output to one JSON object (the prompt must ask for JSON)."""
+    def chat(self, system: str, user: str, json: bool | dict = False) -> Reply:
+        """`json=True` makes Ollama constrain the output to one JSON object (the prompt must ask for
+        JSON); a dict is a JSON schema the output must follow, enforced while decoding."""
         body = {
             "model": self.model,
             "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
@@ -55,7 +56,7 @@ class LocalLLM:
             "options": {"temperature": self.temperature, "num_ctx": self.num_ctx},
         }
         if json:
-            body["format"] = "json"
+            body["format"] = json if isinstance(json, dict) else "json"
         started = time.monotonic()
         try:
             r = requests.post(f"{self.base_url}/api/chat", json=body, timeout=self.timeout)

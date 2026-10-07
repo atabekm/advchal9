@@ -35,6 +35,24 @@ OPS = ("set_goal", "add", "remove", "set_scope")
 ANSWER_CHARS = 600  # the assistant's reply in the update prompt is cut to this
 
 
+def _op(name: str, **props) -> dict:
+    return {"type": "object", "properties": {"op": {"enum": [name]}, **props}, "required": ["op", *props]}
+
+
+# Ollama decodes against this, so a small model cannot invent ops like "set_constraints".
+# apply() still validates ids, sources and duplicates.
+OPS_SCHEMA = {
+    "type": "object",
+    "properties": {"ops": {"type": "array", "items": {"anyOf": [
+        _op("set_goal", text={"type": "string"}),
+        _op("add", field={"enum": list(FIELDS)}, text={"type": "string"}),
+        _op("remove", id={"type": "string"}),
+        _op("set_scope", sources={"type": "array", "items": {"type": "string"}}),
+    ]}}},
+    "required": ["ops"],
+}
+
+
 @dataclass
 class Item:
     id: str  # c1, k2, t3: the field's letter and a number that is never reused
@@ -179,13 +197,15 @@ The collection contains these documents (source file: title):
 
 The memory has:
 - goal: what the user is trying to achieve in this conversation, in one short sentence. If
-  there is no goal yet, infer one from the user's first real message ("learn the main ideas of
-  Gutless", "plan a TTS dataset"). Change it only when the user states a new or more precise goal.
+  the user states a goal, use it in their own words ("lose 5 kg of fat", "plan a TTS dataset").
+  If not, infer one from their first real message. Change it only when the user states a new or
+  more precise goal.
 - clarified: what the user has told about themselves or their situation ("is vegetarian",
   "weighs about 80 kg"), what they meant by a vague reference, and their answers to the
   assistant's clarifying questions ("'the evaluation' = the TatarTTS listening test").
 - constraints: how the user wants answers and what to stick to: length, units, format,
-  focus, things to avoid ("short answers", "use kilograms, not pounds").
+  focus, things to avoid ("short answers", "use kilograms, not pounds"). Every "please do X"
+  about the answers is a constraint, not a clarification; one item per constraint.
 - terms: words or abbreviations the user has given a meaning or uses with a fixed meaning
   ("'the paper' = the TatarTTS paper", "'deficit' = eating below maintenance calories").
 - scope: the documents the user explicitly limited the conversation to ("only use Gutless",
@@ -256,7 +276,7 @@ class MemoryUpdater:
                 f"Latest turn (turn {turn}):\n{turn_block(message, standalone, reply, status)}\n\n"
                 "Reply with the JSON object.")
         try:
-            r = self.llm.chat(self.system, user, json=True)
+            r = self.llm.chat(self.system, user, json=OPS_SCHEMA)
         except LLMError as e:
             return Update(errors=[str(e)])
         try:

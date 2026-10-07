@@ -16,6 +16,12 @@ What changed from task 25:
   `temperature 0`, and `num_ctx 16384` so a turn's ~5k-token prompt is never truncated.
 - [`rag/rerank.py`](rag/rerank.py): the cross-encoder is loaded with `local_files_only` and
   downloads only if it isn't cached yet, so it never contacts the Hub, even to check for updates.
+- [`rag/memory.py`](rag/memory.py): the memory-update call passes a JSON schema as Ollama's
+  `format`, so decoding allows only the four real edits (`set_goal`, `add`, `remove`,
+  `set_scope`). Without it, qwen3 sometimes invented ops like `set_constraints`, those edits were
+  rejected, and the constraint was lost. The prompt also now asks for the goal in the user's own
+  words (the 8B model was copying the example goal) and says that every "please do X" about the
+  answers is a constraint.
 - `--model` accepts any pulled Ollama model (default `qwen3:8b`). The page header shows the
   model and the Ollama version it's talking to.
 
