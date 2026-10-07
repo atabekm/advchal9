@@ -25,13 +25,13 @@ def test_a_conversation_through_the_api():
     assert info["memory"] is True and info["mode"] == "base" and info["documents"][0]["source"] == "Gutless.pdf"
 
     sid = client.post("/api/sessions").json()["id"]
-    r = client.post(f"/api/sessions/{sid}/messages", json={"text": "I want to lose 8 kg. Rules?"})
+    r = client.post(f"/api/sessions/{sid}/messages", json={"text": "I want to lose 8 kg, keep it short. Rules?"})
     assert r.status_code == 200
     body = r.json()
     assert body["turn"] == 1 and body["reply"]["data"]["status"] == "answer"
     assert body["reply"]["data"]["sources"][0]["source"] == "Gutless.pdf"
     assert body["memory"]["goal"] == "Lose 8 kg" and body["memory"]["log"][1]["text"] == "short"
-    assert body["session"]["title"] == "I want to lose 8 kg. Rules?" and body["session"]["turns"] == 1
+    assert body["session"]["title"] == "I want to lose 8 kg, keep it short. Rules?" and body["session"]["turns"] == 1
 
     client.post(f"/api/sessions/{sid}/messages", json={"text": "thanks"})
     s = client.get(f"/api/sessions/{sid}").json()

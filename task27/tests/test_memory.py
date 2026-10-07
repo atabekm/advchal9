@@ -43,9 +43,19 @@ def test_bad_edits_are_rejected_with_a_reason():
         "nonsense",
         {"op": "set_goal"},
     ], 2, SOURCES)
-    assert changes == [] and len(errors) == 7
-    assert "facts" in errors[0] and "already" in errors[1] and "c9" in errors[3]
+    assert changes == [] and len(errors) == 6  # the duplicate is a silent no-op
+    assert "facts" in errors[0] and "c9" in errors[2]
     assert len(m.terms) == 1
+
+
+def test_a_copied_display_prefix_is_stripped_and_duplicates_are_no_ops():
+    m = TaskMemory()
+    apply(m, [{"op": "add", "field": "clarified", "text": "is vegetarian"}], 1, SOURCES)
+    changes, errors = apply(m, [
+        {"op": "add", "field": "clarified", "text": "- [c1] is vegetarian"},
+        {"op": "add", "field": "constraints", "text": "- [k9] use kilograms"},
+    ], 2, SOURCES)
+    assert errors == [] and len(m.clarified) == 1 and [c.text for c in changes] == ["use kilograms"]
 
 
 def test_goal_is_set_and_changed_only_when_different():
@@ -224,3 +234,14 @@ def test_memory_off_makes_no_update_call_and_keeps_no_scope():
     assert [c[1] for c in ret.calls] == [(), ()]
     assert svc.store.memory(s.id) is None and "memory" not in svc.store.messages(s.id)[1].data
     assert "Task memory" not in llm.prompts("You prepare")[1]
+
+
+def test_an_item_the_user_never_said_is_rejected():
+    m = TaskMemory()
+    changes, errors = apply(m, [
+        {"op": "add", "field": "constraints", "text": "k2: use kilograms, not pounds"},
+        {"op": "add", "field": "clarified", "text": "weighs 180 pounds"},
+        {"op": "add", "field": "constraints", "text": "keep answers short"},
+    ], 1, SOURCES, said="I weigh 180 pounds, keep them short")
+    assert [c.text for c in changes] == ["weighs 180 pounds", "keep answers short"]
+    assert len(errors) == 1 and "not in the user's words" in errors[0]

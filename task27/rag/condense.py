@@ -23,6 +23,12 @@ from .llm import LocalLLM, LLMError
 from .store import Message
 
 KINDS = ("question", "meta")
+# Ollama decodes against this, so the kind is always one of KINDS
+# "asks" comes first, so the model states what the user wants before it picks the kind:
+# without it the 8B model turned "I'm vegetarian and weigh 82 kg" into an invented question.
+SCHEMA = {"type": "object",
+          "properties": {"asks": {"type": "string"}, "kind": {"enum": list(KINDS)}, "standalone": {"type": "string"}},
+          "required": ["asks", "kind", "standalone"]}
 ASSISTANT_CHARS = 500  # an earlier answer in the prompt is cut to this; the gist is enough to resolve "it"
 
 SYSTEM = """\
@@ -36,8 +42,11 @@ You get the recent conversation and the user's new message. Decide what kind of 
   ("and for women?", "how did they do that?") and replies to the assistant's clarifying
   question ("the TTS one").
 - "meta": it asks nothing of the documents: greetings, thanks, "ok", instructions about how to
-  answer ("keep it short"), or questions about this conversation itself ("what have we agreed
-  so far?", "what was my goal?").
+  answer ("keep it short", "use kilograms"), the user telling about themselves or their
+  situation ("I'm vegetarian and I weigh 82 kg"), or questions about this conversation itself
+  ("what have we agreed so far?", "what was my goal?").
+A message without a question or request in it is "meta", even when it mentions something the
+documents cover. Never invent a question the user did not ask.
 
 For a "question", write "standalone": the question as one self-contained sentence that can be
 understood without the conversation. Replace pronouns and vague references ("it", "that",
@@ -58,7 +67,9 @@ details separately and applies them to the answer. For example, "I'm vegetarian 
 recommend?", not "How much protein should an 82 kg vegetarian eat?".
 For "meta", "standalone" is "".
 
-Reply with one JSON object only: {{"kind": "question" | "meta", "standalone": "..."}}"""
+Reply with one JSON object only: {{"asks": "...", "kind": "question" | "meta", "standalone": "..."}}
+"asks" first says in a few words what the new message asks of the documents, or "nothing"
+when it only tells, thanks or instructs. "nothing" means "meta"."""
 
 
 @dataclass
@@ -117,7 +128,7 @@ class Condenser:
             user += f"Task memory (what has been established in this conversation):\n{memory}\n\n"
         user += f"New message: {message.strip()}\n\nReply with the JSON object."
         try:
-            reply = self.llm.chat(self.system, user, json=True)
+            reply = self.llm.chat(self.system, user, json=SCHEMA)
         except LLMError as e:
             return Condensed("question", message.strip(), error=str(e))
         try:

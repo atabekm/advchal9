@@ -32,6 +32,10 @@ from .llm import LocalLLM, LLMError
 FIELDS = ("clarified", "constraints", "terms")
 PREFIX = {"clarified": "c", "constraints": "k", "terms": "t"}
 OPS = ("set_goal", "add", "remove", "set_scope")
+ID_PREFIX = re.compile(r"^\s*(?:-\s*)*(?:\[?[ckt]\d+\]?:?\s+)?")
+WORD = re.compile(r"[a-z0-9]+")
+STOP = {"the", "and", "for", "you", "your", "use", "are", "not", "with", "this", "that", "user", "what",
+        "about", "from", "answer", "answers", "please", "want", "wants", "asks", "is"}
 ANSWER_CHARS = 600  # the assistant's reply in the update prompt is cut to this
 
 
@@ -132,8 +136,17 @@ def _norm(text: str) -> str:
     return " ".join(text.lower().split()).rstrip(".")
 
 
-def apply(memory: TaskMemory, ops: list, turn: int, sources: list[str]) -> tuple[list[Change], list[str]]:
-    """Apply the valid edits in order. Returns what changed and why each rejected edit was rejected."""
+def _stems(text: str) -> set[str]:
+    return {w[:4] for w in WORD.findall(text.lower()) if len(w) > 1 and w not in STOP}
+
+
+def apply(memory: TaskMemory, ops: list, turn: int, sources: list[str],
+          said: str | None = None) -> tuple[list[Change], list[str]]:
+    """Apply the valid edits in order. Returns what changed and why each rejected edit was rejected.
+
+    With `said` (the user's message), most of an added item's words must come from it: small models copy
+    the examples in the instructions ("use kilograms, not pounds") into the memory as if the
+    user had said them."""
     changes, errors = [], []
     for op in ops:
         if not isinstance(op, dict) or op.get("op") not in OPS:
@@ -149,12 +162,16 @@ def apply(memory: TaskMemory, ops: list, turn: int, sources: list[str]) -> tuple
                 changes.append(Change("set_goal", turn, "goal", text=memory.goal))
         elif kind == "add":
             f, text = op.get("field"), op.get("text")
+            if isinstance(text, str):  # small models copy the memory's "- [c2] " display prefix
+                text = ID_PREFIX.sub("", text)
             if f not in FIELDS:
                 errors.append(f"add: field {f!r} is not one of {FIELDS}")
             elif not isinstance(text, str) or not text.strip():
                 errors.append("add needs a text")
-            elif any(_norm(i.text) == _norm(text) for i in getattr(memory, f)):
-                errors.append(f"add: {f} already has {text!r}")
+            elif any(_norm(i.text) == _norm(text) for i in memory.items()):
+                pass  # already remembered: nothing to change
+            elif said is not None and len(_stems(text) & _stems(said)) * 2 <= len(_stems(text)):
+                errors.append(f"add: {text!r} is not in the user's words")
             else:
                 item = Item(f"{PREFIX[f]}{memory.next_id}", " ".join(text.split()), turn)
                 memory.next_id += 1
@@ -284,5 +301,5 @@ class MemoryUpdater:
         except LLMError as e:
             return Update(errors=[str(e)], prompt_tokens=r.prompt_tokens, completion_tokens=r.completion_tokens,
                           seconds=r.seconds)
-        changes, errors = apply(memory, ops, turn, self.sources)
+        changes, errors = apply(memory, ops, turn, self.sources, said=f"{message} {standalone}")
         return Update(changes, errors, r.prompt_tokens, r.completion_tokens, r.seconds)
