@@ -36,17 +36,27 @@ def search(db: sqlite3.Connection, vec: np.ndarray, k: int) -> list[Hit]:
             for i, j in enumerate(np.argsort(-scores)[:k], start=1)]
 
 
+class Retriever:
+    """Question → the top K_AFTER chunks: cosine top K_BEFORE, reordered by the cross-encoder."""
+
+    def __init__(self, db_path: Path = DEFAULT_DB):
+        if not db_path.exists():
+            raise SystemExit(f"no index at {db_path}: cp ../task27/index/index.db index/")
+        self.db = sqlite3.connect(db_path)
+        self.db.row_factory = sqlite3.Row
+        model = dict(self.db.execute("SELECT key, value FROM meta").fetchall()).get("model", "nomic-embed-text")
+        self.embedder, self.reranker = Embedder(model), Reranker()
+
+    def __call__(self, question: str) -> list[Hit]:
+        pool = search(self.db, self.embedder.query(question), K_BEFORE)
+        return self.reranker.rerank(question, pool)[:K_AFTER]
+
+
 def freeze(questions: list[Question], db_path: Path = DEFAULT_DB, out: Path = DEFAULT_CONTEXTS) -> list[dict]:
-    if not db_path.exists():
-        raise SystemExit(f"no index at {db_path}: cp ../task27/index/index.db index/")
-    db = sqlite3.connect(db_path)
-    db.row_factory = sqlite3.Row
-    model = dict(db.execute("SELECT key, value FROM meta").fetchall()).get("model", "nomic-embed-text")
-    embedder, reranker = Embedder(model), Reranker()
+    retrieve = Retriever(db_path)
     frozen = []
     for q in questions:
-        pool = search(db, embedder.query(q.question), K_BEFORE)
-        kept = reranker.rerank(q.question, pool)[:K_AFTER]
+        kept = retrieve(q.question)
         check = retrieval_check(q, kept)
         frozen.append({"id": q.id, "question": q.question, "hits": [h.to_dict() for h in kept],
                        "retrieved": None if check is None else check.hit})

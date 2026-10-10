@@ -6,6 +6,7 @@ import argparse
 import sys
 
 from . import evalset, freeze, report
+from .demo import DEFAULT_VARIANTS, demo
 from .bench import RESULTS, rescore, run
 from .hits import TASK_DIR
 from .variants import BY_NAME, VARIANTS, modelfile
@@ -21,6 +22,9 @@ def main(argv: list[str] | None = None) -> None:
     r.add_argument("variants", nargs="*")
     r.add_argument("-n", "--repeats", type=int, default=3, help="runs of a sampling (temperature > 0) variant")
     r.add_argument("-q", "--question", action="append", help="only these question ids (a quick check)")
+    d = sub.add_parser("demo", help="one question through some variants, streamed live, then compared")
+    d.add_argument("question", help="an eval-set id (q04) or any question about the documents")
+    d.add_argument("variants", nargs="*", help="default: baseline qwen3-rag")
     sub.add_parser("rescore", help="score the saved replies again (after an eval-set or scorer change)")
     rep = sub.add_parser("report", help="the comparison table")
     rep.add_argument("--per-question", action="store_true")
@@ -51,6 +55,12 @@ def main(argv: list[str] | None = None) -> None:
             print(f"== {n}", flush=True)
             path = run(BY_NAME[n], questions, contexts, a.repeats, log=lambda s: print(s, flush=True))
             print(f"   → {path}")
+    elif a.cmd == "demo":
+        names = a.variants or list(DEFAULT_VARIANTS)
+        unknown = [n for n in names if n not in BY_NAME]
+        if unknown:
+            sys.exit(f"unknown variant(s): {unknown}; see `bench list`")
+        demo(a.question, [BY_NAME[n] for n in names], questions)
     elif a.cmd == "rescore":
         contexts = freeze.load()
         for path in sorted(RESULTS.glob("*.json")):

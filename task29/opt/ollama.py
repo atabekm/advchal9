@@ -6,8 +6,10 @@ generation. They give speed without client-side noise; time to first token is lo
 
 from __future__ import annotations
 
+import json
 import os
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 
 import requests
@@ -55,9 +57,11 @@ class Ollama:
         self.timeout = timeout
 
     def chat(self, model: str, messages: list[dict], options: dict | None = None, think: bool | None = None,
-             format: str | dict | None = None, keep_alive: str = "30m") -> Reply:
-        """`think=None` leaves the field out: the model's default (qwen3 thinks)."""
-        body = {"model": model, "messages": messages, "stream": False, "keep_alive": keep_alive,
+             format: str | dict | None = None, keep_alive: str = "30m",
+             on_token: Callable[[str, str], None] | None = None) -> Reply:
+        """`think=None` leaves the field out: the model's default (qwen3 thinks).
+        `on_token(kind, text)` streams the reply as it is generated, kind "thinking" or "content"."""
+        body = {"model": model, "messages": messages, "stream": on_token is not None, "keep_alive": keep_alive,
                 "options": options or {}}
         if think is not None:
             body["think"] = think
@@ -65,14 +69,30 @@ class Ollama:
             body["format"] = format
         started = time.monotonic()
         try:
-            r = requests.post(f"{self.host}/api/chat", json=body, timeout=self.timeout)
+            r = requests.post(f"{self.host}/api/chat", json=body, timeout=self.timeout, stream=on_token is not None)
+            if r.status_code != 200:
+                raise OllamaError(f"ollama HTTP {r.status_code}: {r.text.strip()[:300]}")
+            if on_token is None:
+                d = r.json()
+                msg = d.get("message", {})
+                text, thinking = msg.get("content") or "", msg.get("thinking") or ""
+            else:
+                text, thinking, d = "", "", {}
+                for line in r.iter_lines():
+                    if not line:
+                        continue
+                    d = json.loads(line)
+                    if "error" in d:
+                        raise OllamaError(f"ollama: {d['error']}")
+                    msg = d.get("message", {})
+                    for kind in ("thinking", "content"):
+                        if msg.get(kind):
+                            on_token(kind, msg[kind])
+                    thinking += msg.get("thinking") or ""
+                    text += msg.get("content") or ""
         except requests.RequestException as e:
             raise OllamaError(f"ollama unreachable at {self.host}: {e}") from e
-        if r.status_code != 200:
-            raise OllamaError(f"ollama HTTP {r.status_code}: {r.text.strip()[:300]}")
-        d = r.json()
-        msg = d.get("message", {})
-        return Reply(text=(msg.get("content") or "").strip(), thinking=(msg.get("thinking") or "").strip(),
+        return Reply(text=text.strip(), thinking=thinking.strip(),
                      prompt_tokens=d.get("prompt_eval_count", 0), completion_tokens=d.get("eval_count", 0),
                      load_s=d.get("load_duration", 0) / 1e9, prompt_s=d.get("prompt_eval_duration", 0) / 1e9,
                      eval_s=d.get("eval_duration", 0) / 1e9, wall_s=time.monotonic() - started,

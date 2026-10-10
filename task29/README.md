@@ -40,6 +40,22 @@ curl -s localhost:11434/api/chat -d '{"model": "qwen3-rag", "think": false, "str
 `think: false` and the JSON schema ([`TUNED_SCHEMA`](opt/prompts.py)) are fields of each request,
 so they can't go into a Modelfile. The client still sends them.
 
+## Watching it: `bench demo`
+
+One question through several variants (default: `baseline` and `qwen3-rag`), streamed live:
+
+```bash
+uv run bench demo q04                       # an eval question: frozen passages, scored against the expected answer
+uv run bench demo q09 baseline 4b tuned-think
+uv run bench demo "How many speakers recorded the TatarTTS dataset?"   # any question: retrieved live first
+```
+
+For each variant, every model is unloaded first, so each one starts cold as in the benchmark.
+The reply streams in, with qwen3's thinking dimmed and then the JSON. After it come the parsed
+answer, each quote ✓/✗ against its passage, the timings (load, prefill, tokens/s) and what
+`ollama ps` reports (memory, context). A comparison table closes the run. Nothing is saved:
+`results/` only changes with `bench run`.
+
 ## How it's measured
 
 - **Fixed passages.** [`bench freeze`](opt/freeze.py) retrieves once per question (task 27's
@@ -182,10 +198,11 @@ Speed numbers need a quiet machine. Two runs taken while a browser was busy drop
 
 - `opt/variants.py`: every configuration compared, and the Modelfile generator
 - `opt/prompts.py`: the naive, task 27 and tuned templates (three versions), and the JSON schemas
-- `opt/ollama.py`: `/api/chat` with options, `think`, `format` and Ollama's timings; `/api/ps`; unloading
+- `opt/ollama.py`: `/api/chat` (plain or streamed) with options, `think`, `format` and Ollama's timings; `/api/ps`; unloading
 - `opt/bench.py`: runs a variant over the frozen passages and saves every reply with its scores and timings
 - `opt/score.py`: the rule-based checks
 - `opt/report.py`: the tables above
+- `opt/demo.py`: `bench demo`, one question streamed through several variants
 - `opt/freeze.py`: one-time retrieval
 - copied from task 27: `cited.py` (answer JSON parser), `verify.py` (quote check),
   `evalset.py`, `rerank.py`, `embed.py`, and the `Hit` record in `hits.py`
