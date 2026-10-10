@@ -1,0 +1,125 @@
+{
+  "url": "http://192.168.0.167:8031",
+  "checks": [
+    {
+      "check": "network: /health reachable",
+      "expected": "ok",
+      "got": "ok",
+      "ok": true,
+      "detail": "34 ms, qwen3:4b-instruct on Ollama 0.33.2"
+    },
+    {
+      "check": "no API key",
+      "expected": 401,
+      "got": 401,
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "wrong API key",
+      "expected": 401,
+      "got": 401,
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "chat with a valid key",
+      "expected": 200,
+      "got": 200,
+      "ok": true,
+      "detail": "0.9s: 'ready'"
+    },
+    {
+      "check": "prompt over the 4096-token context",
+      "expected": 413,
+      "got": 413,
+      "ok": true,
+      "detail": "prompt is 4105 tokens; with at least 64 for the reply it is over the 4096-token context; s"
+    },
+    {
+      "check": "max_tokens = the whole context",
+      "expected": 413,
+      "got": 413,
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "check": "6 quick requests on a 3/min key",
+      "expected": 429,
+      "got": 429,
+      "ok": true,
+      "detail": "codes [200, 200, 200, 429, 429, 429], Retry-After 20s"
+    },
+    {
+      "check": "12 at once (2 slots + 6 queue)",
+      "expected": 503,
+      "got": 503,
+      "ok": true,
+      "detail": "8×200; 503: 4 queue full (in 0.03s), 0 waited past the 120s queue timeout; all done in 34s"
+    },
+    {
+      "check": "slots free again afterwards",
+      "expected": {
+        "active": 0,
+        "queued": 0
+      },
+      "got": {
+        "active": 0,
+        "queued": 0
+      },
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "health": {
+    "status": "ok",
+    "ollama": "0.33.2",
+    "model": "qwen3:4b-instruct",
+    "model_pulled": true,
+    "load": {
+      "active": 0,
+      "queued": 0
+    },
+    "limits": {
+      "max_context": 4096,
+      "max_output": 1024,
+      "rate_limit_rpm": 20,
+      "max_concurrent": 2,
+      "max_queue": 6,
+      "queue_timeout": 120.0
+    },
+    "served": {},
+    "tokens": {},
+    "uptime": 6
+  },
+  "health_after": {
+    "status": "ok",
+    "ollama": "0.33.2",
+    "model": "qwen3:4b-instruct",
+    "model_pulled": true,
+    "load": {
+      "active": 0,
+      "queued": 0
+    },
+    "limits": {
+      "max_context": 4096,
+      "max_output": 1024,
+      "rate_limit_rpm": 20,
+      "max_concurrent": 2,
+      "max_queue": 6,
+      "queue_timeout": 120.0
+    },
+    "served": {
+      "200": 12,
+      "401": 2,
+      "413": 2,
+      "429": 3,
+      "503": 4
+    },
+    "tokens": {
+      "prompt": 198,
+      "completion": 194
+    },
+    "uptime": 41
+  }
+}
