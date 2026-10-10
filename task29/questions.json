@@ -1,0 +1,539 @@
+[
+  {
+    "id": "q01",
+    "kind": "fact",
+    "question": "How many hours of speech does the TatarTTS dataset contain, and who recorded it?",
+    "expect": "About 70 hours of transcribed audio (over 38,000 segments) from two professional speakers, one male (36.2 h) and one female (33.9 h), actors of the Tatar National Theatre.",
+    "must_contain": [
+      [
+        "70"
+      ],
+      [
+        "two"
+      ],
+      [
+        "female"
+      ]
+    ],
+    "sources": [
+      {
+        "source": "1570978467.pdf",
+        "pages": [
+          1,
+          2
+        ]
+      }
+    ]
+  },
+  {
+    "id": "q04",
+    "kind": "fact",
+    "question": "How did the apertium-anaphora module change the accuracy of anaphor translation in its preliminary evaluation?",
+    "expect": "Spanish–English (120 anaphors): accuracy rose from 29.2% to 54.2%. Catalan–Italian (108 anaphors): it fell from 83.3% to 75.0%, because the test data was skewed towards singular antecedents, which the default translation already covers.",
+    "must_contain": [
+      [
+        "29.2"
+      ],
+      [
+        "54.2"
+      ],
+      [
+        "83.3"
+      ],
+      [
+        "75"
+      ]
+    ],
+    "sources": [
+      {
+        "source": "s10590-021-09260-6.pdf",
+        "pages": [
+          15,
+          16
+        ]
+      }
+    ]
+  },
+  {
+    "id": "q05",
+    "kind": "explain",
+    "question": "Why was the apertium-recursive module developed, and how does it work?",
+    "expect": "The finite-state chunker only matches fixed, contiguous word sequences, so long-distance reordering and nested structures (relative clauses, prepositional phrases inside prepositional phrases) need many rules. apertium-recursive applies transfer rules recursively with context-free grammars and a GLR parser. Example: the 30+ English–Spanish noun-phrase rules shrink to fewer than 10 (mostly 3).",
+    "must_contain": [
+      [
+        "context-free",
+        "CFG"
+      ],
+      [
+        "GLR"
+      ],
+      [
+        "contiguous",
+        "finite-state",
+        "fixed sequence"
+      ]
+    ],
+    "sources": [
+      {
+        "source": "s10590-021-09260-6.pdf",
+        "pages": [
+          8,
+          9
+        ]
+      }
+    ]
+  },
+  {
+    "id": "q06",
+    "kind": "fact",
+    "question": "What are the three golden rules of fat loss in Gutless?",
+    "expect": "1. Calories: a calorie deficit is the only requirement for fat loss. 2. Protein: it fills you up and spares muscle. 3. Consistency (sustainability): a diet you can stick to.",
+    "must_contain": [
+      [
+        "calorie"
+      ],
+      [
+        "protein"
+      ],
+      [
+        "consisten",
+        "sustainab"
+      ]
+    ],
+    "sources": [
+      {
+        "source": "Gutless.pdf",
+        "pages": [
+          9,
+          10,
+          11,
+          12
+        ]
+      }
+    ]
+  },
+  {
+    "id": "q07",
+    "kind": "fact",
+    "question": "Using the simple method from Gutless, how many calories per day should a 185-pound person eat to lose fat?",
+    "expect": "Multiply body weight in pounds by 10–12: between 1,850 and 2,220 calories a day (11 per pound if unsure; 10 if inactive, 12 if very active).",
+    "must_contain": [
+      [
+        "1850",
+        "1,850"
+      ],
+      [
+        "2220",
+        "2,220"
+      ]
+    ],
+    "sources": [
+      {
+        "source": "Gutless.pdf",
+        "pages": [
+          10,
+          11
+        ]
+      }
+    ]
+  },
+  {
+    "id": "q08",
+    "kind": "multi",
+    "question": "Which documents in the collection deal with the Tatar language, and in what way?",
+    "expect": "Two documents. The TatarTTS paper introduces a 70-hour open-source text-to-speech dataset and baseline models for Tatar. The Apertium paper covers Tatar in machine translation: a released Kazakh–Tatar pair, Tatar listed as a Turkic language with minority status, and Tatar–Bashqort among unreleased pairs.",
+    "must_contain": [
+      [
+        "speech",
+        "TTS"
+      ],
+      [
+        "Apertium",
+        "machine translation"
+      ]
+    ],
+    "sources": [
+      {
+        "source": "1570978467.pdf",
+        "pages": [
+          1,
+          2,
+          4
+        ]
+      },
+      {
+        "source": "s10590-021-09260-6.pdf",
+        "pages": [
+          17,
+          18,
+          20
+        ]
+      }
+    ]
+  },
+  {
+    "id": "q11",
+    "kind": "explain",
+    "question": "How was that open voice dataset for a Turkic language put together?",
+    "expect": "TatarTTS: texts taken from the Tatar language corpus (fiction, media, official, educational and scientific texts) and checked to be free of grammatical errors; read by two Tatar National Theatre actors experienced in TV and radio narration; recorded in a controlled studio with Neumann microphones and Steinberg Cubase at 44.1 kHz / 32 bit; then transcribers manually segmented the recordings into sentences.",
+    "must_contain": [
+      [
+        "theatre",
+        "theater",
+        "actor"
+      ],
+      [
+        "studio",
+        "neumann"
+      ],
+      [
+        "segment",
+        "sentence"
+      ]
+    ],
+    "sources": [
+      {
+        "source": "1570978467.pdf",
+        "pages": [
+          2
+        ]
+      }
+    ]
+  },
+  {
+    "id": "q09",
+    "kind": "unanswerable",
+    "question": "According to Gutless, how many grams of creatine should you take per day?",
+    "expect": "Gutless does not discuss creatine. The reply should be \"I don't know\" with a clarifying question; it should say the documents do not cover it, not give a dose.",
+    "must_contain": [
+      [
+        "not contain",
+        "does not",
+        "doesn't",
+        "no information",
+        "not mention",
+        "not covered",
+        "not discuss"
+      ],
+      [
+        "?"
+      ]
+    ],
+    "sources": []
+  },
+  {
+    "id": "q13",
+    "kind": "unanswerable",
+    "question": "How many native Tatar speakers took part in the TatarTTS listening evaluation?",
+    "expect": "The paper does not give the number of raters. It says native speakers rated 200 held-out utterances through a Telegram bot, 30 recordings per session, until every audio had at least one rating. The reply should be \"I don't know\" with a clarifying question; it should say the number is not stated.",
+    "must_contain": [
+      [
+        "not contain",
+        "does not",
+        "doesn't",
+        "no information",
+        "not mention",
+        "not report",
+        "not provide"
+      ],
+      [
+        "?"
+      ]
+    ],
+    "sources": []
+  },
+  {
+    "id": "q16",
+    "kind": "ambiguous",
+    "question": "What did the evaluation show?",
+    "expect": "Ambiguous: the collection has several evaluations (the TatarTTS MOS listening test, the apertium-anaphora preliminary evaluation). The reply should be \"I don't know\" and ask which evaluation is meant, ideally naming the options. Answering for one of them with the right figures is acceptable but not preferred; inventing results is wrong.",
+    "must_contain": [
+      [
+        "not contain",
+        "does not",
+        "doesn't",
+        "no information",
+        "not mention",
+        "not report",
+        "not provide"
+      ],
+      [
+        "?"
+      ]
+    ],
+    "sources": []
+  },
+  {
+    "id": "q20",
+    "kind": "fact",
+    "question": "What character set were the TatarTTS texts reduced to during preprocessing?",
+    "expect": "The texts were transformed to contain only 39 Cyrillic letters and five symbols: '.', ',', '-', '?' and '!'.",
+    "must_contain": [
+      [
+        "39",
+        "thirty-nine"
+      ],
+      [
+        "Cyrillic"
+      ],
+      [
+        "five",
+        " 5 "
+      ]
+    ],
+    "sources": [
+      {
+        "source": "1570978467.pdf",
+        "pages": [
+          3
+        ]
+      }
+    ]
+  },
+  {
+    "id": "q21",
+    "kind": "fact",
+    "question": "As of December 2020, how many Apertium translation pairs had been released, and how many languages and language families do they cover?",
+    "expect": "51 released translation pairs, covering 44 languages from 6 language families.",
+    "must_contain": [
+      [
+        "51",
+        "fifty-one"
+      ],
+      [
+        "44",
+        "forty-four"
+      ],
+      [
+        " 6 ",
+        "six"
+      ]
+    ],
+    "sources": [
+      {
+        "source": "s10590-021-09260-6.pdf",
+        "pages": [
+          17
+        ]
+      }
+    ]
+  },
+  {
+    "id": "q22",
+    "kind": "fact",
+    "question": "Following Gutless, how many grams of protein per day should a 220-pound person at 25% body fat eat?",
+    "expect": "Gutless recommends 1 gram of protein per pound of lean bodyweight. 220 lb x 0.25 = 55 lb of fat, so lean bodyweight is 165 lb, which means roughly 165 grams of protein a day.",
+    "must_contain": [
+      [
+        "165"
+      ]
+    ],
+    "sources": [
+      {
+        "source": "Gutless.pdf",
+        "pages": [
+          13
+        ]
+      }
+    ]
+  },
+  {
+    "id": "q23",
+    "kind": "fact",
+    "question": "I weigh 80 kg. Using the simple method from Gutless, how many calories a day should I eat to lose fat?",
+    "expect": "The simple method is body weight in pounds times 10-12. 80 kg is about 176 lb (80 x 2.2), so the target is roughly 1,760-2,112 calories a day (about 1,764-2,116 with 2.2046 lb/kg); about 1,940 at the middle factor of 11. Multiplying the kilograms directly (800-960) is wrong.",
+    "must_contain": [
+      [
+        "1760",
+        "1,760",
+        "1764",
+        "1,764"
+      ],
+      [
+        "2112",
+        "2,112",
+        "2116",
+        "2,116"
+      ]
+    ],
+    "sources": [
+      {
+        "source": "Gutless.pdf",
+        "pages": [
+          10,
+          11
+        ]
+      }
+    ]
+  },
+  {
+    "id": "q24",
+    "kind": "fact",
+    "question": "According to Gutless, how much protein does 100 grams of Quorn provide compared with the same amount of beef mince?",
+    "expect": "100 g of beef mince (15% fat) has around 20 g of protein, while 100 g of Quorn provides around 15 g, so you'd need about an extra 35 g of Quorn to match the beef.",
+    "must_contain": [
+      [
+        "15 g",
+        "15g",
+        "15 gram",
+        "fifteen"
+      ],
+      [
+        "20 g",
+        "20g",
+        "20 gram",
+        "twenty"
+      ]
+    ],
+    "sources": [
+      {
+        "source": "Gutless.pdf",
+        "pages": [
+          52
+        ]
+      }
+    ]
+  },
+  {
+    "id": "q26",
+    "kind": "explain",
+    "question": "How does Apertium use weights to choose between conflicting structural transfer rules?",
+    "expect": "By default overlapping transfer rules are applied left-to-right longest match, but chunker rules can now be weighted, with weights learned by an unsupervised maximum-entropy method: SL text is run through all possible rules, the candidate translations are scored against a target-language model, and the scores are attached as weights to the rules together with the SL lemmas that matched. At translation time the rule set with the higher weight for those lemmas wins (e.g. 'Encontré el pastel muy bueno' -> 'I found the cake very good').",
+    "must_contain": [
+      [
+        "language model"
+      ],
+      [
+        "maximum entropy",
+        "maximum-entropy",
+        "lemma"
+      ],
+      [
+        "weight"
+      ]
+    ],
+    "sources": [
+      {
+        "source": "s10590-021-09260-6.pdf",
+        "pages": [
+          6,
+          7,
+          8
+        ]
+      }
+    ]
+  },
+  {
+    "id": "q27",
+    "kind": "explain",
+    "question": "Why does Gutless say the timing of a water preload should depend on your age?",
+    "expect": "Gastric emptying slows with age. In people in their 20s and 30s, water drunk 30 minutes before a meal has almost completely left the stomach by mealtime, so it barely affects intake; they should drink it immediately before the meal. People in their 40s, 50s or older benefit from water anywhere between 30 minutes before and immediately before the meal.",
+    "must_contain": [
+      [
+        "gastric",
+        "emptying",
+        "leaves your stomach",
+        "leaves the stomach"
+      ],
+      [
+        "30 min",
+        "30-min",
+        "thirty min",
+        "half an hour"
+      ],
+      [
+        "immediately",
+        "right before",
+        "just before"
+      ]
+    ],
+    "sources": [
+      {
+        "source": "Gutless.pdf",
+        "pages": [
+          34
+        ]
+      }
+    ]
+  },
+  {
+    "id": "q28",
+    "kind": "explain",
+    "question": "How were the baseline TatarTTS models built and trained?",
+    "expect": "They used end-to-end VITS models (conditional variational autoencoder with normalizing flows, adversarial training and a stochastic duration predictor), trained with the Piper framework at its high-quality tier (83M parameters). Separate single-speaker models were randomly initialized and trained for 1,000 epochs per speaker on A100 GPUs, then exported to ONNX (998 MB checkpoint -> 113.8 MB).",
+    "must_contain": [
+      [
+        "VITS"
+      ],
+      [
+        "Piper"
+      ],
+      [
+        "1,000",
+        "1000",
+        "thousand"
+      ]
+    ],
+    "sources": [
+      {
+        "source": "1570978467.pdf",
+        "pages": [
+          3
+        ]
+      }
+    ]
+  },
+  {
+    "id": "q29",
+    "kind": "multi",
+    "question": "What role do grapes play in Gutless, both in the explanation of energy density and in the author's own diet?",
+    "expect": "In the energy-density chapter, 150 calories buys only about 50 g of raisins but almost 220 g of grapes (over four times the volume), so grapes fill you up more. In his own diet the author's usual dessert is about 120 g of frozen grapes (~80 calories), with an energy density of 0.7 versus 3.4 for Ben & Jerry's Peanut Butter Cup.",
+    "must_contain": [
+      [
+        "raisin"
+      ],
+      [
+        "220"
+      ],
+      [
+        "0.7"
+      ],
+      [
+        "frozen"
+      ]
+    ],
+    "sources": [
+      {
+        "source": "Gutless.pdf",
+        "pages": [
+          30,
+          45
+        ]
+      }
+    ]
+  },
+  {
+    "id": "q30",
+    "kind": "unanswerable",
+    "question": "What learning rate and batch size were used to train the TatarTTS VITS models?",
+    "expect": "The paper does not give the learning rate or batch size; it only says the models were randomly initialized, trained for 1,000 epochs per speaker with Piper, and that training details are in the GitHub repository. The reply should say this is not stated rather than invent values.",
+    "must_contain": [],
+    "sources": []
+  },
+  {
+    "id": "q31",
+    "kind": "unanswerable",
+    "question": "What BLEU score does Apertium's released Kazakh–Tatar translation pair achieve?",
+    "expect": "The paper lists Kazakh–Tatar as a released pair but gives no BLEU (or other) score for it; Tables 4 and 5 do not include it (Table 5 has Kazakh–Turkish, BLEU 0.17, and Tatar–Bashqort without BLEU). The reply should say the score is not reported.",
+    "must_contain": [],
+    "sources": []
+  },
+  {
+    "id": "q32",
+    "kind": "unanswerable",
+    "question": "How many steps per day does Gutless recommend walking for fat loss?",
+    "expect": "Gutless gives no daily step target; walking is only mentioned in passing (the author walks the dog before the gym). The reply should say the book does not cover it.",
+    "must_contain": [],
+    "sources": []
+  }
+]
