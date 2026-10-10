@@ -1,0 +1,46 @@
+# The private LLM service: Ollama (internal only) + the gateway (the one public port).
+#   cp .env.example .env   # set API_KEYS
+#   docker compose up -d --build
+services:
+  ollama:
+    image: ollama/ollama:0.33.2
+    restart: unless-stopped
+    volumes:
+      - ollama:/root/.ollama
+    environment:
+      OLLAMA_NUM_PARALLEL: ${MAX_CONCURRENT:-2}   # one slot per gateway slot
+      OLLAMA_CONTEXT_LENGTH: ${MAX_CONTEXT:-4096}
+      OLLAMA_MAX_QUEUE: 64                        # the gateway queues; this is only a backstop
+      OLLAMA_KEEP_ALIVE: "-1"                     # keep the model in memory
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    # no ports: only the gateway reaches it, over the compose network
+
+  pull:  # one-shot: make sure the model is there (a no-op once it is); the gateway then loads it
+    image: ollama/ollama:0.33.2
+    environment:
+      OLLAMA_HOST: ollama:11434
+    entrypoint: ["sh", "-c", "ollama pull $${MODEL}"]
+    env_file: .env
+    depends_on:
+      ollama:
+        condition: service_healthy
+
+  gateway:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      OLLAMA_URL: http://ollama:11434
+      PORT: 8030  # inside the container; PORT in .env is the host's port
+    ports:
+      - "${PORT:-8030}:8030"
+    depends_on:
+      pull:
+        condition: service_completed_successfully
+
+volumes:
+  ollama:

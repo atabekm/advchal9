@@ -11,6 +11,8 @@
   QUEUE_TIMEOUT     seconds a request may wait for a slot before it gets 503
   REQUEST_TIMEOUT   seconds Ollama may take to answer
   MAX_BODY_BYTES    the largest request body accepted
+  NUM_THREAD        CPU threads per generation (unset: Ollama's pick, the host's core count; set it
+                    when the container gets fewer cores than the host has)
 """
 
 from __future__ import annotations
@@ -34,10 +36,11 @@ class Settings:
     min_output: int = 64
     rate_limit_rpm: int = 20
     max_concurrent: int = 2
-    max_queue: int = 8
-    queue_timeout: float = 60
+    max_queue: int = 6
+    queue_timeout: float = 120
     request_timeout: float = 300
     max_body_bytes: int = 256 * 1024
+    num_thread: int | None = None
     tokenizer_path: str = os.path.expanduser("~/.cache/llm-gateway/qwen3-tokenizer.json")
 
 def parse_keys(spec: str, default_rpm: int) -> list[Key]:
@@ -69,4 +72,5 @@ def from_env(env: dict[str, str] = os.environ) -> Settings:
         request_timeout=float(env.get("REQUEST_TIMEOUT", d.request_timeout)),
         max_body_bytes=int(env.get("MAX_BODY_BYTES", d.max_body_bytes)),
         tokenizer_path=env.get("TOKENIZER_PATH", d.tokenizer_path),
+        num_thread=int(env["NUM_THREAD"]) if env.get("NUM_THREAD") else None,
     )

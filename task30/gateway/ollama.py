@@ -3,7 +3,8 @@
 The native API (not Ollama's own /v1) because it takes `think: false`. The model is
 qwen3:4b-instruct, not qwen3:4b: that tag is the 2507 *Thinking* build, which ignores `think: false`
 and reasons in the reply itself (~400 tokens before "Hello!"; minutes on a CPU box).
-num_ctx is the same on every request; a request with a different one makes Ollama reload the model.
+num_ctx (and num_thread) are the same on every request, and the same in warm(): a request with
+different ones makes Ollama reload the model.
 """
 
 from __future__ import annotations
@@ -26,10 +27,10 @@ class Chunk:
     completion_tokens: int = 0
 
 class Ollama:
-    def __init__(self, base_url: str, model: str, num_ctx: int, timeout: float):
+    def __init__(self, base_url: str, model: str, num_ctx: int, timeout: float, num_thread: int | None = None):
         self.base_url = base_url
         self.model = model
-        self.num_ctx = num_ctx
+        self.options = {"num_ctx": num_ctx} | ({"num_thread": num_thread} if num_thread else {})
         self.client = httpx.AsyncClient(base_url=base_url, timeout=httpx.Timeout(timeout, connect=5))
 
     async def version(self) -> str | None:
@@ -47,11 +48,17 @@ class Ollama:
         except (httpx.HTTPError, ValueError, KeyError):
             return False
 
+    async def warm(self) -> None:
+        """Load the model into memory now, with the options every request uses, and keep it there."""
+        r = await self.client.post("/api/generate", json={"model": self.model, "keep_alive": -1, "options": self.options})
+        r.raise_for_status()
+
     async def chat(self, messages: list[dict], max_tokens: int, temperature: float | None) -> AsyncIterator[Chunk]:
-        options = {"num_ctx": self.num_ctx, "num_predict": max_tokens}
+        options = self.options | {"num_predict": max_tokens}
         if temperature is not None:
             options["temperature"] = temperature
-        body = {"model": self.model, "messages": messages, "stream": True, "think": False, "options": options}
+        body = {"model": self.model, "messages": messages, "stream": True, "think": False, "keep_alive": -1,
+                "options": options}
         try:
             async with self.client.stream("POST", "/api/chat", json=body) as r:
                 if r.status_code != 200:
