@@ -1,0 +1,530 @@
+{
+  "url": "http://192.168.0.167:8031",
+  "rounds": 2,
+  "max_tokens": 128,
+  "levels": [
+    {
+      "clients": 1,
+      "requests": 2,
+      "ok": 2,
+      "rate_limited": 0,
+      "busy": 0,
+      "other": 0,
+      "latency_p50": 8.67,
+      "latency_p95": 18.27,
+      "ttft_p50": 0.17,
+      "queue_wait_p50": 0.0,
+      "tokens": 189,
+      "throughput_tok_s": 7.0,
+      "wall_s": 26.9,
+      "raw": [
+        {
+          "status": 200,
+          "ttft": 0.17776150000281632,
+          "latency": 8.66633166698739,
+          "tokens": 61,
+          "queue_wait": 0.0
+        },
+        {
+          "status": 200,
+          "ttft": 0.17173495888710022,
+          "latency": 18.272335374960676,
+          "tokens": 128,
+          "queue_wait": 0.0
+        }
+      ]
+    },
+    {
+      "clients": 2,
+      "requests": 4,
+      "ok": 4,
+      "rate_limited": 0,
+      "busy": 0,
+      "other": 0,
+      "latency_p50": 35.97,
+      "latency_p95": 36.91,
+      "ttft_p50": 1.19,
+      "queue_wait_p50": 0.0,
+      "tokens": 447,
+      "throughput_tok_s": 7.0,
+      "wall_s": 63.5,
+      "raw": [
+        {
+          "status": 200,
+          "ttft": 1.1888850829564035,
+          "latency": 18.328245332930237,
+          "tokens": 63,
+          "queue_wait": 0.0
+        },
+        {
+          "status": 200,
+          "ttft": 1.3169499170035124,
+          "latency": 35.97426200006157,
+          "tokens": 128,
+          "queue_wait": 0.0
+        },
+        {
+          "status": 200,
+          "ttft": 1.1879656249657273,
+          "latency": 36.90760749997571,
+          "tokens": 128,
+          "queue_wait": 0.0
+        },
+        {
+          "status": 200,
+          "ttft": 0.42418829211965203,
+          "latency": 26.562155875144526,
+          "tokens": 128,
+          "queue_wait": 0.0
+        }
+      ]
+    },
+    {
+      "clients": 4,
+      "requests": 8,
+      "ok": 8,
+      "rate_limited": 0,
+      "busy": 0,
+      "other": 0,
+      "latency_p50": 53.64,
+      "latency_p95": 71.89,
+      "ttft_p50": 26.16,
+      "queue_wait_p50": 24.95,
+      "tokens": 746,
+      "throughput_tok_s": 7.1,
+      "wall_s": 105.6,
+      "raw": [
+        {
+          "status": 200,
+          "ttft": 2.0616977920290083,
+          "latency": 18.55298124998808,
+          "tokens": 62,
+          "queue_wait": 0.0
+        },
+        {
+          "status": 200,
+          "ttft": 18.976408666931093,
+          "latency": 53.63805937510915,
+          "tokens": 128,
+          "queue_wait": 18.553
+        },
+        {
+          "status": 200,
+          "ttft": 2.0614032079465687,
+          "latency": 37.10878958296962,
+          "tokens": 128,
+          "queue_wait": 0.0
+        },
+        {
+          "status": 200,
+          "ttft": 36.47562045790255,
+          "latency": 68.45236620795913,
+          "tokens": 128,
+          "queue_wait": 35.078
+        },
+        {
+          "status": 200,
+          "ttft": 26.164374167099595,
+          "latency": 60.815412417054176,
+          "tokens": 128,
+          "queue_wait": 24.95
+        },
+        {
+          "status": 200,
+          "ttft": 36.46640883316286,
+          "latency": 41.90948587516323,
+          "tokens": 21,
+          "queue_wait": 36.03
+        },
+        {
+          "status": 200,
+          "ttft": 18.98216045787558,
+          "latency": 24.965963708003983,
+          "tokens": 23,
+          "queue_wait": 18.542
+        },
+        {
+          "status": 200,
+          "ttft": 36.27703916700557,
+          "latency": 71.88606058410369,
+          "tokens": 128,
+          "queue_wait": 35.841
+        }
+      ]
+    },
+    {
+      "clients": 8,
+      "requests": 16,
+      "ok": 16,
+      "rate_limited": 0,
+      "busy": 0,
+      "other": 0,
+      "latency_p50": 93.86,
+      "latency_p95": 120.78,
+      "ttft_p50": 79.66,
+      "queue_wait_p50": 79.23,
+      "tokens": 1501,
+      "throughput_tok_s": 7.0,
+      "wall_s": 214.6,
+      "raw": [
+        {
+          "status": 200,
+          "ttft": 2.0528202920686454,
+          "latency": 19.3613090000581,
+          "tokens": 65,
+          "queue_wait": 0.0
+        },
+        {
+          "status": 200,
+          "ttft": 72.94273670809343,
+          "latency": 108.63135691615753,
+          "tokens": 128,
+          "queue_wait": 71.65
+        },
+        {
+          "status": 200,
+          "ttft": 2.0515327909961343,
+          "latency": 37.3084188750945,
+          "tokens": 128,
+          "queue_wait": 0.0
+        },
+        {
+          "status": 200,
+          "ttft": 84.88773820898496,
+          "latency": 120.49862458393909,
+          "tokens": 128,
+          "queue_wait": 83.472
+        },
+        {
+          "status": 200,
+          "ttft": 38.708303374936804,
+          "latency": 73.3924475829117,
+          "tokens": 128,
+          "queue_wait": 37.287
+        },
+        {
+          "status": 200,
+          "ttft": 84.83673929190263,
+          "latency": 90.74070304189809,
+          "tokens": 23,
+          "queue_wait": 84.403
+        },
+        {
+          "status": 200,
+          "ttft": 73.81495979102328,
+          "latency": 79.24925062502734,
+          "tokens": 21,
+          "queue_wait": 73.371
+        },
+        {
+          "status": 200,
+          "ttft": 87.1786165421363,
+          "latency": 122.01856320817024,
+          "tokens": 128,
+          "queue_wait": 84.737
+        },
+        {
+          "status": 200,
+          "ttft": 20.659912958042696,
+          "latency": 56.24522850010544,
+          "tokens": 128,
+          "queue_wait": 19.339
+        },
+        {
+          "status": 200,
+          "ttft": 73.03364187502302,
+          "latency": 107.74445775011554,
+          "tokens": 128,
+          "queue_wait": 71.739
+        },
+        {
+          "status": 200,
+          "ttft": 56.69223374989815,
+          "latency": 91.01168408291414,
+          "tokens": 128,
+          "queue_wait": 56.225
+        },
+        {
+          "status": 200,
+          "ttft": 111.45395537512377,
+          "latency": 119.7635214580223,
+          "tokens": 32,
+          "queue_wait": 110.25
+        },
+        {
+          "status": 200,
+          "ttft": 79.66414737491868,
+          "latency": 84.8361501249019,
+          "tokens": 20,
+          "queue_wait": 79.228
+        },
+        {
+          "status": 200,
+          "ttft": 81.58949854201637,
+          "latency": 116.42991974996403,
+          "tokens": 128,
+          "queue_wait": 79.289
+        },
+        {
+          "status": 200,
+          "ttft": 85.25576983299106,
+          "latency": 120.77951295813546,
+          "tokens": 128,
+          "queue_wait": 84.817
+        },
+        {
+          "status": 200,
+          "ttft": 81.68430424993858,
+          "latency": 93.86334162484854,
+          "tokens": 60,
+          "queue_wait": 80.481
+        }
+      ]
+    },
+    {
+      "clients": 12,
+      "requests": 24,
+      "ok": 16,
+      "rate_limited": 0,
+      "busy": 8,
+      "other": 0,
+      "latency_p50": 94.55,
+      "latency_p95": 125.25,
+      "ttft_p50": 79.34,
+      "queue_wait_p50": 78.91,
+      "tokens": 1498,
+      "throughput_tok_s": 7.0,
+      "wall_s": 214.5,
+      "raw": [
+        {
+          "status": 200,
+          "ttft": 1.186389666981995,
+          "latency": 18.187452625017613,
+          "tokens": 64,
+          "queue_wait": 0.0
+        },
+        {
+          "status": 200,
+          "ttft": 74.97990987519734,
+          "latency": 110.47135574999265,
+          "tokens": 128,
+          "queue_wait": 73.684
+        },
+        {
+          "status": 200,
+          "ttft": 1.1863160408101976,
+          "latency": 36.39839395787567,
+          "tokens": 128,
+          "queue_wait": 0.0
+        },
+        {
+          "status": 200,
+          "ttft": 90.07549374992959,
+          "latency": 125.45369370887056,
+          "tokens": 128,
+          "queue_wait": 88.855
+        },
+        {
+          "status": 200,
+          "ttft": 37.606733416207135,
+          "latency": 73.14388158312067,
+          "tokens": 128,
+          "queue_wait": 36.378
+        },
+        {
+          "status": 200,
+          "ttft": 87.88754849997349,
+          "latency": 94.54785170895047,
+          "tokens": 23,
+          "queue_wait": 87.457
+        },
+        {
+          "status": 200,
+          "ttft": 73.57172175007872,
+          "latency": 79.01866558403708,
+          "tokens": 21,
+          "queue_wait": 73.124
+        },
+        {
+          "status": 200,
+          "ttft": 84.12165587488562,
+          "latency": 120.02806558297016,
+          "tokens": 128,
+          "queue_wait": 82.829
+        },
+        {
+          "status": 200,
+          "ttft": 19.464865416986868,
+          "latency": 54.8690975420177,
+          "tokens": 128,
+          "queue_wait": 18.159
+        },
+        {
+          "status": 200,
+          "ttft": 75.08806304098107,
+          "latency": 105.73403154104017,
+          "tokens": 113,
+          "queue_wait": 73.783
+        },
+        {
+          "status": 200,
+          "ttft": 56.16425179201178,
+          "latency": 91.87429708288983,
+          "tokens": 128,
+          "queue_wait": 54.85
+        },
+        {
+          "status": 200,
+          "ttft": 107.60702250013128,
+          "latency": 115.97029283316806,
+          "tokens": 32,
+          "queue_wait": 107.166
+        },
+        {
+          "status": 200,
+          "ttft": 79.43379637482576,
+          "latency": 87.91368462494574,
+          "tokens": 32,
+          "queue_wait": 78.996
+        },
+        {
+          "status": 200,
+          "ttft": 81.51421745796688,
+          "latency": 116.25692387484014,
+          "tokens": 128,
+          "queue_wait": 79.771
+        },
+        {
+          "status": 200,
+          "ttft": 89.67874820786528,
+          "latency": 125.25394937489182,
+          "tokens": 128,
+          "queue_wait": 87.896
+        },
+        {
+          "status": 200,
+          "ttft": 79.33799070795067,
+          "latency": 89.22012637509033,
+          "tokens": 61,
+          "queue_wait": 78.912
+        },
+        {
+          "status": 503,
+          "ttft": null,
+          "latency": 0.017379374941810966,
+          "tokens": 0,
+          "queue_wait": null
+        },
+        {
+          "status": 503,
+          "ttft": null,
+          "latency": 0.00369954202324152,
+          "tokens": 0,
+          "queue_wait": null
+        },
+        {
+          "status": 503,
+          "ttft": null,
+          "latency": 0.017652499955147505,
+          "tokens": 0,
+          "queue_wait": null
+        },
+        {
+          "status": 503,
+          "ttft": null,
+          "latency": 0.0034804160241037607,
+          "tokens": 0,
+          "queue_wait": null
+        },
+        {
+          "status": 503,
+          "ttft": null,
+          "latency": 0.017426209058612585,
+          "tokens": 0,
+          "queue_wait": null
+        },
+        {
+          "status": 503,
+          "ttft": null,
+          "latency": 0.0038166248705238104,
+          "tokens": 0,
+          "queue_wait": null
+        },
+        {
+          "status": 503,
+          "ttft": null,
+          "latency": 0.017539167078211904,
+          "tokens": 0,
+          "queue_wait": null
+        },
+        {
+          "status": 503,
+          "ttft": null,
+          "latency": 0.0035974159836769104,
+          "tokens": 0,
+          "queue_wait": null
+        }
+      ]
+    }
+  ],
+  "health": {
+    "status": "ok",
+    "ollama": "0.33.2",
+    "model": "qwen3:4b-instruct",
+    "model_pulled": true,
+    "load": {
+      "active": 0,
+      "queued": 0
+    },
+    "limits": {
+      "max_context": 4096,
+      "max_output": 1024,
+      "rate_limit_rpm": 20,
+      "max_concurrent": 2,
+      "max_queue": 6,
+      "queue_timeout": 120.0
+    },
+    "served": {
+      "200": 12,
+      "401": 2,
+      "413": 2,
+      "429": 3,
+      "503": 4
+    },
+    "tokens": {
+      "prompt": 198,
+      "completion": 194
+    },
+    "uptime": 47
+  },
+  "health_after": {
+    "status": "ok",
+    "ollama": "0.33.2",
+    "model": "qwen3:4b-instruct",
+    "model_pulled": true,
+    "load": {
+      "active": 0,
+      "queued": 0
+    },
+    "limits": {
+      "max_context": 4096,
+      "max_output": 1024,
+      "rate_limit_rpm": 20,
+      "max_concurrent": 2,
+      "max_queue": 6,
+      "queue_timeout": 120.0
+    },
+    "served": {
+      "200": 58,
+      "401": 2,
+      "413": 2,
+      "429": 3,
+      "503": 12
+    },
+    "tokens": {
+      "prompt": 1085,
+      "completion": 4575
+    },
+    "uptime": 672
+  }
+}

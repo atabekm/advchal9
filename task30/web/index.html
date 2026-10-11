@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Private LLM chat</title>
+<link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="title">
+    <strong>Private LLM chat</strong>
+    <span class="dim" id="model">a local model behind an API key</span>
+  </div>
+  <div id="status" class="status dim"></div>
+  <button id="newChat" class="btn" hidden>New chat</button>
+  <button id="forget" class="btn" hidden title="forget the API key on this device">Sign out</button>
+</header>
+
+<main>
+  <form id="login" class="login" hidden>
+    <h1>Sign in with an API key</h1>
+    <p class="dim">The service is private: every request needs a key. It is kept in this browser only.</p>
+    <input id="key" type="password" placeholder="sk-…" autocomplete="off" required>
+    <button type="submit" class="primary">Continue</button>
+    <div id="loginError" class="error" hidden></div>
+  </form>
+
+  <section id="chat" class="chat" hidden>
+    <div id="log" class="log" aria-live="polite">
+      <div id="empty" class="empty dim">Ask anything. Replies stream from the model on the server, nothing else sees them.</div>
+    </div>
+    <div class="meters dim">
+      <div class="meter" title="this conversation's size against the model's context window">
+        <span>context</span>
+        <div class="bar"><div id="ctxBar"></div></div>
+        <span id="ctxText">–</span>
+      </div>
+      <span id="rate"></span>
+    </div>
+    <form id="composer" class="composer">
+      <textarea id="input" rows="2" placeholder="Message…  (Enter to send, Shift+Enter for a new line)" autocomplete="off"></textarea>
+      <button id="send" type="submit" class="primary">Send</button>
+    </form>
+  </section>
+</main>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+# Locally, make Docker look like a small CPU-only VPS (4 vCPU, 8 GB):
+#   docker compose -f compose.yaml -f compose.vps-sim.yaml up -d --build
+# Ollama sizes its thread pool from the host's cores, not the container's: with 4 cores and 10
+# threads it crawls (3.6 tok/s). So: pin 4 cores, and have the gateway ask for 4 threads.
+# On a real VPS the host's cores are the VPS's vCPUs, so neither is needed there.
+services:
+  ollama:
+    cpuset: "0-3"
+    mem_limit: 7g
+  gateway:
+    environment:
+      NUM_THREAD: 4
