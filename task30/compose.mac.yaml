@@ -1,0 +1,19 @@
+# A Mac as the server: Ollama runs natively (the Ollama app, on the GPU through Metal; Docker on a
+# Mac has no GPU), and only the gateway runs here, reaching it on the host.
+#   docker compose -f compose.mac.yaml up -d --build
+#   cloudflared tunnel --url http://localhost:8030     # a public https URL, while it runs
+# MAX_CONCURRENT must match the app's OLLAMA_NUM_PARALLEL (1 by default; see the README).
+name: llm-mac
+services:
+  gateway:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      OLLAMA_URL: http://host.docker.internal:11434
+      PORT: 8030
+      # Cloudflare gives up on a response that hasn't started within 100 s, and a queued request
+      # sends nothing until it gets a slot: turn it away with a 503 before that instead of a 524
+      QUEUE_TIMEOUT: ${QUEUE_TIMEOUT:-90}
+    ports:
+      - "${PORT:-8030}:8030"

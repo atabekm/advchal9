@@ -2,9 +2,14 @@
 
 `qwen3:4b-instruct` in Ollama, behind a small gateway that is the only thing on the network. The
 gateway serves an **OpenAI-compatible HTTP API** and a **web chat**, and puts the limits a shared
-CPU box needs in front of the model: API keys, a per-key rate limit, a context limit counted with
+server needs in front of the model: API keys, a per-key rate limit, a context limit counted with
 the model's own tokenizer, and a bounded queue in front of a fixed number of generation slots.
-Everything runs with `docker compose`, and `deploy/deploy.sh user@host` puts it on a VPS.
+
+It runs two ways, both measured below:
+- **a home server**: this Mac (M1 Pro, 32 GB), Ollama native on the GPU, the gateway in Docker,
+  published on a public HTTPS URL through a **Cloudflare Tunnel**: ~42 tok/s;
+- **a CPU-only VPS**: everything in `docker compose`, `deploy/deploy.sh user@host` to put it on
+  one; measured locally with Ollama pinned to 4 cores / 7 GB: ~7 tok/s.
 
 ```
  browser / curl / OpenAI SDK ──HTTP──▶ gateway :8030 ──compose network──▶ ollama :11434 (not published)
@@ -16,11 +21,47 @@ Everything runs with `docker compose`, and `deploy/deploy.sh user@host` puts it 
                                         502 Ollama failed
 ```
 
-## Result
+## Result: this Mac + Cloudflare Tunnel
+
+```
+ phone / laptop anywhere ──HTTPS──▶ *.trycloudflare.com ──tunnel──▶ cloudflared ──▶ gateway :8030 (Docker)
+                                                                                   └─▶ Ollama.app :11434 (Metal GPU)
+```
+
+Measured from outside, through the public URL ([`limits-tunnel`, `load-tunnel`](results)), with
+the Ollama app's defaults (`OLLAMA_NUM_PARALLEL=1`, so 1 slot) and a queue of 6:
+
+- **Limits: 9/9 passed** through the tunnel, the same as on the LAN: 401 / 413 / 429 (`200 200
+  200 429 429 429`) / 503 (11 at once: 7 served, 4 turned away in 0.28 s) / slots free afterwards.
+- **Load** (2 streamed chats per client, `max_tokens` 128):
+
+| clients | ok | 503 | latency p50 / p95 | first token p50 | throughput |
+|---:|---:|---:|---:|---:|---:|
+| 1 | 2/2 | 0 | 1.6 / 3.1 s | 0.12 s | 40.9 tok/s |
+| 2 | 4/4 | 0 | 6.0 / 6.1 s | 3.1 s | 41.6 tok/s |
+| 4 | 8/8 | 0 | 8.4 / 12.1 s | 5.5 s | 41.7 tok/s |
+| 8 | 14/16 | 2 | 16.4 / 20.1 s | 14.4 s | 40.2 tok/s |
+| 12 | 14/24 | 10 | 15.5 / 18.7 s | 14.1 s | 40.4 tok/s |
+
+The tunnel costs almost nothing: over the LAN the same runs gave 42–43 tok/s
+([`load-mac`](results)), and the first token still arrives in 0.12 s, so Cloudflare passes the
+SSE stream through unbuffered. Only the first connection's TLS handshake shows (~1 s on
+`/health`). 8 clients is one more than 1 slot + 6 queued, hence the first 503s there.
+
+Versus the CPU box below, the GPU is **6× faster** (42 vs 7 tok/s): a short reply in 1.6 s instead
+of 8.7, 4 clients served at a median 8 s instead of 54.
+
+**Two slots on the GPU** ([`load-mac-2slot`](results), a second `ollama serve` with
+`OLLAMA_NUM_PARALLEL=2`): throughput +6% (45 tok/s), but at 2 clients the first token comes in
+0.2 s instead of 3 s. Worth it for a chat with several users; it needs the app started with
+`OLLAMA_NUM_PARALLEL=2` (`launchctl setenv OLLAMA_NUM_PARALLEL 2`, then restart Ollama) and
+`MAX_CONCURRENT=2` in `.env`. The default here leaves the app's settings alone.
+
+## Result: a CPU-only box (VPS-like)
 
 Measured over the network (the Mac's LAN IP, not localhost) against the compose stack with
-Ollama pinned to **4 CPU cores and 7 GB**, i.e. what a small CPU-only VPS gives. All numbers
-below are in [`results/`](results).
+Ollama pinned to **4 CPU cores and 7 GB**, i.e. what a small CPU-only VPS gives
+([`limits-cpu`, `load-cpu`](results)).
 
 **Limits** ([`check limits`](checks/cli.py)): 9/9 passed.
 
@@ -67,7 +108,7 @@ third of their requests were turned away, and the rest were served as fast as wi
   waiting for nothing. Now it's 6 queued and 120 s: a queued request gets served, and the
   overflow is told at once.
 - **Two slots don't add throughput on a CPU, they split it** (7.0 tok/s either way; with one
-  slot, [`load-1slot`](results): 6.6–6.7 tok/s). They do make the first token come sooner, 1.2 s
+  slot, [`load-cpu-1slot`](results): 6.6–6.7 tok/s). They do make the first token come sooner, 1.2 s
   instead of 19 s at 2 clients, because nobody waits for a whole reply before theirs starts.
   For a chat that's the better trade, so the default is 2.
 - **The context limit is exact.** The gateway counts the prompt with qwen3's own tokenizer and
@@ -77,6 +118,25 @@ third of their requests were turned away, and the rest were served as fast as wi
 
 ## Run it
 
+### On this Mac (Ollama native, public over a Cloudflare Tunnel)
+
+```bash
+ollama pull qwen3:4b-instruct                      # the Ollama app serves it on the GPU
+cp .env.example .env                                # strong keys: sk-$(openssl rand -hex 24)
+docker compose -f compose.mac.yaml up -d --build    # only the gateway; it reaches the app on the host
+cloudflared tunnel --url http://localhost:8030      # prints https://<random>.trycloudflare.com
+```
+
+`MAX_CONCURRENT` in `.env` must match the app's `OLLAMA_NUM_PARALLEL` (1 unless you set it). The
+quick tunnel needs no Cloudflare account and lives as long as the command runs, with a new URL each
+time; a fixed one needs a domain on Cloudflare and a named tunnel. Through the tunnel the service
+is on the public internet: only the API keys stand in front of it, so use long random ones.
+`compose.mac.yaml` sets the queue timeout to 90 s, under Cloudflare's 100 s limit for a response
+to start, so a long-queued request gets a 503 from the gateway, not a 524 from Cloudflare.
+Keep the Mac awake while serving (`caffeinate -s`).
+
+### On a CPU-only box (Ollama in Docker too)
+
 ```bash
 cp .env.example .env            # put your own keys in API_KEYS
 docker compose up -d --build    # pulls the model on first start (~2.5 GB), then serves :8030
@@ -84,7 +144,7 @@ open http://localhost:8030      # the web chat; sign in with a key from .env
 ```
 
 Locally, to behave like a 4-vCPU VPS: `docker compose -f compose.yaml -f compose.vps-sim.yaml up -d --build`.
-Without Docker: `ollama pull qwen3:4b-instruct && API_KEYS=me:sk-local uv run serve`.
+Without Docker at all: `ollama pull qwen3:4b-instruct && API_KEYS=me:sk-... uv run serve`.
 
 ### On a VPS
 
@@ -154,5 +214,6 @@ All environment variables (`.env`), documented in [`gateway/config.py`](gateway/
 - [`gateway/serve.py`](gateway/serve.py), [`gateway/config.py`](gateway/config.py): `uv run serve`, settings
 - [`web/`](web): the chat page
 - [`checks/cli.py`](checks/cli.py): `uv run check limits|load`
+- [`compose.mac.yaml`](compose.mac.yaml): the gateway alone, against the Ollama app on the host
 - [`compose.yaml`](compose.yaml), [`Dockerfile`](Dockerfile), [`deploy/deploy.sh`](deploy/deploy.sh), [`.env.example`](.env.example)
 - [`tests/`](tests): `uv run pytest`: auth, streaming format, 429 + refill, 413 + reply budget, body size, 400s, 502, 503 when the queue is full or times out, slots released
