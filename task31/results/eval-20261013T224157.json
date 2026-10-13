@@ -1,0 +1,925 @@
+{
+  "model": "qwen3:8b",
+  "summary": [
+    "passed          14/15",
+    "retrieval hit   10/10 (expected source among the passages)",
+    "answer checks   14/15",
+    "tool use        15/15",
+    "mean time       15.6s"
+  ],
+  "questions": [
+    {
+      "id": "branch",
+      "passed": true,
+      "retrieval": null,
+      "answer_ok": true,
+      "tools_ok": true,
+      "missing": [],
+      "question": "What branch am I on, and which task is it for?",
+      "answer": "You are on the branch `task31/dev-assistant`, which is for Task 31 — Developer assistant. This is indicated by the branch name and the documentation in [3], which states that work for a task happens on a branch named `taskN/<short-name>`.",
+      "branch": "branch: task31/dev-assistant",
+      "scope": [],
+      "listed": [],
+      "passages": [
+        {
+          "rank": 1,
+          "label": "task31/README.md › Task 31 — Developer assistant › How /help answers",
+          "rerank": 0.970681256166662,
+          "cited": false
+        },
+        {
+          "rank": 2,
+          "label": "task10/PLAN.md › Task 10 — Context strategies, without a summary · plan › Stages › Stage 4 — offline truth",
+          "rerank": 0.07604083187553613,
+          "cited": false
+        },
+        {
+          "rank": 3,
+          "label": "docs/conventions.md › Conventions › Git workflow",
+          "rerank": 0.07307859505933097,
+          "cited": true
+        },
+        {
+          "rank": 4,
+          "label": "task10/PLAN.md › Task 10 — Context strategies, without a summary · plan › The scenario — one script, every strategy",
+          "rerank": 0.0721821749689967,
+          "cited": false
+        },
+        {
+          "rank": 5,
+          "label": "task10/README.md › The agent that keeps the point › What is remembered and what is not",
+          "rerank": 0.07135411551487296,
+          "cited": false
+        },
+        {
+          "rank": 6,
+          "label": "task10/PLAN.md › Task 10 — Context strategies, without a summary · plan › Stages › Stage 1 — the fact store",
+          "rerank": 0.056894136109325796,
+          "cited": false
+        }
+      ],
+      "tool_calls": [],
+      "rounds": 1,
+      "seconds": 16.0,
+      "tokens": {
+        "prompt": 2334,
+        "completion": 59
+      }
+    },
+    {
+      "id": "branch-convention",
+      "passed": true,
+      "retrieval": true,
+      "answer_ok": true,
+      "tools_ok": true,
+      "missing": [],
+      "question": "What is the naming convention for git branches in this repo?",
+      "answer": "The naming convention for git branches in this repo is that work for a task happens on one branch named `taskN/<short-name>`, e.g., `task30/private-llm-service`, `task31/dev-assistant` [1].",
+      "branch": "branch: task31/dev-assistant",
+      "scope": [],
+      "listed": [],
+      "passages": [
+        {
+          "rank": 1,
+          "label": "docs/conventions.md › Conventions › Git workflow",
+          "rerank": 0.7760048757104525,
+          "cited": true
+        },
+        {
+          "rank": 2,
+          "label": "task31/README.md › Task 31 — Developer assistant › What testing changed",
+          "rerank": 0.6532022062401165,
+          "cited": false
+        },
+        {
+          "rank": 3,
+          "label": "task31/README.md › Task 31 — Developer assistant › How /help answers",
+          "rerank": 0.20710892970954042,
+          "cited": false
+        },
+        {
+          "rank": 4,
+          "label": "task31/PLAN.md › Task 31 — Developer assistant: plan › Stages",
+          "rerank": 0.06120415726512736,
+          "cited": false
+        },
+        {
+          "rank": 5,
+          "label": "task31/PLAN.md › Task 31 — Developer assistant: plan › Decisions",
+          "rerank": 0.05113786854313318,
+          "cited": false
+        },
+        {
+          "rank": 6,
+          "label": "task31/README.md › Task 31 — Developer assistant",
+          "rerank": 0.03383284992520588,
+          "cited": false
+        }
+      ],
+      "tool_calls": [],
+      "rounds": 1,
+      "seconds": 12.5,
+      "tokens": {
+        "prompt": 3072,
+        "completion": 53
+      }
+    },
+    {
+      "id": "browser-tests",
+      "passed": true,
+      "retrieval": true,
+      "answer_ok": true,
+      "tools_ok": true,
+      "missing": [],
+      "question": "How do I run the tests of the browser JavaScript tasks?",
+      "answer": "To run the tests of the browser JavaScript tasks, you should use the command `node test.js` as specified in the conventions [2]. This command is applicable for tasks 4–15, which are browser JavaScript tasks. Make sure you are in the correct directory for the task you want to test, and then execute the command in your terminal.",
+      "branch": "branch: task31/dev-assistant",
+      "scope": [],
+      "listed": [],
+      "passages": [
+        {
+          "rank": 1,
+          "label": "task31/README.md › Task 31 — Developer assistant › What testing changed",
+          "rerank": 0.52373149222137,
+          "cited": false
+        },
+        {
+          "rank": 2,
+          "label": "docs/conventions.md › Conventions › Toolchains",
+          "rerank": 0.2514323145615865,
+          "cited": true
+        },
+        {
+          "rank": 3,
+          "label": "README.md › AI Advent Challenge — season 9 › Tasks",
+          "rerank": 0.18260073638871355,
+          "cited": false
+        },
+        {
+          "rank": 4,
+          "label": "docs/architecture.md › Architecture › The arcs",
+          "rerank": 0.038653186455714854,
+          "cited": false
+        },
+        {
+          "rank": 5,
+          "label": "task13/README.md › A state the model cannot narrate › The one idea the rest follows from",
+          "rerank": 0.013135418511876489,
+          "cited": false
+        },
+        {
+          "rank": 6,
+          "label": "task15/PLAN.md › Task 15 — Controlled state transitions · plan › The demo path",
+          "rerank": 0.012710932284149028,
+          "cited": false
+        }
+      ],
+      "tool_calls": [],
+      "rounds": 1,
+      "seconds": 15.4,
+      "tokens": {
+        "prompt": 3463,
+        "completion": 72
+      }
+    },
+    {
+      "id": "embeddings",
+      "passed": false,
+      "retrieval": true,
+      "answer_ok": false,
+      "tools_ok": true,
+      "missing": [
+        "ollama"
+      ],
+      "question": "Which embedding model does the RAG pipeline use, and where does it run?",
+      "answer": "The RAG pipeline uses the `nomic-embed-text` model for embeddings, as indicated in the documentation [4]. This model runs in the Python environment, specifically within the `indexer/` and `rag/` directories, which handle the embedding and retrieval processes respectively.",
+      "branch": "branch: task31/dev-assistant",
+      "scope": [],
+      "listed": [],
+      "passages": [
+        {
+          "rank": 1,
+          "label": "docs/architecture.md › Architecture › The arcs",
+          "rerank": 0.35317710105453254,
+          "cited": false
+        },
+        {
+          "rank": 2,
+          "label": "task22/PLAN.md › Task 22 — First RAG query › The pipeline",
+          "rerank": 0.3446527016021509,
+          "cited": false
+        },
+        {
+          "rank": 3,
+          "label": "README.md › AI Advent Challenge — season 9 › Tasks",
+          "rerank": 0.3315277572291181,
+          "cited": false
+        },
+        {
+          "rank": 4,
+          "label": "task23/README.md › Task 23 — Reranking, filtering and query rewriting",
+          "rerank": 0.14123330581729387,
+          "cited": true
+        },
+        {
+          "rank": 5,
+          "label": "task25/README.md › Task 25 — Mini-chat with RAG, sources and task memory",
+          "rerank": 0.09453848288671435,
+          "cited": false
+        },
+        {
+          "rank": 6,
+          "label": "task22/PLAN.md › Task 22 — First RAG query › Evaluation",
+          "rerank": 0.05396540487844438,
+          "cited": false
+        }
+      ],
+      "tool_calls": [],
+      "rounds": 1,
+      "seconds": 14.4,
+      "tokens": {
+        "prompt": 3325,
+        "completion": 58
+      }
+    },
+    {
+      "id": "mcp-stack",
+      "passed": true,
+      "retrieval": true,
+      "answer_ok": true,
+      "tools_ok": true,
+      "missing": [],
+      "question": "Which language and MCP SDK are tasks 16-20 written in?",
+      "answer": "Tasks 16-20 are written in Go and use the MCP SDK from the official `modelcontextprotocol/go-sdk` [1].",
+      "branch": "branch: task31/dev-assistant",
+      "scope": [
+        "task16",
+        "task17",
+        "task18",
+        "task19",
+        "task20"
+      ],
+      "listed": [],
+      "passages": [
+        {
+          "rank": 1,
+          "label": "docs/architecture.md › Architecture › The arcs",
+          "rerank": 0.9388673951254742,
+          "cited": true
+        },
+        {
+          "rank": 2,
+          "label": "docs/conventions.md › Conventions › Toolchains",
+          "rerank": 0.792314574371966,
+          "cited": false
+        },
+        {
+          "rank": 3,
+          "label": "docs/architecture.md › Architecture › Shared components",
+          "rerank": 0.6945129641053511,
+          "cited": false
+        },
+        {
+          "rank": 4,
+          "label": "task20/PLAN.md › Task 20 — MCP orchestration · plan › Addendum — what the build changed",
+          "rerank": 0.5613624202333547,
+          "cited": false
+        },
+        {
+          "rank": 5,
+          "label": "task16/PLAN.md › Task 16 — Connecting to MCP · plan › Honest instrumentation",
+          "rerank": 0.35979939403555594,
+          "cited": false
+        },
+        {
+          "rank": 6,
+          "label": "task16/PLAN.md › Task 16 — Connecting to MCP · plan › Sequence",
+          "rerank": 0.23195726773403175,
+          "cited": false
+        }
+      ],
+      "tool_calls": [],
+      "rounds": 1,
+      "seconds": 10.1,
+      "tokens": {
+        "prompt": 3135,
+        "completion": 30
+      }
+    },
+    {
+      "id": "queue-full",
+      "passed": true,
+      "retrieval": true,
+      "answer_ok": true,
+      "tools_ok": true,
+      "missing": [],
+      "question": "What HTTP status and error code does the task 30 gateway return when its queue is full?",
+      "answer": "The task 30 gateway returns a **503 Server Busy** status code when its queue is full. This is due to the queue being full and no generation slots being available, as described in the documentation [4].",
+      "branch": "branch: task31/dev-assistant",
+      "scope": [
+        "task30"
+      ],
+      "listed": [],
+      "passages": [
+        {
+          "rank": 1,
+          "label": "task30/README.md › Task 30: a local LLM as a private service",
+          "rerank": 0.9922755219306417,
+          "cited": false
+        },
+        {
+          "rank": 2,
+          "label": "task30/README.md › Task 30: a local LLM as a private service › Files",
+          "rerank": 0.9295111070284235,
+          "cited": false
+        },
+        {
+          "rank": 3,
+          "label": "task30/README.md › Task 30: a local LLM as a private service › Result: this Mac + Cloudflare Tunnel",
+          "rerank": 0.8855850270254197,
+          "cited": false
+        },
+        {
+          "rank": 4,
+          "label": "docs/api/task30-gateway.openapi.yaml › Task 30 private LLM gateway",
+          "rerank": 0.8614192975185857,
+          "cited": true
+        },
+        {
+          "rank": 5,
+          "label": "task30/pyproject.toml › Task 30: a local LLM as a private service",
+          "rerank": 0.7930991243393103,
+          "cited": false
+        },
+        {
+          "rank": 6,
+          "label": "task30/compose.mac.yaml › Task 30: a local LLM as a private service",
+          "rerank": 0.7576816061990514,
+          "cited": false
+        }
+      ],
+      "tool_calls": [],
+      "rounds": 1,
+      "seconds": 13.5,
+      "tokens": {
+        "prompt": 3174,
+        "completion": 47
+      }
+    },
+    {
+      "id": "api-fields",
+      "passed": true,
+      "retrieval": true,
+      "answer_ok": true,
+      "tools_ok": true,
+      "missing": [],
+      "question": "Which fields does a chat completion request to the task 30 gateway accept?",
+      "answer": "A chat completion request to the task 30 gateway accepts the following fields, as defined in the OpenAPI schema [3]:\n\n- `model`: A string, optional, must equal the served model (qwen3:4b-instruct) if given.\n- `messages`: An array of messages (required), each with a `role` (system, user, or assistant) and `content` (string).\n- `stream`: A boolean, defaulting to `False`.\n- `max_tokens`: An integer, minimum 1, capped at `MAX_OUTPUT` (default 1024).\n- `max_completion_tokens`: An integer, minimum 1, takes precedence over `max_tokens`.\n- `temperature`: A number, minimum 0, maximum 2.",
+      "branch": "branch: task31/dev-assistant",
+      "scope": [
+        "task30"
+      ],
+      "listed": [],
+      "passages": [
+        {
+          "rank": 1,
+          "label": "docs/api/task30-gateway.openapi.yaml › Task 30 private LLM gateway › POST /v1/chat/completions",
+          "rerank": 0.9671072011036266,
+          "cited": false
+        },
+        {
+          "rank": 2,
+          "label": "task30/README.md › Task 30: a local LLM as a private service",
+          "rerank": 0.9051315833204221,
+          "cited": false
+        },
+        {
+          "rank": 3,
+          "label": "docs/api/task30-gateway.openapi.yaml › Task 30 private LLM gateway › Schema ChatRequest",
+          "rerank": 0.8731113600401653,
+          "cited": true
+        },
+        {
+          "rank": 4,
+          "label": "task30/README.md › Task 30: a local LLM as a private service › Use it",
+          "rerank": 0.8232304064519481,
+          "cited": false
+        },
+        {
+          "rank": 5,
+          "label": "task30/README.md › Task 30: a local LLM as a private service › Files",
+          "rerank": 0.550682626009517,
+          "cited": false
+        },
+        {
+          "rank": 6,
+          "label": "task30/README.md › Task 30: a local LLM as a private service › Run it › On this Mac (Ollama native, public over a Cloudflare Tunnel)",
+          "rerank": 0.5230850396253812,
+          "cited": false
+        }
+      ],
+      "tool_calls": [],
+      "rounds": 1,
+      "seconds": 20.2,
+      "tokens": {
+        "prompt": 3173,
+        "completion": 160
+      }
+    },
+    {
+      "id": "chat-schema",
+      "passed": true,
+      "retrieval": true,
+      "answer_ok": true,
+      "tools_ok": true,
+      "missing": [],
+      "question": "Which tables does the task 25 chat keep in SQLite?",
+      "answer": "The task 25 chat keeps the following tables in SQLite:\n\n- `sessions`: to store session information such as ID, title, and timestamps.\n- `messages`: to store messages with details like session ID, turn number, role, text, and data.\n- `memory`: to store the task memory for each session.\n- `memory_log`: to log changes to the memory over time.\n\nThese tables are defined in the `store.py` file within the `rag/` directory of the task 25 folder [1].",
+      "branch": "branch: task31/dev-assistant",
+      "scope": [
+        "task25"
+      ],
+      "listed": [],
+      "passages": [
+        {
+          "rank": 1,
+          "label": "task25/rag/store.py › Task 25 — Mini-chat with RAG, sources and task memory · data schema (SQL)",
+          "rerank": 0.9798262354111119,
+          "cited": true
+        },
+        {
+          "rank": 2,
+          "label": "task25/indexer/store.py › Task 25 — Mini-chat with RAG, sources and task memory · data schema (SQL)",
+          "rerank": 0.9792425706100566,
+          "cited": false
+        },
+        {
+          "rank": 3,
+          "label": "task25/PLAN.md › Task 25 — Mini-chat with RAG, sources and task memory › Decisions",
+          "rerank": 0.9161576443482782,
+          "cited": false
+        },
+        {
+          "rank": 4,
+          "label": "task25/README.md › Task 25 — Mini-chat with RAG, sources and task memory",
+          "rerank": 0.8890170174271097,
+          "cited": false
+        },
+        {
+          "rank": 5,
+          "label": "task25/PLAN.md › Task 25 — Mini-chat with RAG, sources and task memory › Decisions",
+          "rerank": 0.879542088208659,
+          "cited": false
+        },
+        {
+          "rank": 6,
+          "label": "task25/PLAN.md › Task 25 — Mini-chat with RAG, sources and task memory › Layout",
+          "rerank": 0.8748684675838495,
+          "cited": false
+        }
+      ],
+      "tool_calls": [],
+      "rounds": 1,
+      "seconds": 15.6,
+      "tokens": {
+        "prompt": 3122,
+        "completion": 109
+      }
+    },
+    {
+      "id": "deps",
+      "passed": true,
+      "retrieval": true,
+      "answer_ok": true,
+      "tools_ok": true,
+      "missing": [],
+      "question": "Which Python version and which dependencies does task 27 need?",
+      "answer": "Task 27 requires Python 3.13 or higher. The dependencies are listed in the `pyproject.toml` file and include:\n\n- `fastapi>=0.142.2`\n- `numpy>=2.5.3`\n- `pymupdf>=1.28.2`\n- `rapidfuzz>=3.14.6`\n- `requests>=2.34.2`\n- `sentence-transformers>=6.1.0`\n- `uvicorn>=0.54.0`\n\nFor development, the `dev` group includes `httpx2>=2.13.1` and `pytest>=9.1.1`.",
+      "branch": "branch: task31/dev-assistant",
+      "scope": [
+        "task27"
+      ],
+      "listed": [],
+      "passages": [
+        {
+          "rank": 1,
+          "label": "task27/pyproject.toml › Task 27 — A local LLM in a real application",
+          "rerank": 0.9988853653572265,
+          "cited": false
+        },
+        {
+          "rank": 2,
+          "label": "task27/indexer/store.py › Task 27 — A local LLM in a real application · data schema (SQL)",
+          "rerank": 0.9773506267310585,
+          "cited": false
+        },
+        {
+          "rank": 3,
+          "label": "task27/README.md › Task 27 — A local LLM in a real application",
+          "rerank": 0.9713742986865801,
+          "cited": false
+        },
+        {
+          "rank": 4,
+          "label": "task27/README.md › Task 27 — A local LLM in a real application",
+          "rerank": 0.9593630943237461,
+          "cited": false
+        },
+        {
+          "rank": 5,
+          "label": "task27/rag/store.py › Task 27 — A local LLM in a real application · data schema (SQL)",
+          "rerank": 0.9167219116684325,
+          "cited": false
+        },
+        {
+          "rank": 6,
+          "label": "task27/README.md › Task 27 — A local LLM in a real application › How it runs",
+          "rerank": 0.7949026091338087,
+          "cited": false
+        }
+      ],
+      "tool_calls": [],
+      "rounds": 1,
+      "seconds": 16.6,
+      "tokens": {
+        "prompt": 3023,
+        "completion": 147
+      }
+    },
+    {
+      "id": "idk-threshold",
+      "passed": true,
+      "retrieval": true,
+      "answer_ok": true,
+      "tools_ok": true,
+      "missing": [],
+      "question": "In task 23, when does the agent refuse to answer without calling the LLM?",
+      "answer": "In task 23, the agent refuses to answer without calling the LLM when the context is empty after applying the threshold. This happens if every chunk in the pooled hits scores below the threshold, leading to the agent answering \"The documents do not contain the answer.\" without involving the LLM [3].",
+      "branch": "branch: task31/dev-assistant",
+      "scope": [
+        "task23"
+      ],
+      "listed": [],
+      "passages": [
+        {
+          "rank": 1,
+          "label": "task23/README.md › Task 23 — Reranking, filtering and query rewriting",
+          "rerank": 0.9957648989190501,
+          "cited": false
+        },
+        {
+          "rank": 2,
+          "label": "task23/README.md › Task 23 — Reranking, filtering and query rewriting › Result",
+          "rerank": 0.9913563655156106,
+          "cited": false
+        },
+        {
+          "rank": 3,
+          "label": "task23/PLAN.md › Task 23 — Reranking, filtering and query rewriting › Decisions",
+          "rerank": 0.9850941544823976,
+          "cited": true
+        },
+        {
+          "rank": 4,
+          "label": "task23/PLAN.md › Task 23 — Reranking, filtering and query rewriting › Layout",
+          "rerank": 0.9459407816160427,
+          "cited": false
+        },
+        {
+          "rank": 5,
+          "label": "task23/PLAN.md › Task 23 — Reranking, filtering and query rewriting › Stages",
+          "rerank": 0.16466442741176263,
+          "cited": false
+        },
+        {
+          "rank": 6,
+          "label": "task23/PLAN.md › Task 23 — Reranking, filtering and query rewriting › What the build changed",
+          "rerank": 0.093683832624728,
+          "cited": false
+        }
+      ],
+      "tool_calls": [],
+      "rounds": 1,
+      "seconds": 14.6,
+      "tokens": {
+        "prompt": 3433,
+        "completion": 63
+      }
+    },
+    {
+      "id": "dir-listing",
+      "passed": true,
+      "retrieval": null,
+      "answer_ok": true,
+      "tools_ok": true,
+      "missing": [],
+      "question": "What is in task30/gateway?",
+      "answer": "The `task30/gateway` directory contains the following files:\n\n- `__init__.py`: Likely an initialization file for the gateway package.\n- `app.py`: The main API implementation, handling the OpenAI-compatible HTTP API and SSE streaming.\n- `config.py`: Contains configuration settings for the gateway, such as API keys and model settings.\n- `limits.py`: Implements the token-bucket rate limiter and the slot gate with its queue.\n- `ollama.py`: Handles communication with Ollama's native `/api/chat` endpoint, including streaming and thinking off.\n- `serve.py`: Likely contains the code to run the gateway server, possibly with settings for the server.\n\nThese files together form the gateway that serves the OpenAI-compatible API and manages the local LLM service.",
+      "branch": "branch: task31/dev-assistant",
+      "scope": [
+        "task30"
+      ],
+      "listed": [
+        "task30/gateway"
+      ],
+      "passages": [
+        {
+          "rank": 1,
+          "label": "task30/README.md › Task 30: a local LLM as a private service",
+          "rerank": 0.9854433339846944,
+          "cited": false
+        },
+        {
+          "rank": 2,
+          "label": "task30/README.md › Task 30: a local LLM as a private service › What the measurements changed",
+          "rerank": 0.9702592170455505,
+          "cited": false
+        },
+        {
+          "rank": 3,
+          "label": "task30/README.md › Task 30: a local LLM as a private service › Files",
+          "rerank": 0.9653001305390767,
+          "cited": false
+        },
+        {
+          "rank": 4,
+          "label": "docs/conventions.md › Conventions › Git workflow",
+          "rerank": 0.9249392989289864,
+          "cited": false
+        },
+        {
+          "rank": 5,
+          "label": "task30/README.md › Task 30: a local LLM as a private service › Settings",
+          "rerank": 0.9027138823562666,
+          "cited": false
+        },
+        {
+          "rank": 6,
+          "label": "task30/README.md › Task 30: a local LLM as a private service › Result: this Mac + Cloudflare Tunnel",
+          "rerank": 0.8907667678633305,
+          "cited": false
+        }
+      ],
+      "tool_calls": [],
+      "rounds": 1,
+      "seconds": 18.1,
+      "tokens": {
+        "prompt": 3089,
+        "completion": 162
+      }
+    },
+    {
+      "id": "branch-diff",
+      "passed": true,
+      "retrieval": null,
+      "answer_ok": true,
+      "tools_ok": true,
+      "missing": [],
+      "question": "Which files has this branch changed compared to main?",
+      "answer": "This branch has changed the following files compared to `main`:\n\n- `README.md`\n- `docs/api/task30-gateway.openapi.yaml`\n- `docs/architecture.md`\n- `docs/conventions.md`\n- `task31/.gitignore`\n- `task31/PLAN.md`\n- `task31/devassist/assistant.py`\n- `task31/devassist/chunk.py`\n- `task31/devassist/cli.py`\n- `task31/devassist/corpus.py`\n- `task31/devassist/embed.py`\n- `task31/devassist/index.py`\n- `task31/devassist/lexical.py`\n- `task31/devassist/llm.py`\n- `task31/devassist/repl.py`\n- `task31/devassist/rerank.py`\n- `task31/devassist/retrieve.py`\n- `task31/devassist/store.py`\n- `task31/devassist/tools.py`\n- `task31/devmcp/server.py`\n- `task31/pyproject.toml`\n- `task31/task31.txt`\n- `task31/tests/test_assistant.py`\n- `task31/tests/test_devmcp.py`\n- `task31/tests/test_index.py`\n- `task31/uv.lock`\n\nThese changes include new files, modifications, and additions to the project structure and implementation.",
+      "branch": "branch: task31/dev-assistant",
+      "scope": [],
+      "listed": [],
+      "passages": [
+        {
+          "rank": 1,
+          "label": "task31/README.md › Task 31 — Developer assistant › What testing changed",
+          "rerank": 0.9911216193292749,
+          "cited": false
+        },
+        {
+          "rank": 2,
+          "label": "task31/README.md › Task 31 — Developer assistant › How /help answers",
+          "rerank": 0.23366758951585734,
+          "cited": false
+        },
+        {
+          "rank": 3,
+          "label": "docs/conventions.md › Conventions › Git workflow",
+          "rerank": 0.11043079262661276,
+          "cited": false
+        },
+        {
+          "rank": 4,
+          "label": "task31/PLAN.md › Task 31 — Developer assistant: plan › Decisions",
+          "rerank": 0.059359891592849004,
+          "cited": false
+        },
+        {
+          "rank": 5,
+          "label": "task19/PLAN.md › Task 19 — Composing MCP tools · plan › Addendum — what the build changed",
+          "rerank": 0.024322952463703817,
+          "cited": false
+        },
+        {
+          "rank": 6,
+          "label": "task20/PLAN.md › Task 20 — MCP orchestration · plan › Addendum — what the build changed",
+          "rerank": 0.023075952139206053,
+          "cited": false
+        }
+      ],
+      "tool_calls": [
+        {
+          "tool": "git_diff",
+          "arguments": {
+            "base": "main",
+            "stat": true
+          },
+          "result": "README.md                            |   48 +\n docs/api/task30-gateway.openapi.yaml |  130 +++\n docs/architecture.md                 |   50 +\n docs/conventions.md                  |   39 +\n task31/.gitignore                    |    4 +\n task31/PLAN.md                       |   46 +\n task31/devassist"
+        }
+      ],
+      "rounds": 2,
+      "seconds": 28.3,
+      "tokens": {
+        "prompt": 7382,
+        "completion": 319
+      }
+    },
+    {
+      "id": "last-commits",
+      "passed": true,
+      "retrieval": null,
+      "answer_ok": true,
+      "tools_ok": true,
+      "missing": [],
+      "question": "What were the last two commits?",
+      "answer": "The last two commits are:\n\n1. `bc08ce3` (2026-10-13, Atabek): \"Task 31: the assistant: /help over docs, git state and MCP tools\"\n2. `104d9ea` (2026-10-13, Atabek): \"Task 31: devmcp, an MCP server with the repository's git state\"",
+      "branch": "branch: task31/dev-assistant",
+      "scope": [],
+      "listed": [],
+      "passages": [
+        {
+          "rank": 1,
+          "label": "task31/README.md › Task 31 — Developer assistant › What testing changed",
+          "rerank": 0.056947685150122385,
+          "cited": false
+        },
+        {
+          "rank": 2,
+          "label": "task20/PLAN.md › Task 20 — MCP orchestration · plan › Reused from task 19",
+          "rerank": 0.0008450694363526327,
+          "cited": false
+        },
+        {
+          "rank": 3,
+          "label": "task22/PLAN.md › Task 22 — First RAG query › Stages",
+          "rerank": 0.0005049918432179375,
+          "cited": false
+        },
+        {
+          "rank": 4,
+          "label": "task21/PLAN.md › Task 21 — Document indexing › Stages",
+          "rerank": 0.000425250087798162,
+          "cited": false
+        },
+        {
+          "rank": 5,
+          "label": "task15/README.md › A rule you are allowed to try to break › What the tests caught",
+          "rerank": 0.0003035400837561555,
+          "cited": false
+        },
+        {
+          "rank": 6,
+          "label": "task15/README.md › A rule you are allowed to try to break › Actions and transitions are different things",
+          "rerank": 0.00023430465280542385,
+          "cited": false
+        }
+      ],
+      "tool_calls": [
+        {
+          "tool": "git_log",
+          "arguments": {
+            "n": 2
+          },
+          "result": "bc08ce3 2026-10-13 Atabek  Task 31: the assistant: /help over docs, git state and MCP tools\n104d9ea 2026-10-13 Atabek  Task 31: devmcp, an MCP server with the repository's git state"
+        }
+      ],
+      "rounds": 2,
+      "seconds": 14.5,
+      "tokens": {
+        "prompt": 5894,
+        "completion": 118
+      }
+    },
+    {
+      "id": "ru-model",
+      "passed": true,
+      "retrieval": true,
+      "answer_ok": true,
+      "tools_ok": true,
+      "missing": [],
+      "question": "Какая модель используется в задаче 30 и через что она запущена?",
+      "answer": "В задаче 30 используется модель `qwen3:4b-instruct`, которая запущена через Ollama. Это указано в файле `task30/.env.example` [5].",
+      "branch": "branch: task31/dev-assistant",
+      "scope": [
+        "task30"
+      ],
+      "listed": [],
+      "passages": [
+        {
+          "rank": 1,
+          "label": "task30/README.md › Task 30: a local LLM as a private service › Use it",
+          "rerank": 0.7261471557556053,
+          "cited": false
+        },
+        {
+          "rank": 2,
+          "label": "docs/architecture.md › Architecture › The arcs",
+          "rerank": 0.7037891151065295,
+          "cited": false
+        },
+        {
+          "rank": 3,
+          "label": "task30/README.md › Task 30: a local LLM as a private service",
+          "rerank": 0.5976045759262716,
+          "cited": false
+        },
+        {
+          "rank": 4,
+          "label": "task30/README.md › Task 30: a local LLM as a private service › Run it › On a VPS",
+          "rerank": 0.32455774546660277,
+          "cited": false
+        },
+        {
+          "rank": 5,
+          "label": "task30/.env.example › Task 30: a local LLM as a private service",
+          "rerank": 0.24023403142710448,
+          "cited": true
+        },
+        {
+          "rank": 6,
+          "label": "task30/compose.yaml › Task 30: a local LLM as a private service",
+          "rerank": 0.21471921674014602,
+          "cited": false
+        }
+      ],
+      "tool_calls": [],
+      "rounds": 1,
+      "seconds": 12.3,
+      "tokens": {
+        "prompt": 2949,
+        "completion": 45
+      }
+    },
+    {
+      "id": "not-documented",
+      "passed": true,
+      "retrieval": null,
+      "answer_ok": true,
+      "tools_ok": true,
+      "missing": [],
+      "question": "How do I deploy task 12 to Kubernetes?",
+      "answer": "The documentation and git state do not provide information on how to deploy task 12 to Kubernetes. You should consult the Kubernetes deployment guide or the task12 directory for any deployment-specific instructions. If there are any deployment files or configurations in the task12 directory, they would need to be examined directly.",
+      "branch": "branch: task31/dev-assistant",
+      "scope": [
+        "task12"
+      ],
+      "listed": [],
+      "passages": [
+        {
+          "rank": 1,
+          "label": "task12/PLAN.md › Task 12 — Personalizing the assistant · plan › The ablation — what it takes into account automatically",
+          "rerank": 0.43632834324154723,
+          "cited": false
+        },
+        {
+          "rank": 2,
+          "label": "task12/PLAN.md › Task 12 — Personalizing the assistant · plan › The grid",
+          "rerank": 0.43259725337708554,
+          "cited": false
+        },
+        {
+          "rank": 3,
+          "label": "task12/PLAN.md › Task 12 — Personalizing the assistant · plan › The three people",
+          "rerank": 0.3169434914205794,
+          "cited": false
+        },
+        {
+          "rank": 4,
+          "label": "task12/PLAN.md › Task 12 — Personalizing the assistant · plan › The schema",
+          "rerank": 0.20031247244900718,
+          "cited": false
+        },
+        {
+          "rank": 5,
+          "label": "task12/PLAN.md › Task 12 — Personalizing the assistant · plan › Two things called a profile",
+          "rerank": 0.16323300539240237,
+          "cited": false
+        },
+        {
+          "rank": 6,
+          "label": "task12/PLAN.md › Task 12 — Personalizing the assistant · plan › Where this will be weakest, predicted now",
+          "rerank": 0.1427089420048553,
+          "cited": false
+        }
+      ],
+      "tool_calls": [],
+      "rounds": 1,
+      "seconds": 11.9,
+      "tokens": {
+        "prompt": 2824,
+        "completion": 63
+      }
+    }
+  ]
+}
