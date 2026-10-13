@@ -97,7 +97,12 @@ class Repo:
         rel = self.rel(path)
         if rel:
             args += ["--", rel]
-        return self.git(*args).strip() or "no commits"
+        out = self.git(*args).strip()
+        if not out and rel and not (self.root / rel).exists():
+            raise ToolError(f"no file or directory {rel!r} in the repository (and no history for it). `path` "
+                            "filters by file or directory; the log is always of the current branch, so for the branch's "
+                            "commits call git_log without `path`")
+        return out or "no commits"
 
     def diff(self, path: str | None = None, base: str | None = None, stat: bool = False) -> str:
         """Working tree vs HEAD; with `base`, the branch's changes since it forked from base."""
@@ -110,6 +115,9 @@ class Repo:
         if rel:
             args += ["--", rel]
         out = self.git(*args).strip()
+        if not out and rel and not (self.root / rel).exists():
+            raise ToolError(f"no file or directory {rel!r} in the repository; `path` is a file or directory, "
+                            "`base` the branch to compare with")
         if not out:
             return f"no differences{f' between {base} and HEAD' if base else ' in the working tree (vs HEAD)'}"
         return _cap(out)
@@ -184,8 +192,8 @@ def create_server(repo: Repo | None = None) -> MCPServer:
 
     @mcp.tool()
     def git_log(n: int = 10, path: str | None = None) -> str:
-        """The last `n` commits (hash, date, author, subject), optionally only those touching `path`
-        (a file or directory relative to the repository root)."""
+        """The last `n` commits of the current branch (hash, date, author, subject), optionally only
+        those touching `path` (a file or directory relative to the repository root, not a branch)."""
         return run(repo.log, n, path)
 
     @mcp.tool()

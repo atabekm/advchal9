@@ -44,3 +44,12 @@ from the Hugging Face cache.
    one-shot `devassist ask`.
 4. **Evaluation and README**: about 12 questions about structure, conventions and git state;
    retrieval hit rate and answer checks; real transcripts in the README.
+
+## Addendum: what the build changed
+
+- Retrieval is hybrid: cosine top 20 and BM25 top 20, fused by reciprocal rank, then reranked.
+  Cosine alone missed the conventions table for "how do I run the browser tasks' tests".
+- A directory named in the question is listed through MCP before the model runs, next to the
+  git state: qwen3 didn't call `list_files` for "what's in X" on its own.
+- `read_file` joined the tools. `git_log`/`git_diff` refuse a path that doesn't exist and say
+  how to retry; the prompt tells the model to correct its arguments and call again.

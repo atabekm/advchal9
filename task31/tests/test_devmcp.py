@@ -59,6 +59,8 @@ def test_log_and_path_filter(repo):
     assert r.log().splitlines()[0].endswith("Task 2: second")
     assert "Task 2" not in r.log(path="task1")
     assert len(r.log(n=1).splitlines()) == 1
+    with pytest.raises(ToolError, match="always of the current branch"):
+        r.log(path="task2/feature")  # a branch name passed as a path
 
 
 def test_diff_working_tree_and_against_base(repo):
@@ -70,6 +72,8 @@ def test_diff_working_tree_and_against_base(repo):
     assert "+more" in r.diff(path="README.md")
     with pytest.raises(ToolError):
         r.diff(base="--output=/tmp/x")
+    with pytest.raises(ToolError, match="no file or directory"):
+        r.diff(path="no/such/thing")
 
 
 def test_list_files_tree(repo):

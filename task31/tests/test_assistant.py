@@ -69,10 +69,10 @@ def test_git_state_is_always_in_the_prompt(repo):
     llm = ScriptedLLM(Reply("You are on task31/dev-assistant."))
     a = ask(repo, llm, "which branch is this?")
     prompt = llm.calls[0][0][1]["content"]
-    assert "GIT STATE\nbranch: task31/dev-assistant" in prompt
-    assert "clean: no changes" in prompt
+    assert "GIT STATE (live)\nbranch: task31/dev-assistant" in prompt
+    assert "uncommitted changes only (not the branch's commits): clean: no changes" in prompt
     assert "[1] task30/README.md › Task 30 › Settings\nMAX_QUEUE is 6." in prompt
-    assert prompt.endswith("QUESTION\nwhich branch is this?")
+    assert "QUESTION\nwhich branch is this?\n\n(If the answer depends" in prompt
     assert a.branch.startswith("branch: task31/dev-assistant")
     assert a.tool_calls == [] and a.rounds == 1
 

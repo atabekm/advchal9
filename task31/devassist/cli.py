@@ -2,6 +2,7 @@
 
     (none) / chat      the interactive assistant: /help QUESTION, /branch, /files, /diff, ...
     ask QUESTION       one /help answer and exit (--json for the full record)
+    eval [ID ...]      run questions.json through /help and check the answers
     index [--full]     embed new and changed docs into index/index.db
     files              what is indexed: one line per document
     search QUESTION    the passages retrieval would give the model, with scores
@@ -84,6 +85,20 @@ def cmd_ask(args) -> int:
     return 0
 
 
+def cmd_eval(args) -> int:
+    from . import evaluate as ev
+
+    async def go():
+        async with DevTools() as tools:
+            assistant = make_assistant(tools, args.db, args.model)
+            checks = await ev.evaluate(assistant, ev.load(only=args.ids))
+            print()
+            print(ev.summary(checks))
+            print(f"\n{ev.save(checks, assistant.llm.model).relative_to(ev.TASK_DIR)}")
+            return 0 if all(c.passed for c in checks) else 2
+    return asyncio.run(go())
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="devassist", description="A developer assistant for this repository.")
     p.add_argument("--db", type=Path, default=DEFAULT_DB)
@@ -95,6 +110,9 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("question", nargs="+")
     s.add_argument("--json", action="store_true", help="the full record: passages, tool calls, timings")
     s.set_defaults(fn=cmd_ask)
+    s = sub.add_parser("eval", help="run questions.json and check the answers")
+    s.add_argument("ids", nargs="*", help="only these question ids")
+    s.set_defaults(fn=cmd_eval)
     s = sub.add_parser("index", help="embed new and changed docs")
     s.add_argument("--full", action="store_true", help="re-embed everything")
     s.set_defaults(fn=cmd_index)

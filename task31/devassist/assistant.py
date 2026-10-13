@@ -48,6 +48,7 @@ tool BEFORE answering; the git state above only lists uncommitted files:
 - what files, modules or folders a directory contains, when no passage lists them → list_files
 - what a specific file says, its code or config, when no passage quotes it → read_file
 When the passages already answer the question, answer without tools.
+If a tool returns an error, correct the arguments and call it again; never ask the developer to run it.
 
 Rules:
 - Use only what the passages, the git state and tool results say. Never invent file names,
@@ -150,9 +151,11 @@ def user_prompt(question: str, branch: str, status: str, hits: list[Hit], listin
         status = "\n".join(status_lines[:STATUS_LINES + 1]) + f"\n… {len(status_lines) - STATUS_LINES - 1} more"
     passages = "\n\n".join(f"[{h.rank}] {h.label}\n{_clip(h.text)}" for h in hits) or "(no passages found)"
     files = "".join(f"FILES\n{listing}\n\n" for listing in listings)
-    return (f"GIT STATE\n{branch}\n{status}\n\n"
+    return (f"GIT STATE (live)\n{branch}\nuncommitted changes only (not the branch's commits): {status}\n\n"
             f"DOCUMENTATION\n{passages}\n\n"
-            f"{files}QUESTION\n{question}")
+            f"{files}QUESTION\n{question}\n\n"
+            f"(If the answer depends on the repository's current files, commits or diffs and nothing above "
+            f"shows them, call a tool first.)")
 
 
 def _clip(text: str) -> str:
