@@ -1,5 +1,7 @@
-"""`uv run devassist <command>`
+"""`uv run devassist [command]`
 
+    (none) / chat      the interactive assistant: /help QUESTION, /branch, /files, /diff, ...
+    ask QUESTION       one /help answer and exit (--json for the full record)
     index [--full]     embed new and changed docs into index/index.db
     files              what is indexed: one line per document
     search QUESTION    the passages retrieval would give the model, with scores
@@ -8,13 +10,19 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import sys
 from collections import Counter
+from pathlib import Path
 
+from .assistant import dumps
 from .embed import EmbedError
 from .index import DEFAULT_DB, build
+from .llm import LLMError
+from .repl import make_assistant, render, run
 from .retrieve import IndexMissing, Retriever, mentioned_tasks
 from .store import Store
+from .tools import DevTools
 
 DIM = "\033[2m"
 BOLD = "\033[1m"
@@ -59,10 +67,34 @@ def cmd_search(args) -> int:
     return 0
 
 
+def cmd_chat(args) -> int:
+    async def go():
+        async with DevTools() as tools:
+            await run(make_assistant(tools, args.db, args.model), color=sys.stdout.isatty())
+    asyncio.run(go())
+    return 0
+
+
+def cmd_ask(args) -> int:
+    async def go():
+        async with DevTools() as tools:
+            answer = await make_assistant(tools, args.db, args.model).help(" ".join(args.question))
+        print(dumps(answer) if args.json else render(answer, color=sys.stdout.isatty()))
+    asyncio.run(go())
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="devassist", description="A developer assistant for this repository.")
-    p.add_argument("--db", type=lambda s: __import__("pathlib").Path(s), default=DEFAULT_DB)
-    sub = p.add_subparsers(dest="cmd", required=True)
+    p.add_argument("--db", type=Path, default=DEFAULT_DB)
+    p.add_argument("--model", default=None, help="Ollama model (default qwen3:8b)")
+    sub = p.add_subparsers(dest="cmd")
+    s = sub.add_parser("chat", help="the interactive assistant (the default)")
+    s.set_defaults(fn=cmd_chat)
+    s = sub.add_parser("ask", help="answer one question and exit")
+    s.add_argument("question", nargs="+")
+    s.add_argument("--json", action="store_true", help="the full record: passages, tool calls, timings")
+    s.set_defaults(fn=cmd_ask)
     s = sub.add_parser("index", help="embed new and changed docs")
     s.add_argument("--full", action="store_true", help="re-embed everything")
     s.set_defaults(fn=cmd_index)
@@ -75,8 +107,8 @@ def main(argv: list[str] | None = None) -> int:
     s.set_defaults(fn=cmd_search)
     args = p.parse_args(argv)
     try:
-        return args.fn(args)
-    except (IndexMissing, EmbedError) as e:
+        return args.fn(args) if args.cmd else cmd_chat(args)
+    except (IndexMissing, EmbedError, LLMError) as e:
         print(f"error: {e}", file=sys.stderr)
         return 1
 
