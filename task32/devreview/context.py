@@ -118,7 +118,7 @@ def numbered_diff(fd: FileDiff, syms: list[Symbol], limit: int = DIFF_CHARS) -> 
     out: list[str] = []
     size = 0
     for h in fd.hunks:
-        first_new = next((ln.new for ln in h.lines if ln.op == "+"), h.new_start)
+        first_new = next((a for a in fd.anchors if h.new_start <= a <= h.new_end), h.new_start)
         where = enclosing(syms, first_new) if syms else None
         head = f"@@ -{h.old_start},{h.old_len} +{h.new_start},{h.new_len} @@" + (f" in {where.name}" if where else
                                                                                   f" {h.header}" if h.header else "")
@@ -141,12 +141,12 @@ def code_view(fd: FileDiff, text: str, syms: list[Symbol], limit: int = FILE_CHA
     if len(text) <= limit:
         return _numbered(lines, 1, len(lines)), True
     ranges: list[tuple[int, int]] = []
-    for ln in fd.added:
-        s = enclosing(syms, ln.new)
+    for line in fd.anchors:
+        s = enclosing(syms, line)
         if s and s.end - s.start < 150:
             ranges.append((s.start, s.end))
         else:
-            ranges.append((max(1, ln.new - EXCERPT_PAD), min(len(lines), ln.new + EXCERPT_PAD)))
+            ranges.append((max(1, line - EXCERPT_PAD), min(len(lines), line + EXCERPT_PAD)))
     merged: list[list[int]] = []
     for a, b in sorted(ranges):
         if merged and a <= merged[-1][1] + 2:
@@ -170,7 +170,7 @@ def _numbered(lines: list[str], a: int, b: int) -> str:
 
 def passages(retriever: Retriever, change: Change, fd: FileDiff, t: Touched) -> list[Hit]:
     names = ", ".join(s.name for s in _ranked(t.changed)[:MAX_NAMES])
-    added = "\n".join(ln.text for ln in fd.added if ln.text.strip())
+    added = "\n".join(ln.text for ln in (fd.added or fd.removed) if ln.text.strip())
     query = f"{fd.path}\n{names}\n{added}"[:QUERY_CHARS]
     task = task_of(fd.path)
     changed = {f.path for f in change.files} | {f.old_path for f in change.files}

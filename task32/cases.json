@@ -1,0 +1,274 @@
+[
+  {
+    "id": "off-by-one",
+    "title": "Retriever: return the top k passages",
+    "defect": "returns k - 1 passages instead of k",
+    "edits": [
+      {
+        "file": "task31/devassist/retrieve.py",
+        "find": "enumerate(hits[:k], start=1)",
+        "replace": "enumerate(hits[:k - 1], start=1)"
+      }
+    ],
+    "expect": {
+      "file": "task31/devassist/retrieve.py",
+      "kinds": [
+        "bug",
+        "architecture"
+      ],
+      "keywords": [
+        "k - 1",
+        "k-1",
+        "one fewer",
+        "one less",
+        "off-by-one",
+        "off by one"
+      ]
+    }
+  },
+  {
+    "id": "renamed-caller",
+    "title": "Rename mentioned_tasks to tasks_in",
+    "defect": "cli.py and assistant.py still import mentioned_tasks",
+    "edits": [
+      {
+        "file": "task31/devassist/retrieve.py",
+        "find": "def mentioned_tasks(question: str)",
+        "replace": "def tasks_in(question: str)"
+      },
+      {
+        "file": "task31/devassist/retrieve.py",
+        "find": "tasks = mentioned_tasks(question)",
+        "replace": "tasks = tasks_in(question)"
+      }
+    ],
+    "expect": {
+      "file": "task31/devassist/retrieve.py",
+      "kinds": [
+        "bug",
+        "architecture"
+      ],
+      "keywords": [
+        "mentioned_tasks"
+      ]
+    }
+  },
+  {
+    "id": "slot-leak",
+    "title": "Gateway: release the slot when Ollama fails",
+    "defect": "the slot is released only on error; every successful request leaks one",
+    "edits": [
+      {
+        "file": "task30/gateway/app.py",
+        "find": "            except OllamaError as e:\n                return error(502, \"upstream_error\", str(e), headers)\n            finally:\n                release()\n",
+        "replace": "            except OllamaError as e:\n                release()\n                return error(502, \"upstream_error\", str(e), headers)\n"
+      }
+    ],
+    "expect": {
+      "file": "task30/gateway/app.py",
+      "kinds": [
+        "bug",
+        "architecture"
+      ],
+      "keywords": [
+        "leak",
+        "never released",
+        "not released",
+        "released regardless",
+        "finally",
+        "success",
+        "only released",
+        "only on error"
+      ]
+    }
+  },
+  {
+    "id": "swallowed-error",
+    "title": "Embedder: don't crash when Ollama is down",
+    "defect": "a connection error returns no vectors; the index silently gets fewer embeddings than chunks",
+    "edits": [
+      {
+        "file": "task31/devassist/embed.py",
+        "find": "            except requests.ConnectionError as e:\n                raise EmbedError(f\"cannot reach Ollama at {self.host} — is `ollama serve` running?\") from e\n",
+        "replace": "            except requests.ConnectionError:\n                return []\n"
+      }
+    ],
+    "expect": {
+      "file": "task31/devassist/embed.py",
+      "kinds": [
+        "bug",
+        "architecture"
+      ],
+      "keywords": [
+        "silent",
+        "swallow",
+        "hide",
+        "hides",
+        "discard",
+        "mismatch",
+        "fewer"
+      ]
+    }
+  },
+  {
+    "id": "sql-injection",
+    "title": "Store: simpler delete",
+    "defect": "the SQL is built with an f-string from a file path",
+    "edits": [
+      {
+        "file": "task31/devassist/store.py",
+        "find": "self.db.execute(\"DELETE FROM files WHERE source = ?\", (source,))\n        self._matrix = None",
+        "replace": "self.db.execute(f\"DELETE FROM files WHERE source = '{source}'\")\n        self._matrix = None"
+      }
+    ],
+    "expect": {
+      "file": "task31/devassist/store.py",
+      "kinds": [
+        "bug",
+        "architecture"
+      ],
+      "keywords": [
+        "inject",
+        "sql",
+        "parameter",
+        "quote"
+      ]
+    }
+  },
+  {
+    "id": "cross-task-import",
+    "title": "Index: reuse task 27's embedder",
+    "defect": "imports code from another task folder at runtime; the conventions say tasks copy, never share",
+    "edits": [
+      {
+        "file": "task31/devassist/index.py",
+        "find": "from .embed import DOC_PREFIX, Embedder\n",
+        "replace": "import sys\n\nsys.path.insert(0, str(TASK_DIR.parent / \"task27\"))\nfrom indexer.embed import DOC_PREFIX, Embedder  # task 27's embedder, instead of a copy  # noqa: E402\n"
+      }
+    ],
+    "expect": {
+      "file": "task31/devassist/index.py",
+      "kinds": [
+        "bug",
+        "architecture"
+      ],
+      "keywords": [
+        "isolation",
+        "self-contained",
+        "copy",
+        "convention",
+        "shared",
+        "coupl",
+        "depends on task",
+        "another task",
+        "other task",
+        "between tasks"
+      ]
+    }
+  },
+  {
+    "id": "hardcoded-secret",
+    "title": "Gateway: a default key for local runs",
+    "defect": "an API key in the source as the default for API_KEYS",
+    "edits": [
+      {
+        "file": "task30/gateway/config.py",
+        "find": "keys = parse_keys(env.get(\"API_KEYS\", \"\"), rpm)",
+        "replace": "keys = parse_keys(env.get(\"API_KEYS\", \"admin:sk-gw-7f3a9c2e41b8d6f05e1a\"), rpm)"
+      }
+    ],
+    "expect": {
+      "file": "task30/gateway/config.py",
+      "kinds": [
+        "bug",
+        "architecture"
+      ],
+      "keywords": [
+        "hardcoded",
+        "hard-coded",
+        "hard coded",
+        "secret",
+        "credential",
+        "in the source",
+        "in source"
+      ]
+    }
+  },
+  {
+    "id": "missing-await",
+    "title": "DevTools: tidy call()",
+    "defect": "call_tool is not awaited: res is a coroutine",
+    "edits": [
+      {
+        "file": "task31/devassist/tools.py",
+        "find": "res = await self._client.call_tool(name, arguments or {})",
+        "replace": "res = self._client.call_tool(name, arguments or {})"
+      }
+    ],
+    "expect": {
+      "file": "task31/devassist/tools.py",
+      "kinds": [
+        "bug",
+        "architecture"
+      ],
+      "keywords": [
+        "await",
+        "coroutine"
+      ]
+    }
+  },
+  {
+    "id": "swapped-args",
+    "title": "Index: pass the chunk sizes explicitly",
+    "defect": "chunk(doc, max_chars, min_chars) is called with min and max swapped",
+    "edits": [
+      {
+        "file": "task31/devassist/index.py",
+        "find": "        chunks = chunk(doc)\n",
+        "replace": "        chunks = chunk(doc, MIN_CHARS, MAX_CHARS)\n"
+      }
+    ],
+    "expect": {
+      "file": "task31/devassist/index.py",
+      "kinds": [
+        "bug",
+        "architecture"
+      ],
+      "keywords": [
+        "swap",
+        "reverse",
+        "wrong order",
+        "order of",
+        "min_chars as",
+        "passes min_chars",
+        "min_chars first"
+      ]
+    }
+  },
+  {
+    "id": "clean-message",
+    "title": "Retriever: a clearer error when the index is missing",
+    "defect": null,
+    "edits": [
+      {
+        "file": "task31/devassist/retrieve.py",
+        "find": "raise IndexMissing(f\"no index at {db} — run: uv run devassist index\")",
+        "replace": "raise IndexMissing(f\"no index at {db}; build it first with: uv run devassist index\")"
+      }
+    ],
+    "expect": null
+  },
+  {
+    "id": "clean-property",
+    "title": "Gate: report free slots",
+    "defect": null,
+    "edits": [
+      {
+        "file": "task30/gateway/limits.py",
+        "find": "    def release(self) -> None:\n        self.active -= 1\n        self._sem.release()\n",
+        "replace": "    def release(self) -> None:\n        self.active -= 1\n        self._sem.release()\n\n    @property\n    def free(self) -> int:\n        \"\"\"Slots not in use right now.\"\"\"\n        return self.max_concurrent - self.active\n"
+      }
+    ],
+    "expect": null
+  }
+]

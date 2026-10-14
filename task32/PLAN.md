@@ -111,3 +111,17 @@ pipeline's first real review.
   files `main` changed since the last run.
 - **Model.** `qwen3:8b` with thinking off, as in task 31. If reviews are too shallow, try thinking
   on for the per-file calls and compare in the evaluation; time per PR is the cost.
+
+## Addendum: what the build changed
+
+- **A verification call** after the review call: the model gets its findings next to the code and
+  rejects the ones that don't hold up. It removed a false bug on a clean PR, at 15 s per PR.
+- **One finding per line.** qwen3 restates a bug as an architecture issue and a recommendation on
+  the same line, despite the prompt; the merge keeps the most serious kind.
+- **Files with only deletions are reviewed**, the removal anchored to the line it was removed above.
+- **Usages are calls, attribute access and imports**, not every occurrence of the word.
+- **The evaluation scores the reason, not the line.** A finding on the defect's line with another
+  reason only "located" it. The patches are generated from find/replace edits in `cases.json`, so
+  they never go stale against `main`. Runs without RAG and without verification are the ablations.
+- The first real PR of the pipeline is this task's own PR.
+

@@ -5,6 +5,7 @@
     search QUERY                  the passages retrieval finds, with scores
     context [TARGET]              what the reviewer would be shown, file by file
     review [TARGET] [--post]      review the change; --post puts it on the PR as a comment
+    eval [ID ...]                 review the seeded PRs of cases.json and score the reviews
 
 TARGET is one of
     --base main --head HEAD       two refs of this repository (the default)
@@ -127,7 +128,7 @@ def cmd_review(args) -> int:
     log = lambda line: print(f"{DIM}{line}{RESET}" if sys.stderr.isatty() else line, file=sys.stderr, flush=True)
     log(f"reviewing {change.title!r}: {change.base.sha[:7]}..{change.head.sha[:7]}, {len(change.files)} files, "
         f"{llm.model}")
-    result = Reviewer(llm, retriever, max_files=args.max_files).review(change, progress=log)
+    result = Reviewer(llm, retriever, max_files=args.max_files, verify=not args.no_verify).review(change, progress=log)
     if retriever:
         retriever.close()
     md = report.markdown(result, github.repo_url(root))
@@ -139,6 +140,29 @@ def cmd_review(args) -> int:
     if args.post:
         log(f"comment: {github.post(root, args.pr, md)}")
     return 0 if not any(fr.error for fr in result.files) else 3
+
+
+def cmd_eval(args) -> int:
+    from . import evaluate as ev
+    from .review import Reviewer
+
+    if args.rescore:
+        results = ev.rescore(args.rescore, ev.load())
+        print(ev.summary(results), "", ev.table(results), sep="\n")
+        return 0
+    retriever = None if args.no_rag else Retriever(args.db)
+    llm = LocalLLM(args.model, think=args.think)
+    log = lambda line: print(line, flush=True)
+    reviewer = Reviewer(llm, retriever, verify=not args.no_verify)
+    results = ev.run(repo_root(), reviewer, ev.load(only=args.ids), progress=log)
+    print()
+    print(ev.summary(results))
+    print()
+    print(ev.table(results))
+    meta = {"model": llm.model, "think": args.think, "rag": not args.no_rag, "verify": not args.no_verify,
+            "index": Store(args.db).meta() if not args.no_rag else {}}
+    print(f"\n{ev.save(results, meta).relative_to(ev.TASK_DIR)}")
+    return 0
 
 
 def add_target(s: argparse.ArgumentParser) -> None:
@@ -179,7 +203,16 @@ def parser() -> argparse.ArgumentParser:
     s.add_argument("--think", action="store_true", help="let qwen3 reason before answering (slower)")
     s.add_argument("--max-files", type=int, default=20)
     s.add_argument("--no-rag", action="store_true", help="no passages from the index")
+    s.add_argument("--no-verify", action="store_true", help="skip the second call that checks the findings")
     s.set_defaults(fn=cmd_review)
+    s = sub.add_parser("eval", help="review the seeded PRs of cases.json and score the reviews")
+    s.add_argument("ids", nargs="*", help="only these cases")
+    s.add_argument("--model", default=None)
+    s.add_argument("--think", action="store_true")
+    s.add_argument("--no-rag", action="store_true", help="without passages from the index (an ablation)")
+    s.add_argument("--no-verify", action="store_true", help="without the verification call (an ablation)")
+    s.add_argument("--rescore", type=Path, help="score a saved run again (no model calls)")
+    s.set_defaults(fn=cmd_eval)
     return p
 
 

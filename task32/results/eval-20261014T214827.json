@@ -1,0 +1,349 @@
+{
+ "meta": {
+  "model": "qwen3:8b",
+  "think": false,
+  "rag": true,
+  "verify": false,
+  "index": {
+   "model": "nomic-embed-text",
+   "doc_prefix": "search_document: ",
+   "layout": "1500/200/2000/v1",
+   "root": "/Users/atabek/Projects/AI/ai-advent-challenge9",
+   "ref": "main",
+   "sha": "c095d26be498667a9928e0e393a6705378d83970",
+   "built_at": "2026-10-14 20:40:43"
+  }
+ },
+ "summary": "defects found     8/9 (a finding gives the reason)\ndefects located   9/9 (a finding on the defect's lines)\nnoise per PR      0.3 (bug/architecture findings that are not the seeded defect)\nclean PRs quiet   0/2 (no bug or architecture finding)\nrecommendations   4 in 11 PRs\nmean time         29.7s per PR",
+ "results": [
+  {
+   "id": "off-by-one",
+   "defect": "returns k - 1 passages instead of k",
+   "found": true,
+   "match": {
+    "file": "task31/devassist/retrieve.py",
+    "kind": "bug",
+    "severity": "high",
+    "line": 101,
+    "title": "Returning k-1 passages instead of k",
+    "detail": "The code now returns k-1 passages instead of k, which contradicts the documentation that specifies returning the top k passages. This change will break the expected behavior of the Retriever.search method. The fix is to revert the line to return k passages.",
+    "code": "return [replace(h, rank=i) for i, h in enumerate(hits[:k - 1], start=1)]",
+    "sources": [
+     "task31/README.md › Task 31 — Developer assistant › Results › A session"
+    ],
+    "note": ""
+   },
+   "located": true,
+   "noise": [],
+   "rejected": [],
+   "anchors": [
+    101
+   ],
+   "recommendations": 0,
+   "seconds": 38.434523083036765,
+   "prompt_tokens": 4614,
+   "error": ""
+  },
+  {
+   "id": "renamed-caller",
+   "defect": "cli.py and assistant.py still import mentioned_tasks",
+   "found": true,
+   "match": {
+    "file": "task31/devassist/retrieve.py",
+    "kind": "architecture",
+    "severity": "high",
+    "line": 55,
+    "title": "Function renamed but still used in other modules",
+    "detail": "The function was renamed from `mentioned_tasks` to `tasks_in`, but it is still used in other modules like `assistant.py` and `cli.py`. This creates a mismatch between the function's name and its usage, which can lead to confusion and potential errors if other modules are not updated to use the new name.",
+    "code": "def tasks_in(question: str) -> set[str]:",
+    "sources": [
+     "task31/devassist/cli.py:57-101 › cmd_search, cmd_chat, cmd_ask, cmd_eval"
+    ],
+    "note": "line moved from 54"
+   },
+   "located": true,
+   "noise": [],
+   "rejected": [],
+   "anchors": [
+    55,
+    79
+   ],
+   "recommendations": 1,
+   "seconds": 39.046981499996036,
+   "prompt_tokens": 5129,
+   "error": ""
+  },
+  {
+   "id": "slot-leak",
+   "defect": "the slot is released only on error; every successful request leaks one",
+   "found": false,
+   "match": {
+    "file": "task30/gateway/app.py",
+    "kind": "bug",
+    "severity": "medium",
+    "line": 196,
+    "title": "OllamaError is not handled properly in non-streaming response",
+    "detail": "The error handling for OllamaError in the non-streaming case is incorrect. The return statement is placed outside the except block, which means it will not be executed when an OllamaError occurs. The correct approach is to return the error within the except block to ensure the error is properly handled and the slot is released.",
+    "code": "return error(502, \"upstream_error\", str(e), headers)",
+    "sources": [
+     "docs/api/task30-gateway.openapi.yaml › Task 30 private LLM gateway › POST /v1/chat/completions"
+    ],
+    "note": ""
+   },
+   "located": true,
+   "noise": [],
+   "rejected": [],
+   "anchors": [
+    195,
+    196
+   ],
+   "recommendations": 0,
+   "seconds": 49.41033274983056,
+   "prompt_tokens": 6807,
+   "error": ""
+  },
+  {
+   "id": "swallowed-error",
+   "defect": "a connection error returns no vectors; the index silently gets fewer embeddings than chunks",
+   "found": true,
+   "match": {
+    "file": "task31/devassist/embed.py",
+    "kind": "bug",
+    "severity": "high",
+    "line": 65,
+    "title": "Returning empty list on connection error hides error details",
+    "detail": "Returning an empty list on a ConnectionError hides the actual error details, making debugging difficult. The original code raised an EmbedError with the connection error message, which provides more context for troubleshooting. The change should either raise an error or log the connection issue properly.",
+    "code": "return []",
+    "sources": [
+     "task31/devassist/llm.py:51-92 › LocalLLM.chat, _api_error",
+     "task31/README.md › Task 31 — Developer assistant › Files"
+    ],
+    "note": ""
+   },
+   "located": true,
+   "noise": [],
+   "rejected": [],
+   "anchors": [
+    64,
+    65
+   ],
+   "recommendations": 0,
+   "seconds": 30.604819416999817,
+   "prompt_tokens": 3854,
+   "error": ""
+  },
+  {
+   "id": "sql-injection",
+   "defect": "the SQL is built with an f-string from a file path",
+   "found": true,
+   "match": {
+    "file": "task31/devassist/store.py",
+    "kind": "bug",
+    "severity": "high",
+    "line": 73,
+    "title": "SQL injection vulnerability in delete_file",
+    "detail": "The code directly interpolates user input into the SQL query string, making it vulnerable to SQL injection attacks. The original code used parameterized queries which are safer.",
+    "code": "self.db.execute(f\"DELETE FROM files WHERE source = '{source}'\")",
+    "sources": [
+     "task31/devassist/store.py#schema › Task 31 — Developer assistant · data schema (SQL)"
+    ],
+    "note": ""
+   },
+   "located": true,
+   "noise": [],
+   "rejected": [],
+   "anchors": [
+    73
+   ],
+   "recommendations": 0,
+   "seconds": 32.90956604084931,
+   "prompt_tokens": 4460,
+   "error": ""
+  },
+  {
+   "id": "cross-task-import",
+   "defect": "imports code from another task folder at runtime; the conventions say tasks copy, never share",
+   "found": true,
+   "match": {
+    "file": "task31/devassist/index.py",
+    "kind": "architecture",
+    "severity": "medium",
+    "line": 14,
+    "title": "Importing task27's embedder may break module isolation",
+    "detail": "Adding task27 to sys.path may cause conflicts with other modules or break isolation between tasks. This could lead to unexpected behavior if task27's code has dependencies or exports that clash with task31's code. Consider using a package structure or explicit imports instead of modifying sys.path.",
+    "code": "sys.path.insert(0, str(TASK_DIR.parent / \"task27\"))",
+    "sources": [
+     "task31/README.md › Task 31 — Developer assistant › Files"
+    ],
+    "note": ""
+   },
+   "located": true,
+   "noise": [
+    {
+     "file": "task31/devassist/index.py",
+     "kind": "bug",
+     "severity": "medium",
+     "line": 15,
+     "title": "Importing from task27's embed.py may cause import errors",
+     "detail": "The import from 'indexer.embed' assumes that task27 has a module named 'indexer' with an 'embed.py' file. If task27's structure is different (e.g., it uses a different directory structure or module name), this import will fail. Verify that task27's code is structured correctly and that the import path is accurate.",
+     "code": "from indexer.embed import DOC_PREFIX, Embedder  # task 27's embedder, instead of a copy  # noqa: E402",
+     "sources": [
+      "task31/devassist/embed.py:1-49 › (module), EmbedError, Embedder, ..."
+     ],
+     "note": ""
+    }
+   ],
+   "rejected": [],
+   "anchors": [
+    12,
+    13,
+    14,
+    15
+   ],
+   "recommendations": 0,
+   "seconds": 34.380565624916926,
+   "prompt_tokens": 3848,
+   "error": ""
+  },
+  {
+   "id": "hardcoded-secret",
+   "defect": "an API key in the source as the default for API_KEYS",
+   "found": true,
+   "match": {
+    "file": "task30/gateway/config.py",
+    "kind": "bug",
+    "severity": "medium",
+    "line": 59,
+    "title": "Default API key may expose a secret in production",
+    "detail": "The default API key \"admin:sk-gw-7f3a9c2e41b8d6f05e1a\" contains a secret that should not be hardcoded. This could expose sensitive information in production environments. The secret should be managed through environment variables or a secure configuration system instead of being hardcoded in the source code.",
+    "code": "keys = parse_keys(env.get(\"API_KEYS\", \"admin:sk-gw-7f3a9c2e41b8d6f05e1a\"), rpm)",
+    "sources": [
+     "task30/README.md › Task 30: a local LLM as a private service › Settings"
+    ],
+    "note": ""
+   },
+   "located": true,
+   "noise": [],
+   "rejected": [],
+   "anchors": [
+    59
+   ],
+   "recommendations": 1,
+   "seconds": 35.25814041704871,
+   "prompt_tokens": 3917,
+   "error": ""
+  },
+  {
+   "id": "missing-await",
+   "defect": "call_tool is not awaited: res is a coroutine",
+   "found": true,
+   "match": {
+    "file": "task31/devassist/tools.py",
+    "kind": "bug",
+    "severity": "high",
+    "line": 50,
+    "title": "Removed await may cause async function to hang",
+    "detail": "The call to `self._client.call_tool` was previously awaited, but the change removed the `await` keyword. This could cause the async function to hang or behave incorrectly if the method is asynchronous. Ensure `call_tool` is awaited to properly handle asynchronous operations.",
+    "code": "res = self._client.call_tool(name, arguments or {})",
+    "sources": [
+     "task31/pyproject.toml › Task 31 — Developer assistant"
+    ],
+    "note": ""
+   },
+   "located": true,
+   "noise": [],
+   "rejected": [],
+   "anchors": [
+    50
+   ],
+   "recommendations": 0,
+   "seconds": 24.84652137500234,
+   "prompt_tokens": 3770,
+   "error": ""
+  },
+  {
+   "id": "swapped-args",
+   "defect": "chunk(doc, max_chars, min_chars) is called with min and max swapped",
+   "found": true,
+   "match": {
+    "file": "task31/devassist/index.py",
+    "kind": "bug",
+    "severity": "medium",
+    "line": 52,
+    "title": "Chunking parameters may not be correctly handled",
+    "detail": "The `chunk` function expects `max_chars` and `min_chars` parameters, but the current code passes `MIN_CHARS` as the first argument and `MAX_CHARS` as the second. This may lead to incorrect chunking if the function expects `max_chars` to be the first parameter. The parameters should be passed in the order `max_chars` first, then `min_chars`.",
+    "code": "chunks = chunk(doc, MIN_CHARS, MAX_CHARS)",
+    "sources": [
+     "task31/devassist/chunk.py:1-50 › (module), Chunk"
+    ],
+    "note": ""
+   },
+   "located": true,
+   "noise": [],
+   "rejected": [],
+   "anchors": [
+    52
+   ],
+   "recommendations": 1,
+   "seconds": 15.979862208943814,
+   "prompt_tokens": 3745,
+   "error": ""
+  },
+  {
+   "id": "clean-message",
+   "defect": null,
+   "found": null,
+   "match": null,
+   "located": null,
+   "noise": [
+    {
+     "file": "task31/devassist/retrieve.py",
+     "kind": "bug",
+     "severity": "medium",
+     "line": 72,
+     "title": "Error message may be misleading if the index is not built yet",
+     "detail": "The error message suggests building the index with 'uv run devassist index', but if the index is not built yet, this command is exactly what is needed. The message is redundant and could be simplified to indicate the index is missing.",
+     "code": "raise IndexMissing(f\"no index at {db}; build it first with: uv run devassist index\")",
+     "sources": [
+      "task31/devassist/cli.py:1-56 › (module), cmd_index, cmd_files"
+     ],
+     "note": ""
+    }
+   ],
+   "rejected": [],
+   "anchors": [],
+   "recommendations": 1,
+   "seconds": 16.27480520796962,
+   "prompt_tokens": 4587,
+   "error": ""
+  },
+  {
+   "id": "clean-property",
+   "defect": null,
+   "found": null,
+   "match": null,
+   "located": null,
+   "noise": [
+    {
+     "file": "task30/gateway/limits.py",
+     "kind": "bug",
+     "severity": "medium",
+     "line": 84,
+     "title": "Gate.free returns incorrect value",
+     "detail": "The free slots calculation in Gate.free uses self.max_concurrent, which is the maximum allowed, but the actual available slots should be based on the semaphore's max value. The Gate class should use self._sem._max_value instead of self.max_concurrent to accurately reflect the maximum possible slots.",
+     "code": "@property\ndef free(self) -> int:\n    \"\"\"Slots not in use right now.\"\"\"\n    return self.max_concurrent - self.active",
+     "sources": [
+      "task30/pyproject.toml › Task 30: a local LLM as a private service"
+     ],
+     "note": ""
+    }
+   ],
+   "rejected": [],
+   "anchors": [],
+   "recommendations": 0,
+   "seconds": 9.233871708856896,
+   "prompt_tokens": 4110,
+   "error": ""
+  }
+ ]
+}

@@ -6,14 +6,18 @@ the usages and definitions found by search, and the passages found by RAG. It an
 constrained by a schema: a list of findings, each a `bug`, an `architecture` issue or a
 `recommendation`, with the line, the code on it, and the passages it relies on.
 
-Then, without the model:
+Then a second, shorter call **verifies** the findings: the model gets the diff and the code again,
+with the findings numbered, and says which of them hold up; the others are dropped. A reviewer
+that has to justify a finding against the code catches its own misreadings ("x is not defined"
+when it is) more often than it makes them. Then, without the model:
 
 - **the line is checked.** A finding must point at a line the diff shows. When the line number
   is off but the quoted code is on a shown line, the line is moved there; when it is off by a
   few lines, it is moved to the nearest shown line; otherwise it is cleared (the finding stays,
   about the file as a whole).
 - **citations are checked.** A passage number that doesn't exist is dropped.
-- **duplicates are merged**, and each file keeps at most MAX_PER_FILE findings.
+- **duplicates are merged**: one finding per line (the most serious kind), one per similar title,
+  and each file keeps at most MAX_PER_FILE findings.
 """
 
 from __future__ import annotations
@@ -84,10 +88,44 @@ Rules:
 - line: the number in the left column of the diff line the finding is about. code: the code on \
 that line, copied exactly. sources: the numbers [n] of the passages it relies on, or [].
 - severity: high = breaks something for sure; medium = likely wrong or risky; low = minor.
+- Report each problem once, under the one kind that fits it best. Don't restate a bug as an \
+architecture issue.
 - Don't guess. If you are not sure something is wrong, leave it out. A correct change gets an \
 empty list: {"findings": []}.
 - At most 5 findings, the most important first. Title: under 12 words. Detail: 1-3 sentences: \
 what goes wrong, and the fix."""
+
+
+VERIFY_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "verdicts": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {"id": {"type": "integer"}, "why": {"type": "string"}, "real": {"type": "boolean"}},
+                "required": ["id", "why", "real"],
+            },
+        },
+    },
+    "required": ["verdicts"],
+}
+
+VERIFY_SYSTEM = """\
+You check the findings of a code review against the code. For each numbered finding, read the \
+lines it is about in the diff and the file, then decide whether it is real.
+
+It is NOT real when:
+- it says something is missing, undefined or not handled, and the code shown has it;
+- it misreads what the changed line does;
+- it only restates the change ("the message was changed") without a concrete way it goes wrong;
+- it is about style, wording, naming or a matter of taste.
+
+It IS real when the code shown really behaves the way the finding says, even if the finding is \
+phrased cautiously.
+
+For each finding give a one-sentence reason first (why), then real: true or false. Answer JSON: \
+{"verdicts": [{"id": 1, "why": "...", "real": true}, ...]}"""
 
 
 @dataclass
@@ -111,7 +149,8 @@ class FileReview:
     prompt_tokens: int = 0
     completion_tokens: int = 0
     seconds: float = 0.0
-    dropped: int = 0  # findings the checks removed (duplicates, over the limit)
+    dropped: int = 0  # findings the checks removed (duplicates, rejected, over the limit)
+    rejected: list[dict] = field(default_factory=list)  # findings the verification call turned down, and why
     error: str = ""
 
 
@@ -133,10 +172,12 @@ class Review:
 
 
 class Reviewer:
-    def __init__(self, llm: LocalLLM, retriever: Retriever | None = None, max_files: int = MAX_FILES):
+    def __init__(self, llm: LocalLLM, retriever: Retriever | None = None, max_files: int = MAX_FILES,
+                 verify: bool = True):
         self.llm = llm
         self.retriever = retriever
         self.max_files = max_files
+        self.verify = verify
 
     def review(self, change: Change, progress: Callable[[str], None] = lambda _: None) -> Review:
         started = time.monotonic()
@@ -178,11 +219,36 @@ class Reviewer:
         if raw is None:
             fr.error = f"the model's answer is not valid JSON: {reply.text[:200]!r}"
         else:
-            checked = [check(fd, ctx, shown, r) for r in raw]
-            fr.findings = merge([f for f in checked if f])[:MAX_PER_FILE]
+            checked = merge([f for f in (check(fd, ctx, shown, r) for r in raw) if f])
+            if self.verify and checked:
+                checked = self.verified(change, ctx, checked, fr)
+            fr.findings = checked[:MAX_PER_FILE]
             fr.dropped = len(raw) - len(fr.findings)
         fr.seconds = time.monotonic() - started
         return fr
+
+    def verified(self, change: Change, ctx: FileContext, findings: list[Finding], fr: FileReview) -> list[Finding]:
+        """The findings the second call confirms. When that call fails, they are all kept."""
+        try:
+            reply = self.llm.chat([{"role": "system", "content": VERIFY_SYSTEM},
+                                   {"role": "user", "content": verify_prompt(change, ctx, findings)}],
+                                  schema=VERIFY_SCHEMA)
+        except LLMError:
+            return findings
+        fr.prompt_tokens += reply.prompt_tokens
+        fr.completion_tokens += reply.completion_tokens
+        try:
+            verdicts = {v["id"]: v for v in json.loads(reply.text).get("verdicts", []) if isinstance(v, dict)}
+        except (ValueError, AttributeError, KeyError, TypeError):
+            return findings
+        kept = []
+        for i, f in enumerate(findings, start=1):
+            v = verdicts.get(i)
+            if v is None or v.get("real") is not False:
+                kept.append(f)
+            else:
+                fr.rejected.append(asdict(f) | {"why": str(v.get("why", ""))})
+        return kept
 
 
 # --- the prompt --------------------------------------------------------------------------------
@@ -243,6 +309,28 @@ def _render(change: Change, ctx: FileContext, passages, definitions, callers) ->
         parts.append("## Documentation and related code (main branch)\n" + "\n\n".join(
             f"[{i}] {h.label}\n{_clip(h.text)}" for i, h in enumerate(passages, start=1)))
     parts.append(f"Review the changes to `{fd.path}`. Answer with JSON: {{\"findings\": [...]}}.")
+    return "\n\n".join(parts)
+
+
+def verify_prompt(change: Change, ctx: FileContext, findings: list[Finding]) -> str:
+    fd = ctx.diff
+    parts = [f"# Pull request: {change.title}", f"# File: {fd.path} ({fd.status})",
+             "## Diff (left column: the line number in the new file; + added, - removed)\n" + ctx.numbered_diff]
+    if ctx.code:
+        what = "The whole file after the change" if ctx.code_whole else "The changed parts of the file"
+        parts.append(f"## {what}\n{ctx.code}")
+    if ctx.dangling:
+        parts.append("## Removed or renamed by this change, but still used elsewhere\n" + "\n".join(
+            f"- `{n}`: " + "; ".join(str(u) for u in us) for n, us in ctx.dangling.items()))
+    if ctx.definitions:
+        parts.append("## Definitions of what the new lines call\n" + "\n\n".join(
+            f"`{d.name}` in {d.path}:\n{d.text}" for d in ctx.definitions))
+    items = []
+    for i, f in enumerate(findings, start=1):
+        where = f"line {f.line}" if f.line else "no line"
+        items.append(f"{i}. [{f.kind}, {where}] {f.title}. {f.detail}")
+    parts.append("## Findings to check\n" + "\n".join(items))
+    parts.append("Which of these findings are real? Answer with JSON.")
     return "\n\n".join(parts)
 
 
@@ -326,18 +414,21 @@ def _found(code: str, text_of: dict) -> bool:
 
 
 def merge(findings: list[Finding]) -> list[Finding]:
-    """One finding per (kind, line, similar title); then bugs first, by severity."""
+    """One finding per line, and per similar title within a kind. qwen3 restates a bug as an
+    architecture issue, and that as a recommendation ("update the references"), on the same line,
+    despite the prompt; the most serious kind stays. Bugs first, then by severity."""
+    order = lambda f: (KINDS.index(f.kind), SEVERITIES.index(f.severity))
     out: list[Finding] = []
-    for f in findings:
-        dup = next((g for g in out if g.kind == f.kind and (g.line == f.line and g.line is not None or
-                                                             _similar(g.title, f.title))), None)
+    for f in sorted(findings, key=order):
+        dup = next((g for g in out if g.line is not None and g.line == f.line
+                    or g.kind == f.kind and _similar(g.title, f.title)), None)
         if dup:
             if SEVERITIES.index(f.severity) < SEVERITIES.index(dup.severity):
                 dup.severity = f.severity
             dup.sources += [s for s in f.sources if s not in dup.sources]
             continue
         out.append(f)
-    return sorted(out, key=lambda f: (KINDS.index(f.kind), SEVERITIES.index(f.severity)))
+    return out
 
 
 def _similar(a: str, b: str) -> bool:

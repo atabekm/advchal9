@@ -73,6 +73,27 @@ class FileDiff:
         return [ln for h in self.hunks for ln in h.lines if ln.op == "-"]
 
     @property
+    def anchors(self) -> list[int]:
+        """Lines of the new file where the change is: every added line, and for a removal the line
+        it was removed above (or, at the end of a hunk, the last line before it)."""
+        out: list[int] = []
+        for h in self.hunks:
+            last = None
+            pending = False
+            for ln in h.lines:
+                if ln.op == "-":
+                    pending = True
+                    continue
+                if ln.op == "+":
+                    out.append(ln.new)
+                elif pending:
+                    out.append(ln.new)
+                pending, last = False, ln.new
+            if pending:
+                out.append(last if last is not None else max(h.new_start, 1))
+        return sorted(set(out))
+
+    @property
     def new_lines(self) -> set[int]:
         """Lines of the new file that the diff shows (added or context): where a finding may point."""
         return {ln.new for h in self.hunks for ln in h.lines if ln.new is not None}
@@ -94,8 +115,8 @@ class FileDiff:
             return "documentation" if p.suffix in {".md", ".txt", ".rst"} else "not code"
         if self.status == "deleted":
             return "deleted"
-        if not self.added:
-            return "empty" if self.status == "added" else "only deletions"
+        if not self.hunks:
+            return "empty" if self.status == "added" else "no changes"  # a rename or a mode change
         return None
 
 
@@ -268,7 +289,7 @@ def enclosing(syms: list[Symbol], line: int) -> Symbol | None:
 
 @dataclass
 class Touched:
-    changed: list[Symbol]  # definitions in the new file with added lines in them
+    changed: list[Symbol]  # definitions in the new file the change is in
     removed: list[str]  # names defined before and not after (removed or renamed)
     added: list[str]  # names defined after and not before
 
@@ -279,8 +300,8 @@ def touched(fd: FileDiff, old_text: str | None, new_text: str | None) -> Touched
     new_syms = symbols(new_text or "", fd.lang)
     old_syms = symbols(old_text or "", fd.lang)
     changed: dict[str, Symbol] = {}
-    for ln in fd.added:
-        s = enclosing(new_syms, ln.new)
+    for line in fd.anchors:
+        s = enclosing(new_syms, line)
         if s:
             changed.setdefault(s.name, s)
     old_names, new_names = {s.name for s in old_syms}, {s.name for s in new_syms}

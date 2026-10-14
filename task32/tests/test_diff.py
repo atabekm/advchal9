@@ -55,6 +55,9 @@ def test_parse_numbers_lines_on_both_sides():
         (" ", 1, 1), ("-", 2, None), ("+", None, 2), ("+", None, 3), (" ", 3, 4)]
     assert [ln.new for ln in store.added] == [2, 3, 12]
     assert store.new_lines == {1, 2, 3, 4, 11, 12, 13}
+    assert store.anchors == [2, 3, 12]
+    only_removed = parse("diff --git a/x.py b/x.py\n--- a/x.py\n+++ b/x.py\n@@ -1,4 +1,2 @@\n a\n-b\n c\n-d\n")[0]
+    assert only_removed.anchors == [2] and only_removed.skip_reason() is None
     assert files[3].old_path == "task1/a.py"
     assert files[4].binary
 

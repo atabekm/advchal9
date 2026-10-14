@@ -46,3 +46,4 @@ More detail in [`docs/`](docs/):
 | [29](task29) | Optimising the local model for the RAG answer step | Python, Ollama |
 | [30](task30) | The local LLM as a private service: gateway, keys, limits, tunnel | Python, FastAPI, Docker, Ollama |
 | [31](task31) | Developer assistant: RAG over these docs + git over MCP | Python, MCP, Ollama |
+| [32](task32) | Automated code review of every PR: diff + RAG over docs and code, on a self-hosted runner | Python, GitHub Actions, Ollama |

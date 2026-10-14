@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -13,15 +14,25 @@ from .fakes import commit, git, init_repo
 
 
 class ScriptedLLM:
-    """Answers each call with the next scripted reply; records the prompts."""
+    """Answers each review call with the next scripted reply, and each verification call with the
+    next scripted verdicts (by default: every finding is real). Records the prompts."""
     model = "scripted"
 
-    def __init__(self, *replies):
+    def __init__(self, *replies, verdicts=()):
         self.replies = list(replies)
+        self.verdicts = list(verdicts)
         self.prompts: list[str] = []
+        self.verify_prompts: list[str] = []
 
     def chat(self, messages, schema=None):
-        assert schema and schema["required"] == ["findings"]
+        if schema["required"] == ["verdicts"]:
+            prompt = messages[-1]["content"]
+            self.verify_prompts.append(prompt)
+            n = len(re.findall(r"^\d+\. \[", prompt, re.M))
+            real = self.verdicts.pop(0) if self.verdicts else [True] * n
+            return Reply(json.dumps({"verdicts": [{"id": i, "why": "w", "real": r} for i, r in enumerate(real, 1)]}),
+                         50, 10, 0.1)
+        assert schema["required"] == ["findings"]
         self.prompts.append(messages[-1]["content"])
         r = self.replies.pop(0)
         if isinstance(r, Exception):
@@ -79,6 +90,21 @@ def test_review_checks_lines_and_citations_and_skips_non_code(repo):
     assert "- task1/store.py (modified, +2 -2)   <- under review" in prompt
     assert "`save_rows` is still used at:" in prompt and "task1/app.py:5: save_rows([1], 'x')" in prompt
     assert "    7 +     return rows[:k - 1]" in prompt
+
+
+def test_verification_drops_what_it_rejects_and_keeps_the_rest(repo):
+    change = local(repo, "main", "pr")
+    llm = ScriptedLLM([finding(line=7, title="Off by one"), finding(line=1, title="x is not defined", kind="bug")],
+                      verdicts=[[True, False]])
+    fr = Reviewer(llm).review(change).files[0]
+    assert [f.title for f in fr.findings] == ["Off by one"]
+    assert fr.rejected[0]["title"] == "x is not defined" and fr.rejected[0]["why"] == "w"
+    assert "1. [bug, line 7] Off by one. D" in llm.verify_prompts[0]
+    unverified = Reviewer(ScriptedLLM([finding(line=1, title="x is not defined")], verdicts=[[False]]), verify=False)
+    assert [f.title for f in unverified.review(change).findings] == ["x is not defined"]
+    nothing = ScriptedLLM([])
+    Reviewer(nothing).review(change)
+    assert nothing.verify_prompts == []  # no findings, no second call
 
 
 def test_a_model_error_or_bad_json_is_reported_per_file(repo):
@@ -143,8 +169,16 @@ def test_merge_keeps_one_per_line_and_the_higher_severity():
     b = Finding("a.py", "bug", "high", 3, "Something else", "d", sources=["y"])
     c = Finding("a.py", "recommendation", "low", None, "Add a test", "d")
     d = Finding("a.py", "recommendation", "low", 9, "add a test", "d")
-    out = merge([c, a, b, d])
-    assert [(f.kind, f.severity, f.sources) for f in out] == [("bug", "high", ["x", "y"]), ("recommendation", "low", [])]
+    e = Finding("a.py", "architecture", "medium", 3, "Inconsistent with the rest", "d")
+    f = Finding("a.py", "architecture", "medium", 4, "Breaks isolation", "d")
+    out = merge([c, e, a, b, d, f])
+    assert [(f.kind, f.severity, f.title) for f in out] == [
+        ("bug", "high", "Something else"), ("architecture", "medium", "Breaks isolation"),
+        ("recommendation", "low", "Add a test")]
+    assert out[0].sources == ["y", "x"]
+    on_a_line = merge([Finding("a.py", "recommendation", "low", 5, "Update the callers", "d"),
+                       Finding("a.py", "architecture", "medium", 5, "Renamed but still used", "d")])
+    assert [f.kind for f in on_a_line] == ["architecture"]
 
 
 def test_check_normalizes_whitespace_and_unknown_values():
