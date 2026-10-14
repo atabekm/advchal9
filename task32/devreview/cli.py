@@ -4,6 +4,7 @@
     files                         what is indexed: one line per document
     search QUERY                  the passages retrieval finds, with scores
     context [TARGET]              what the reviewer would be shown, file by file
+    review [TARGET] [--post]      review the change; --post puts it on the PR as a comment
 
 TARGET is one of
     --base main --head HEAD       two refs of this repository (the default)
@@ -23,6 +24,7 @@ from .corpus import GitError, GitTree, Tree, repo_root
 from .diff import Change, GhError, PatchError, local, patched, pull_request
 from .embed import EmbedError
 from .index import DEFAULT_DB, build
+from .llm import LLMError, LocalLLM
 from .retrieve import IndexMissing, Retriever
 from .store import Store
 
@@ -110,6 +112,35 @@ def cmd_context(args) -> int:
     return 0
 
 
+def cmd_review(args) -> int:
+    import json
+
+    from . import github, report
+    from .review import Reviewer, to_json
+
+    if args.post and not args.pr:
+        raise GhError("--post needs --pr N")
+    root = repo_root()
+    change = load_change(args)
+    retriever = None if args.no_rag else Retriever(args.db)
+    llm = LocalLLM(args.model, think=args.think)
+    log = lambda line: print(f"{DIM}{line}{RESET}" if sys.stderr.isatty() else line, file=sys.stderr, flush=True)
+    log(f"reviewing {change.title!r}: {change.base.sha[:7]}..{change.head.sha[:7]}, {len(change.files)} files, "
+        f"{llm.model}")
+    result = Reviewer(llm, retriever, max_files=args.max_files).review(change, progress=log)
+    if retriever:
+        retriever.close()
+    md = report.markdown(result, github.repo_url(root))
+    if args.output:
+        args.output.write_text(md + "\n")
+    if args.json:
+        args.json.write_text(json.dumps(to_json(result), ensure_ascii=False, indent=1) + "\n")
+    print(report.terminal(result, color=sys.stdout.isatty()))
+    if args.post:
+        log(f"comment: {github.post(root, args.pr, md)}")
+    return 0 if not any(fr.error for fr in result.files) else 3
+
+
 def add_target(s: argparse.ArgumentParser) -> None:
     s.add_argument("--base", default="main", help="the branch the change goes into (default main)")
     s.add_argument("--head", default="HEAD", help="the change's branch or commit (default HEAD)")
@@ -139,6 +170,16 @@ def parser() -> argparse.ArgumentParser:
     add_target(s)
     s.add_argument("--no-rag", action="store_true", help="skip retrieval (no index, no Ollama)")
     s.set_defaults(fn=cmd_context)
+    s = sub.add_parser("review", help="review a change")
+    add_target(s)
+    s.add_argument("--post", action="store_true", help="create or update the review comment on the PR (--pr)")
+    s.add_argument("--output", type=Path, help="also write the comment's Markdown to this file")
+    s.add_argument("--json", type=Path, help="write the full review (findings, context, timings) as JSON")
+    s.add_argument("--model", default=None, help="Ollama model (default qwen3:8b, or $DEVREVIEW_MODEL)")
+    s.add_argument("--think", action="store_true", help="let qwen3 reason before answering (slower)")
+    s.add_argument("--max-files", type=int, default=20)
+    s.add_argument("--no-rag", action="store_true", help="no passages from the index")
+    s.set_defaults(fn=cmd_review)
     return p
 
 
@@ -146,7 +187,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
     try:
         return args.fn(args)
-    except (IndexMissing, EmbedError, GitError, GhError, PatchError) as e:
+    except (IndexMissing, EmbedError, GitError, GhError, PatchError, LLMError) as e:
         print(f"error: {e}", file=sys.stderr)
         return 1
 
