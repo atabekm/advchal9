@@ -68,10 +68,13 @@ def test_parse_numbers_lines_on_both_sides():
     ("task1/style.css", "modified", "not code"),
     (".github/workflows/review.yml", "added", None),
     ("task1/Dockerfile", "modified", None),
+    ("task1/__init__.py", "added", "empty"),
 ])
 def test_skip_reason(path, status, reason):
     fd = parse(DIFF)[0]
     fd.path, fd.status = path, status
+    if reason == "empty":
+        fd.hunks = []
     assert fd.skip_reason() == reason
 
 

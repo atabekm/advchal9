@@ -95,7 +95,7 @@ class FileDiff:
         if self.status == "deleted":
             return "deleted"
         if not self.added:
-            return "only deletions"
+            return "empty" if self.status == "added" else "only deletions"
         return None
 
 
