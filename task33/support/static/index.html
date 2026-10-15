@@ -155,7 +155,7 @@ function renderPicker() {
   box.querySelector(".item.on")?.scrollIntoView({ block: "nearest" });
   box.querySelectorAll(".item").forEach((b) => b.onclick = () => {
     selected[mode] = b.dataset.id;
-    renderPicker(); loadContext();
+    clearResult(); renderPicker(); loadContext(true);
   });
   renderWho();
 }
@@ -179,14 +179,26 @@ function renderWho() {
   }
 }
 
-async function loadContext() {
-  const c = current();
+let contextSeq = 0;  // a slow response for a ticket clicked earlier must not overwrite a newer one
+
+// `prefill`: put the ticket's first customer message into the question box.
+async function loadContext(prefill = false) {
+  const c = current(), seq = ++contextSeq;
   if (!c.ticket_id && !c.user_id) { $("#ctx").innerHTML = `<p class="none-note">No customer context.</p>`; return; }
   $("#ctx").innerHTML = `<p class="spinner">Loading from the CRM…</p>`;
   try {
     const body = await api("/context?" + new URLSearchParams(c));
+    if (seq !== contextSeq) return;
     renderContext(body.context);
-  } catch (e) { $("#ctx").innerHTML = `<p class="error">${esc(e.message)}</p>`; }
+    const ticket = body.context.find((b) => b.name === "TICKET");
+    const m = ticket && ticket.text.match(/^\s*\[[^\]]* customer\] (.+)$/m);
+    if (prefill && m) $("#q").value = m[1];
+  } catch (e) { if (seq === contextSeq) $("#ctx").innerHTML = `<p class="error">${esc(e.message)}</p>`; }
+}
+
+function clearResult() {
+  $("#result").style.display = "none";
+  $("#answer").innerHTML = ""; $("#note").style.display = "none"; $("#sources").innerHTML = ""; $("#meta").textContent = "";
 }
 
 function renderContext(blocks) {
@@ -254,8 +266,9 @@ async function ask() {
 
 document.querySelectorAll(".tabs button").forEach((b) => b.onclick = () => {
   mode = b.dataset.mode;
+  clearResult();
   document.querySelectorAll(".tabs button").forEach((x) => x.classList.toggle("on", x === b));
-  renderPicker(); loadContext();
+  renderPicker(); loadContext(mode === "ticket");
 });
 document.querySelectorAll(".chip").forEach((c) => c.onclick = () => { $("#q").value = c.dataset.q; ask(); });
 $("#go").onclick = ask;
@@ -273,7 +286,7 @@ $("#q").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey
     else if (qs.has("none")) mode = "none";
     document.querySelectorAll(".tabs button").forEach((x) => x.classList.toggle("on", x.dataset.mode === mode));
     if (qs.get("q")) $("#q").value = qs.get("q");
-    renderPicker(); loadContext();
+    renderPicker(); loadContext(mode === "ticket" && !qs.get("q") && !qs.get("ask"));
     if (qs.get("ask")) ask();
     const h = await api("/health");
     $("#health").textContent = `· ${h.model} · ${h.chunks} passages · MCP: ${h.mcp_tools.length} tools`;

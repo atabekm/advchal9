@@ -46,7 +46,8 @@ uv run supportmcp                       # the MCP server alone, for any MCP clie
 ```
 
 `ask` also takes `--json` (the full record: context, search query, passages, MCP calls,
-timings). The page takes deep links: `/?ticket=T-1003&ask=1`, `/?user=u_106&q=...`, `/?none`.
+timings). On the page, picking a ticket fills the question with the customer's own message
+(the chips ask the generic ones). It takes deep links: `/?ticket=T-1003&ask=1`, `/?user=u_106&q=...`, `/?none`.
 
 ## The API
 
