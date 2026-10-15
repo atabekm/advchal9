@@ -1,0 +1,1905 @@
+{
+  "model": "qwen3:8b",
+  "summary": [
+    "all cases (13)",
+    "  passed          13/13",
+    "  retrieval hit   13/13",
+    "  answer checks   13/13",
+    "  cites a passage 13/13",
+    "  mean time       14.0s",
+    "",
+    "cases with customer context (10), with it",
+    "  passed          10/10",
+    "  retrieval hit   10/10",
+    "  answer checks   10/10",
+    "  cites a passage 10/10",
+    "  mean time       15.7s",
+    "the same cases, without it",
+    "  passed          3/10",
+    "  retrieval hit   6/10",
+    "  answer checks   3/10",
+    "  cites a passage 10/10",
+    "  mean time       10.0s"
+  ],
+  "cases": [
+    {
+      "id": "locked",
+      "with_context": true,
+      "passed": true,
+      "retrieval": true,
+      "answer_ok": true,
+      "missing": [],
+      "question": "Why isn't authorization working?",
+      "answer": "Your account is locked because you entered the wrong password 5 times within 15 minutes, which triggered a 30-minute lockout [1]. The lock ends at 12:10 UTC today. During this time, you cannot sign in, even with the correct password [3]. \n\nTo resolve this, wait until the lock expires, or reset your password using the \"Forgot password?\" link. Resetting your password will unlock the account immediately [1]. If you need help, contact your organization's admin, Jin Park or Raj Patel, who can unlock your account in the Admin panel [3].",
+      "agent_note": "account locked due to 5 failed password attempts (evidence: account status locked since 2026-10-15 11:40 UTC, reason: 5 failed password attempts in 15 minutes).",
+      "ticket_id": "T-1001",
+      "user_id": "u_102",
+      "context": [
+        {
+          "name": "TICKET",
+          "text": "ticket T-1001 · status open · priority high · area sign-in\nsubject: Can't log in\ncreated: 2026-10-15 11:55 UTC (5 min ago)\ncustomer: Tom Becker <tom@brightpath.studio> (u_102), member of Brightpath Studio (org_brightpath)\nerror code attached by the app: AUTH_423_LOCKED\nenvironment: web, Firefox 143\nconversation:\n  [2026-10-15 11:55 customer] Authorization isn't working. I'm sure my password is right, I changed it last week. Now it just says something went wrong and won't even let me try."
+        },
+        {
+          "name": "CUSTOMER AND ORGANIZATION",
+          "text": "user u_102 · Tom Becker <tom@brightpath.studio> · prefers language: en\norganization: Brightpath Studio (org_brightpath) · plan Team · role member\naccount status: LOCKED since 2026-10-15 11:40 UTC (20 min ago), reason: 5 failed password attempts in 15 minutes; the lock ends 2026-10-15 12:10 UTC (in 10 min)\nsign-in methods: password · two-factor: off\nlast successful sign-in: 2026-10-03 14:22 UTC (11 days ago)\nrecent sign-in failures: AUTH_401_BAD_PASSWORD ×5, last 2026-10-15 11:40 UTC (20 min ago); AUTH_423_LOCKED ×2, last 2026-10-15 11:52 UTC (8 min ago)\nclients: web app (Firefox 143)\n\norganization Brightpath Studio (org_brightpath):\n  plan: Team · seats: 12 · members: 3\n  subscription: active, renews 2026-11-20\n  single sign-on: off\n  two-factor required for all members: no\n  owner and admins: Jin Park (u_103, admin); Raj Patel (u_112, owner, billing admin)\n  integration Slack: DISCONNECTED since 2026-10-10 16:40 UTC (4 days ago): Slack token revoked (the Slack user who connected it left the workspace)"
+        },
+        {
+          "name": "EARLIER TICKETS",
+          "text": "tickets of Tom Becker (u_102) other than T-1001, newest first:\n  T-0987 · solved · normal · 2026-10-08 · sign-in · Forgot password\n    last agent reply: It was in your spam folder; the sender is no-reply@flowdesk.app. The link is valid for 1 hour."
+        }
+      ],
+      "search_query": "Why isn't authorization working?. Can't log in. sign-in. error AUTH_423_LOCKED. web, Firefox 143. AUTH_401_BAD_PASSWORD. account locked too many attempts lockout",
+      "passages": [
+        {
+          "rank": 1,
+          "label": "kb/error-codes.md › Error codes › Sign-in errors",
+          "source": "kb/error-codes.md",
+          "text": "# Error codes\n\nEvery error Flowdesk shows has a code. The support form attaches the last one automatically.\n\n## Sign-in errors\n\n| code | message | what it means | what to do |\n| --- | --- | --- | --- |\n| `AUTH_401_BAD_PASSWORD` | Incorrect email or password | the password doesn't match | retype it, or reset it with **Forgot password?** |\n| `AUTH_401_OTP_INVALID` | That code didn't work | the two-factor code is wrong or expired | check the device clock, or use a backup code ([Two-factor](two-factor.md#codes-are-rejected)) |\n| `AUTH_402_ORG_SUSPENDED` | Your organization's workspace is suspended | the subscription is unpaid for more than 14 days | the owner or a billing admin pays in **Admin › Billing** ([Billing](billing.md#unpaid-invoices)) |\n| `AUTH_403_SSO_REQUIRED` | Your organization requires single sign-on | password and Google sign-in are off for this organization | use **Sign in with SSO** ([SSO](sso.md#require-sso)) |\n| `AUTH_403_DEACTIVATED` | This account has been deactivated | an admin deactivated the member | ask an admin of the organization |\n| `AUTH_423_LOCKED` | Too many attempts. Try again later | 5 failed passwords in 15 minutes locked the account for 30 minutes | wait, reset the password, or ask an admin to unlock ([Lockout](sign-in.md#account-lockout)) |\n| `INVITE_EXPIRED` | This invitation has expired | the invitation is older than 7 days | ask an admin to resend it ([Invitations](members-and-invites.md#invitations)) |\n| `INVITE_USED` | This invitation was already used | the account exists already | sign in normally |",
+          "rerank": 0.9653186054423407,
+          "cited": true
+        },
+        {
+          "rank": 2,
+          "label": "kb/faq.md › Flowdesk FAQ › I can't sign in. What should I check?",
+          "source": "kb/faq.md",
+          "text": "# Flowdesk FAQ\n\n## I can't sign in. What should I check?\n\nMost sign-in problems have one of a handful of causes. Go through them in order:\n\n1. **The error message.** Every sign-in error has a code (for example `AUTH_423_LOCKED`); see\n   [Error codes](error-codes.md) for what each one means.\n2. **Too many attempts.** After 5 wrong passwords in 15 minutes the account is locked for\n   30 minutes. See [Signing in](sign-in.md#account-lockout).\n3. **Your organization uses SSO.** If your admin turned on \"Require SSO\", the email and password\n   form no longer works for you: use **Sign in with SSO**. See [Single sign-on](sso.md).\n4. **Two-factor codes.** Codes rejected right after the password usually mean the clock on your\n   phone is off. See [Two-factor authentication](two-factor.md#codes-are-rejected).\n5. **Your organization's subscription.** If an invoice is unpaid for more than 14 days, the\n   workspace is suspended and members can't sign in. See [Billing](billing.md#unpaid-invoices).\n6. **An invitation link.** Invitations expire after 7 days. See\n   [Members and invitations](members-and-invites.md#invitations).\n7. **The desktop app.** Check [Known issues](known-issues.md) for your version.\n\nIf none of these fits, contact support with the error code and the time you tried.",
+          "rerank": 0.8304441597868347,
+          "cited": false
+        },
+        {
+          "rank": 3,
+          "label": "kb/sign-in.md › Signing in › Account lockout",
+          "source": "kb/sign-in.md",
+          "text": "## Account lockout\n\nAfter **5 failed password attempts within 15 minutes**, the account is locked for\n**30 minutes**. While it is locked, every sign-in attempt fails with `AUTH_423_LOCKED`\n(\"Too many attempts. Try again later\"), even with the correct password, and does not extend\nthe lock.\n\nTo get back in sooner:\n\n- reset your password with **Forgot password?**: a completed reset unlocks the account at once;\n- or ask an admin of your organization to open **Admin › Members**, find you and click\n  **Unlock**.\n\nSupport can't unlock accounts on the Free and Team plans faster than these two ways.",
+          "rerank": 0.8026744657135813,
+          "cited": true
+        },
+        {
+          "rank": 4,
+          "label": "kb/members-and-invites.md › Members and invitations › Changing your email",
+          "source": "kb/members-and-invites.md",
+          "text": "## Unlocking a member\n\nWhen a member is locked after too many sign-in attempts, an admin can click **Unlock** next to\ntheir name in **Admin › Members**.\n\n## Changing your email\n\n**Profile › Account › Email**. We send a confirmation link to the new address. In an\norganization that requires SSO the email comes from the identity provider and can't be changed\nin Flowdesk.",
+          "rerank": 0.1878858924787965,
+          "cited": false
+        },
+        {
+          "rank": 5,
+          "label": "kb/sign-in.md › Signing in › Resetting a password",
+          "source": "kb/sign-in.md",
+          "text": "## Passwords\n\nA password needs at least 10 characters. It is checked against lists of leaked passwords;\na rejected password says so. Changing your password signs you out on all other devices.\n\n## Resetting a password\n\n**Forgot password?** on the sign-in page sends a reset link to your email from\n`no-reply@flowdesk.app`. The link is valid for **1 hour** and can be used once. If no email\narrives within 10 minutes, check the spam folder, then ask your admin to confirm the email\naddress on your account.\n\nResetting your password also **unlocks** an account that was locked after too many attempts.\n\nIf your organization requires SSO, there is no Flowdesk password to reset: the reset email\nsays so and points you to your company's identity provider.",
+          "rerank": 0.07280171891829293,
+          "cited": false
+        }
+      ],
+      "crm_calls": [
+        {
+          "tool": "get_ticket",
+          "arguments": {
+            "ticket_id": "T-1001"
+          }
+        },
+        {
+          "tool": "get_user",
+          "arguments": {
+            "user": "u_102"
+          }
+        },
+        {
+          "tool": "list_user_tickets",
+          "arguments": {
+            "user": "u_102",
+            "exclude_ticket": "T-1001"
+          }
+        }
+      ],
+      "model": "qwen3:8b",
+      "seconds": 25.3,
+      "timings": {
+        "retrieval": 8.22,
+        "llm": 17.0
+      },
+      "tokens": {
+        "prompt": 2421,
+        "completion": 178
+      }
+    },
+    {
+      "id": "sso",
+      "with_context": true,
+      "passed": true,
+      "retrieval": true,
+      "answer_ok": true,
+      "missing": [],
+      "question": "Why isn't authorization working?",
+      "answer": "Your organization, Acme Logistics, requires single sign-on (SSO) through Okta, and this is why you're seeing the `AUTH_403_SSO_REQUIRED` error. The email and password form no longer works for you since the \"Require SSO\" setting was enabled [1]. To resolve this, use the **Sign in with SSO** option on the sign-in page. This will redirect you to your company's identity provider (Okta) to complete the login process [3].",
+      "agent_note": "Require SSO is enabled for the organization (evidence: single sign-on is REQUIRED via Okta).",
+      "ticket_id": "T-1002",
+      "user_id": "u_101",
+      "context": [
+        {
+          "name": "TICKET",
+          "text": "ticket T-1002 · status open · priority normal · area sign-in\nsubject: Login not working since this morning\ncreated: 2026-10-15 08:58 UTC (3 hours ago)\ncustomer: Maria Lopez <maria.lopez@acme-logistics.com> (u_101), member of Acme Logistics (org_acme)\nerror code attached by the app: AUTH_403_SSO_REQUIRED\nenvironment: web, Chrome 141\nconversation:\n  [2026-10-15 08:58 customer] Hi, I can't sign in anymore. Email and password worked fine until last week. I reset my password twice and it still refuses."
+        },
+        {
+          "name": "CUSTOMER AND ORGANIZATION",
+          "text": "user u_101 · Maria Lopez <maria.lopez@acme-logistics.com> · prefers language: en\norganization: Acme Logistics (org_acme) · plan Business · role member\naccount status: active\nsign-in methods: password · two-factor: off\nlast successful sign-in: 2026-09-30 08:05 UTC (15 days ago)\nrecent sign-in failures: AUTH_403_SSO_REQUIRED ×3, last 2026-10-15 08:51 UTC (3 hours ago)\nclients: web app (Chrome 141)\n\norganization Acme Logistics (org_acme):\n  plan: Business · seats: 40 · members: 3\n  subscription: active, renews 2027-03-01\n  single sign-on: REQUIRED via Okta (SAML 2.0) for acme-logistics.com\n  two-factor required for all members: no\n  owner and admins: Owen Grant (u_110, owner, billing admin)"
+        }
+      ],
+      "search_query": "Why isn't authorization working?. Login not working since this morning. sign-in. error AUTH_403_SSO_REQUIRED. web, Chrome 141. require SSO sign in with SSO",
+      "passages": [
+        {
+          "rank": 1,
+          "label": "kb/sso.md › Single sign-on (SSO) › Require SSO",
+          "source": "kb/sso.md",
+          "text": "## Require SSO\n\nWith **Require SSO** on, members of the organization can only sign in through the identity\nprovider:\n\n- the email and password form rejects them with `AUTH_403_SSO_REQUIRED` (\"Your organization\n  requires single sign-on\");\n- **Sign in with Google** is disabled for them;\n- password reset emails no longer contain a reset link;\n- owners can still sign in with a password, so a broken SSO configuration never locks everyone\n  out.\n\nWhen an admin turns it on, existing sessions stay valid until they expire; the change shows up\nthe next time someone signs in.",
+          "rerank": 0.9212312437794711,
+          "cited": true
+        },
+        {
+          "rank": 2,
+          "label": "kb/error-codes.md › Error codes › Sign-in errors",
+          "source": "kb/error-codes.md",
+          "text": "# Error codes\n\nEvery error Flowdesk shows has a code. The support form attaches the last one automatically.\n\n## Sign-in errors\n\n| code | message | what it means | what to do |\n| --- | --- | --- | --- |\n| `AUTH_401_BAD_PASSWORD` | Incorrect email or password | the password doesn't match | retype it, or reset it with **Forgot password?** |\n| `AUTH_401_OTP_INVALID` | That code didn't work | the two-factor code is wrong or expired | check the device clock, or use a backup code ([Two-factor](two-factor.md#codes-are-rejected)) |\n| `AUTH_402_ORG_SUSPENDED` | Your organization's workspace is suspended | the subscription is unpaid for more than 14 days | the owner or a billing admin pays in **Admin › Billing** ([Billing](billing.md#unpaid-invoices)) |\n| `AUTH_403_SSO_REQUIRED` | Your organization requires single sign-on | password and Google sign-in are off for this organization | use **Sign in with SSO** ([SSO](sso.md#require-sso)) |\n| `AUTH_403_DEACTIVATED` | This account has been deactivated | an admin deactivated the member | ask an admin of the organization |\n| `AUTH_423_LOCKED` | Too many attempts. Try again later | 5 failed passwords in 15 minutes locked the account for 30 minutes | wait, reset the password, or ask an admin to unlock ([Lockout](sign-in.md#account-lockout)) |\n| `INVITE_EXPIRED` | This invitation has expired | the invitation is older than 7 days | ask an admin to resend it ([Invitations](members-and-invites.md#invitations)) |\n| `INVITE_USED` | This invitation was already used | the account exists already | sign in normally |",
+          "rerank": 0.8746568085654937,
+          "cited": false
+        },
+        {
+          "rank": 3,
+          "label": "kb/sso.md › Single sign-on (SSO) › Signing in with SSO",
+          "source": "kb/sso.md",
+          "text": "## Signing in with SSO\n\nOn the sign-in page click **Sign in with SSO**, enter your work email (or the organization's\nworkspace name), and you are sent to your company's identity provider. After signing in there\nyou come back to Flowdesk.\n\nIf the identity provider says you are not assigned to the application, ask your IT team to\nassign you to the Flowdesk app in Okta, Entra ID or Google Workspace. Flowdesk support cannot\nchange assignments in your identity provider.",
+          "rerank": 0.8499159703238051,
+          "cited": true
+        },
+        {
+          "rank": 4,
+          "label": "kb/sso.md › Single sign-on (SSO) › Setting up SSO",
+          "source": "kb/sso.md",
+          "text": "# Single sign-on (SSO)\n\nAvailable on the **Business** and **Enterprise** plans. Flowdesk supports SAML 2.0 with Okta,\nMicrosoft Entra ID (Azure AD), Google Workspace and OneLogin.\n\n## Setting up SSO\n\nAn owner opens **Admin › Security › Single sign-on**, adds the identity provider's metadata URL\nand verifies the email domain (for example `acme.com`) with a DNS TXT record. Users are created\non first sign-in if \"Just-in-time provisioning\" is on. Enterprise plans also support SCIM.",
+          "rerank": 0.6450040207990535,
+          "cited": false
+        },
+        {
+          "rank": 5,
+          "label": "kb/faq.md › Flowdesk FAQ › I can't sign in. What should I check?",
+          "source": "kb/faq.md",
+          "text": "# Flowdesk FAQ\n\n## I can't sign in. What should I check?\n\nMost sign-in problems have one of a handful of causes. Go through them in order:\n\n1. **The error message.** Every sign-in error has a code (for example `AUTH_423_LOCKED`); see\n   [Error codes](error-codes.md) for what each one means.\n2. **Too many attempts.** After 5 wrong passwords in 15 minutes the account is locked for\n   30 minutes. See [Signing in](sign-in.md#account-lockout).\n3. **Your organization uses SSO.** If your admin turned on \"Require SSO\", the email and password\n   form no longer works for you: use **Sign in with SSO**. See [Single sign-on](sso.md).\n4. **Two-factor codes.** Codes rejected right after the password usually mean the clock on your\n   phone is off. See [Two-factor authentication](two-factor.md#codes-are-rejected).\n5. **Your organization's subscription.** If an invoice is unpaid for more than 14 days, the\n   workspace is suspended and members can't sign in. See [Billing](billing.md#unpaid-invoices).\n6. **An invitation link.** Invitations expire after 7 days. See\n   [Members and invitations](members-and-invites.md#invitations).\n7. **The desktop app.** Check [Known issues](known-issues.md) for your version.\n\nIf none of these fits, contact support with the error code and the time you tried.",
+          "rerank": 0.49480602202627727,
+          "cited": false
+        }
+      ],
+      "crm_calls": [
+        {
+          "tool": "get_ticket",
+          "arguments": {
+            "ticket_id": "T-1002"
+          }
+        },
+        {
+          "tool": "get_user",
+          "arguments": {
+            "user": "u_101"
+          }
+        },
+        {
+          "tool": "list_user_tickets",
+          "arguments": {
+            "user": "u_101",
+            "exclude_ticket": "T-1002"
+          }
+        }
+      ],
+      "model": "qwen3:8b",
+      "seconds": 15.3,
+      "timings": {
+        "retrieval": 1.56,
+        "llm": 13.7
+      },
+      "tokens": {
+        "prompt": 2166,
+        "completion": 129
+      }
+    },
+    {
+      "id": "desktop",
+      "with_context": true,
+      "passed": true,
+      "retrieval": true,
+      "answer_ok": true,
+      "missing": [],
+      "question": "Why isn't authorization working?",
+      "answer": "The issue you're experiencing is due to a known problem with the desktop app for macOS 3.4.0 and 3.4.1, which causes a sign-in loop when using Google authentication. This issue was fixed in version 3.4.2, released on 2026-10-02 [1]. \n\nTo resolve this, please update the app to version 3.4.2 or later via **Flowdesk › Check for updates**. If the app cannot update past the sign-in screen, download the installer from the website and install it over the old version. If the loop persists after updating, open **Keychain Access**, delete the items named \"Flowdesk\", and sign in again [1].",
+      "agent_note": "sign-in loop due to a known issue in macOS 3.4.0 and 3.4.1 (evidence: the customer is using macOS 26 and the desktop app version 3.4.0).",
+      "ticket_id": "T-1003",
+      "user_id": "u_103",
+      "context": [
+        {
+          "name": "TICKET",
+          "text": "ticket T-1003 · status open · priority normal · area desktop app\nsubject: Desktop app keeps logging me out\ncreated: 2026-10-15 09:40 UTC (2 hours ago)\ncustomer: Jin Park <jin@brightpath.studio> (u_103), admin of Brightpath Studio (org_brightpath)\nerror code attached by the app: none\nenvironment: desktop, version 3.4.0, macOS 26.0\nconversation:\n  [2026-10-15 09:40 customer] Authorization doesn't work in the Mac app. I click Sign in with Google, the browser says I'm signed in, I go back to the app and it shows the login screen again. Every time. The website works fine."
+        },
+        {
+          "name": "CUSTOMER AND ORGANIZATION",
+          "text": "user u_103 · Jin Park <jin@brightpath.studio> · prefers language: en\norganization: Brightpath Studio (org_brightpath) · plan Team · role admin\naccount status: active\nsign-in methods: google · two-factor: off\nlast successful sign-in: 2026-10-15 09:31 UTC (2 hours ago)\nrecent sign-in failures: none\nclients: desktop app (3.4.0, macOS 26.0); web app (Safari 26)\n\norganization Brightpath Studio (org_brightpath):\n  plan: Team · seats: 12 · members: 3\n  subscription: active, renews 2026-11-20\n  single sign-on: off\n  two-factor required for all members: no\n  owner and admins: Jin Park (u_103, admin); Raj Patel (u_112, owner, billing admin)\n  integration Slack: DISCONNECTED since 2026-10-10 16:40 UTC (4 days ago): Slack token revoked (the Slack user who connected it left the workspace)"
+        },
+        {
+          "name": "EARLIER TICKETS",
+          "text": "tickets of Jin Park (u_103) other than T-1003, newest first:\n  T-0990 · solved · normal · 2026-08-21 · desktop app · Desktop app crashes on start\n    last agent reply: Fixed in 3.3.2, please update via Flowdesk › Check for updates."
+        }
+      ],
+      "search_query": "Why isn't authorization working?. Desktop app keeps logging me out. desktop app. desktop, version 3.4.0, macOS 26.0",
+      "passages": [
+        {
+          "rank": 1,
+          "label": "kb/known-issues.md › Known issues › Desktop app for macOS 3.4.0 and 3.4.1: sign-in loop",
+          "source": "kb/known-issues.md",
+          "text": "# Known issues\n\nProblems we know about, with workarounds. Fixed issues stay listed for 60 days.\n\n## Desktop app for macOS 3.4.0 and 3.4.1: sign-in loop\n\n**Status: fixed in 3.4.2 (released 2026-10-02).**\n\nAfter signing in through the browser (with Google, SSO or a password), the browser says you are\nsigned in, but the app shows the sign-in screen again. It happens on macOS 26 because the app\ncan't save its refresh token in the keychain. The web app is not affected.\n\nFix: update the app to 3.4.2 or later with **Flowdesk › Check for updates**, or download it from\n`flowdesk.app/download`. If the app can't get past the sign-in screen to update, download the\ninstaller from the website and install it over the old version. If the loop continues after\nupdating, open **Keychain Access**, delete the items named \"Flowdesk\", and sign in again.",
+          "rerank": 0.7753060491481816,
+          "cited": true
+        },
+        {
+          "rank": 2,
+          "label": "kb/changelog.md › Changelog › 3.4.0 (2026-09-15)",
+          "source": "kb/changelog.md",
+          "text": "## 3.4.1 (2026-09-22)\n\n- Desktop: fixed a crash when opening very large attachments.\n- Web: the calendar view shows week numbers (turn on in **Profile › Preferences**).\n\n## 3.4.0 (2026-09-15)\n\n- New: recurring tasks can repeat on the last working day of the month.\n- New: **Admin › Members** shows each member's last sign-in and sign-in method.\n- Desktop: the app now stores its refresh token in the system keychain.\n- API: `GET /v2/tasks` accepts `updated_since`.",
+          "rerank": 0.11029403992312543,
+          "cited": false
+        },
+        {
+          "rank": 3,
+          "label": "kb/changelog.md › Changelog › 3.4.2 (2026-10-02)",
+          "source": "kb/changelog.md",
+          "text": "# Changelog\n\n## 3.4.2 (2026-10-02)\n\n- Desktop (macOS): fixed the sign-in loop on macOS 26 where the app returned to the sign-in\n  screen after signing in through the browser.\n- Mobile: two-factor codes can be pasted from the clipboard.\n- Web: faster loading of projects with more than 5,000 tasks.",
+          "rerank": 0.017281224926252357,
+          "cited": false
+        },
+        {
+          "rank": 4,
+          "label": "kb/api.md › API and API keys › Errors",
+          "source": "kb/api.md",
+          "text": "## Errors\n\n| status | code | meaning |\n| --- | --- | --- |\n| 401 | `API_KEY_INVALID` | the key doesn't exist, was revoked, or the header is malformed |\n| 401 | `API_KEY_MISSING` | no `Authorization` header |\n| 403 | `API_KEY_SCOPE` | the key lacks the scope for this endpoint |\n| 403 | `AUTH_402_ORG_SUSPENDED` | the workspace is suspended |\n| 429 | `RATE_LIMITED` | over the rate limit; wait for `Retry-After` seconds |",
+          "rerank": 0.011272502254782876,
+          "cited": false
+        },
+        {
+          "rank": 5,
+          "label": "kb/api.md › API and API keys › Authentication",
+          "source": "kb/api.md",
+          "text": "# API and API keys\n\nThe REST API lives at `https://api.flowdesk.app/v2`. It is available on the Team plan and above.\n\n## Authentication\n\nEvery request needs an API key in the `Authorization` header:\n\n```\nAuthorization: Bearer fd_live_3f9a...\n```\n\nKeys start with `fd_live_`. Query parameters (`?api_key=`) are not accepted.",
+          "rerank": 0.009118512850966685,
+          "cited": false
+        }
+      ],
+      "crm_calls": [
+        {
+          "tool": "get_ticket",
+          "arguments": {
+            "ticket_id": "T-1003"
+          }
+        },
+        {
+          "tool": "get_user",
+          "arguments": {
+            "user": "u_103"
+          }
+        },
+        {
+          "tool": "list_user_tickets",
+          "arguments": {
+            "user": "u_103",
+            "exclude_ticket": "T-1003"
+          }
+        }
+      ],
+      "model": "qwen3:8b",
+      "seconds": 17.3,
+      "timings": {
+        "retrieval": 1.41,
+        "llm": 15.8
+      },
+      "tokens": {
+        "prompt": 1881,
+        "completion": 204
+      }
+    },
+    {
+      "id": "2fa",
+      "with_context": true,
+      "passed": true,
+      "retrieval": true,
+      "answer_ok": true,
+      "missing": [],
+      "question": "Why isn't authorization working?",
+      "answer": "The issue is likely due to your device's clock being out of sync, which is causing the two-factor authentication code to be invalid. This is a common problem after traveling or manually setting the time on your phone. The error code `AUTH_401_OTP_INVALID` indicates that the code is either wrong or expired, and the clock discrepancy is the most probable cause [2].\n\nTo fix this:\n1. On your Android phone, turn on automatic date and time settings (**Settings › System › Date & time › Set time automatically**).\n2. In Google Authenticator, you can also use **Settings › Time correction for codes › Sync now** to adjust the clock for the authenticator app.\n3. Wait for a new code and try signing in again.\n\nIf the issue persists, you can use one of your remaining backup codes to sign in.",
+      "agent_note": "device clock discrepancy (evidence: manual time setting after traveling)",
+      "ticket_id": "T-1004",
+      "user_id": "u_104",
+      "context": [
+        {
+          "name": "TICKET",
+          "text": "ticket T-1004 · status open · priority high · area sign-in\nsubject: Verification code rejected\ncreated: 2026-10-15 06:15 UTC (6 hours ago)\ncustomer: Sara Okafor <sara.okafor@orbit-analytics.io> (u_104), member of Orbit Analytics (org_orbit)\nerror code attached by the app: AUTH_401_OTP_INVALID\nenvironment: mobile, Android 16, version 3.4.2\nconversation:\n  [2026-10-15 06:15 customer] I enter my password and then the 6-digit code from my authenticator app and it says the code is invalid. I tried six times. I just got back from a conference in Singapore and set the time on my phone by hand there."
+        },
+        {
+          "name": "CUSTOMER AND ORGANIZATION",
+          "text": "user u_104 · Sara Okafor <sara.okafor@orbit-analytics.io> · prefers language: en\norganization: Orbit Analytics (org_orbit) · plan Enterprise · role member\naccount status: active\nsign-in methods: password · two-factor: authenticator app (4 backup codes left)\nlast successful sign-in: 2026-10-08 07:44 UTC (7 days ago)\nrecent sign-in failures: AUTH_401_OTP_INVALID ×6, last 2026-10-15 06:10 UTC (6 hours ago)\nclients: mobile app (3.4.2, Android 16)\n\norganization Orbit Analytics (org_orbit):\n  plan: Enterprise · seats: 150 · members: 2\n  subscription: active, renews 2027-06-30\n  single sign-on: off\n  two-factor required for all members: yes\n  owner and admins: Lena Vogel (u_111, admin)"
+        }
+      ],
+      "search_query": "Why isn't authorization working?. Verification code rejected. sign-in. error AUTH_401_OTP_INVALID. mobile, Android 16, version 3.4.2",
+      "passages": [
+        {
+          "rank": 1,
+          "label": "kb/two-factor.md › Two-factor authentication › Codes are rejected",
+          "source": "kb/two-factor.md",
+          "text": "## Codes are rejected\n\nA code is valid for 30 seconds and is computed from the current time, so the clock of the\ndevice running the authenticator app matters. If codes fail with `AUTH_401_OTP_INVALID` even\nthough you type them correctly, the device's clock is almost always off by more than 30 seconds.\nThis often happens after travelling, when the time zone or time was set by hand.\n\nTo fix it:\n\n1. On the phone, turn on automatic date and time (Android: **Settings › System › Date & time ›\n   Set time automatically**; iOS: **Settings › General › Date & Time › Set Automatically**).\n2. In Google Authenticator on Android you can also use **Settings › Time correction for codes ›\n   Sync now**.\n3. Wait for a fresh code and try again.\n\nUntil the clock is fixed, a **backup code** gets you in.",
+          "rerank": 0.6389006004690654,
+          "cited": false
+        },
+        {
+          "rank": 2,
+          "label": "kb/error-codes.md › Error codes › Sign-in errors",
+          "source": "kb/error-codes.md",
+          "text": "# Error codes\n\nEvery error Flowdesk shows has a code. The support form attaches the last one automatically.\n\n## Sign-in errors\n\n| code | message | what it means | what to do |\n| --- | --- | --- | --- |\n| `AUTH_401_BAD_PASSWORD` | Incorrect email or password | the password doesn't match | retype it, or reset it with **Forgot password?** |\n| `AUTH_401_OTP_INVALID` | That code didn't work | the two-factor code is wrong or expired | check the device clock, or use a backup code ([Two-factor](two-factor.md#codes-are-rejected)) |\n| `AUTH_402_ORG_SUSPENDED` | Your organization's workspace is suspended | the subscription is unpaid for more than 14 days | the owner or a billing admin pays in **Admin › Billing** ([Billing](billing.md#unpaid-invoices)) |\n| `AUTH_403_SSO_REQUIRED` | Your organization requires single sign-on | password and Google sign-in are off for this organization | use **Sign in with SSO** ([SSO](sso.md#require-sso)) |\n| `AUTH_403_DEACTIVATED` | This account has been deactivated | an admin deactivated the member | ask an admin of the organization |\n| `AUTH_423_LOCKED` | Too many attempts. Try again later | 5 failed passwords in 15 minutes locked the account for 30 minutes | wait, reset the password, or ask an admin to unlock ([Lockout](sign-in.md#account-lockout)) |\n| `INVITE_EXPIRED` | This invitation has expired | the invitation is older than 7 days | ask an admin to resend it ([Invitations](members-and-invites.md#invitations)) |\n| `INVITE_USED` | This invitation was already used | the account exists already | sign in normally |",
+          "rerank": 0.48977786449795024,
+          "cited": true
+        },
+        {
+          "rank": 3,
+          "label": "kb/api.md › API and API keys › Errors",
+          "source": "kb/api.md",
+          "text": "## Errors\n\n| status | code | meaning |\n| --- | --- | --- |\n| 401 | `API_KEY_INVALID` | the key doesn't exist, was revoked, or the header is malformed |\n| 401 | `API_KEY_MISSING` | no `Authorization` header |\n| 403 | `API_KEY_SCOPE` | the key lacks the scope for this endpoint |\n| 403 | `AUTH_402_ORG_SUSPENDED` | the workspace is suspended |\n| 429 | `RATE_LIMITED` | over the rate limit; wait for `Retry-After` seconds |",
+          "rerank": 0.15412343050838237,
+          "cited": false
+        },
+        {
+          "rank": 4,
+          "label": "kb/faq.md › Flowdesk FAQ › I can't sign in. What should I check?",
+          "source": "kb/faq.md",
+          "text": "# Flowdesk FAQ\n\n## I can't sign in. What should I check?\n\nMost sign-in problems have one of a handful of causes. Go through them in order:\n\n1. **The error message.** Every sign-in error has a code (for example `AUTH_423_LOCKED`); see\n   [Error codes](error-codes.md) for what each one means.\n2. **Too many attempts.** After 5 wrong passwords in 15 minutes the account is locked for\n   30 minutes. See [Signing in](sign-in.md#account-lockout).\n3. **Your organization uses SSO.** If your admin turned on \"Require SSO\", the email and password\n   form no longer works for you: use **Sign in with SSO**. See [Single sign-on](sso.md).\n4. **Two-factor codes.** Codes rejected right after the password usually mean the clock on your\n   phone is off. See [Two-factor authentication](two-factor.md#codes-are-rejected).\n5. **Your organization's subscription.** If an invoice is unpaid for more than 14 days, the\n   workspace is suspended and members can't sign in. See [Billing](billing.md#unpaid-invoices).\n6. **An invitation link.** Invitations expire after 7 days. See\n   [Members and invitations](members-and-invites.md#invitations).\n7. **The desktop app.** Check [Known issues](known-issues.md) for your version.\n\nIf none of these fits, contact support with the error code and the time you tried.",
+          "rerank": 0.036606209652232116,
+          "cited": false
+        },
+        {
+          "rank": 5,
+          "label": "kb/api.md › API and API keys › Authentication",
+          "source": "kb/api.md",
+          "text": "# API and API keys\n\nThe REST API lives at `https://api.flowdesk.app/v2`. It is available on the Team plan and above.\n\n## Authentication\n\nEvery request needs an API key in the `Authorization` header:\n\n```\nAuthorization: Bearer fd_live_3f9a...\n```\n\nKeys start with `fd_live_`. Query parameters (`?api_key=`) are not accepted.",
+          "rerank": 0.012712925111438239,
+          "cited": false
+        }
+      ],
+      "crm_calls": [
+        {
+          "tool": "get_ticket",
+          "arguments": {
+            "ticket_id": "T-1004"
+          }
+        },
+        {
+          "tool": "get_user",
+          "arguments": {
+            "user": "u_104"
+          }
+        },
+        {
+          "tool": "list_user_tickets",
+          "arguments": {
+            "user": "u_104",
+            "exclude_ticket": "T-1004"
+          }
+        }
+      ],
+      "model": "qwen3:8b",
+      "seconds": 18.2,
+      "timings": {
+        "retrieval": 1.5,
+        "llm": 16.7
+      },
+      "tokens": {
+        "prompt": 2221,
+        "completion": 191
+      }
+    },
+    {
+      "id": "suspended",
+      "with_context": true,
+      "passed": true,
+      "retrieval": true,
+      "answer_ok": true,
+      "missing": [],
+      "question": "Why isn't authorization working?",
+      "answer": "Your organization's workspace is suspended, which is why authorization isn't working. This happens when an invoice remains unpaid for more than 14 days, and the workspace is suspended, preventing members from signing in and causing the `AUTH_402_ORG_SUSPENDED` error [1]. \n\nThe subscription for Northwind Health (org_northwind) is past due since September 28, 2026, and the workspace has been suspended since October 12, 2026. The owner and billing admin, Priya Raman, needs to pay the unpaid invoice or update the payment method in **Admin › Billing** to restore access for everyone [1].\n\nSteps to resolve:\n- Priya Raman should log in to Flowdesk and navigate to **Admin › Billing** to pay the invoice or update the payment method.\n- Once the invoice is paid, access will be restored for all members within a few minutes.",
+      "agent_note": "organization's workspace is suspended (evidence: subscription past due since 2026-09-28, workspace suspended since 2026-10-12)",
+      "ticket_id": "T-1005",
+      "user_id": "u_105",
+      "context": [
+        {
+          "name": "TICKET",
+          "text": "ticket T-1005 · status open · priority high · area sign-in\nsubject: Anmeldung funktioniert nicht\ncreated: 2026-10-15 07:34 UTC (4 hours ago)\ncustomer: Daniel Weiss <d.weiss@northwind-health.org> (u_105), member of Northwind Health (org_northwind)\nerror code attached by the app: AUTH_402_ORG_SUSPENDED\nenvironment: web, Edge 141\nconversation:\n  [2026-10-15 07:34 customer] Seit Montag kann sich niemand in unserem Team mehr anmelden. Was ist los?"
+        },
+        {
+          "name": "CUSTOMER AND ORGANIZATION",
+          "text": "user u_105 · Daniel Weiss <d.weiss@northwind-health.org> · prefers language: de\norganization: Northwind Health (org_northwind) · plan Business · role member\naccount status: active\nsign-in methods: password · two-factor: off\nlast successful sign-in: 2026-10-11 16:02 UTC (3 days ago)\nrecent sign-in failures: AUTH_402_ORG_SUSPENDED ×4, last 2026-10-15 07:30 UTC (4 hours ago)\nclients: web app (Edge 141)\n\norganization Northwind Health (org_northwind):\n  plan: Business · seats: 25 · members: 2\n  subscription: PAST DUE since 2026-09-28 (17 days ago); workspace SUSPENDED since 2026-10-12 (3 days ago); unpaid invoice INV-20260928-0441 (350.00 USD)\n  single sign-on: off\n  two-factor required for all members: no\n  owner and admins: Priya Raman (u_106, owner, billing admin)"
+        }
+      ],
+      "search_query": "Why isn't authorization working?. Anmeldung funktioniert nicht. sign-in. error AUTH_402_ORG_SUSPENDED. web, Edge 141. workspace suspended unpaid invoice. subscription past due unpaid invoice",
+      "passages": [
+        {
+          "rank": 1,
+          "label": "kb/billing.md › Plans and billing › Unpaid invoices",
+          "source": "kb/billing.md",
+          "text": "## Unpaid invoices\n\nIf a payment fails, the subscription becomes **past due** and the owner and billing admins are\nemailed. Flowdesk retries the card on days 3, 7 and 14.\n\n- During the first **14 days** past due, everything keeps working.\n- After 14 days the workspace is **suspended**: members can't sign in and get\n  `AUTH_402_ORG_SUSPENDED` (\"Your organization's workspace is suspended\"). Integrations and the\n  API stop too.\n- Owners and billing admins can still sign in, but only to **Admin › Billing**, where they can\n  pay the open invoice or change the card. Access returns for everyone within a few minutes of a\n  successful payment.\n- Data of a suspended workspace is kept for **90 days**, then deleted.\n\nMembers can't pay on behalf of the organization; they need to contact their owner or billing\nadmin.",
+          "rerank": 0.9317246890305393,
+          "cited": true
+        },
+        {
+          "rank": 2,
+          "label": "kb/error-codes.md › Error codes › Sign-in errors",
+          "source": "kb/error-codes.md",
+          "text": "# Error codes\n\nEvery error Flowdesk shows has a code. The support form attaches the last one automatically.\n\n## Sign-in errors\n\n| code | message | what it means | what to do |\n| --- | --- | --- | --- |\n| `AUTH_401_BAD_PASSWORD` | Incorrect email or password | the password doesn't match | retype it, or reset it with **Forgot password?** |\n| `AUTH_401_OTP_INVALID` | That code didn't work | the two-factor code is wrong or expired | check the device clock, or use a backup code ([Two-factor](two-factor.md#codes-are-rejected)) |\n| `AUTH_402_ORG_SUSPENDED` | Your organization's workspace is suspended | the subscription is unpaid for more than 14 days | the owner or a billing admin pays in **Admin › Billing** ([Billing](billing.md#unpaid-invoices)) |\n| `AUTH_403_SSO_REQUIRED` | Your organization requires single sign-on | password and Google sign-in are off for this organization | use **Sign in with SSO** ([SSO](sso.md#require-sso)) |\n| `AUTH_403_DEACTIVATED` | This account has been deactivated | an admin deactivated the member | ask an admin of the organization |\n| `AUTH_423_LOCKED` | Too many attempts. Try again later | 5 failed passwords in 15 minutes locked the account for 30 minutes | wait, reset the password, or ask an admin to unlock ([Lockout](sign-in.md#account-lockout)) |\n| `INVITE_EXPIRED` | This invitation has expired | the invitation is older than 7 days | ask an admin to resend it ([Invitations](members-and-invites.md#invitations)) |\n| `INVITE_USED` | This invitation was already used | the account exists already | sign in normally |",
+          "rerank": 0.6986562015880788,
+          "cited": false
+        },
+        {
+          "rank": 3,
+          "label": "kb/faq.md › Flowdesk FAQ › I can't sign in. What should I check?",
+          "source": "kb/faq.md",
+          "text": "# Flowdesk FAQ\n\n## I can't sign in. What should I check?\n\nMost sign-in problems have one of a handful of causes. Go through them in order:\n\n1. **The error message.** Every sign-in error has a code (for example `AUTH_423_LOCKED`); see\n   [Error codes](error-codes.md) for what each one means.\n2. **Too many attempts.** After 5 wrong passwords in 15 minutes the account is locked for\n   30 minutes. See [Signing in](sign-in.md#account-lockout).\n3. **Your organization uses SSO.** If your admin turned on \"Require SSO\", the email and password\n   form no longer works for you: use **Sign in with SSO**. See [Single sign-on](sso.md).\n4. **Two-factor codes.** Codes rejected right after the password usually mean the clock on your\n   phone is off. See [Two-factor authentication](two-factor.md#codes-are-rejected).\n5. **Your organization's subscription.** If an invoice is unpaid for more than 14 days, the\n   workspace is suspended and members can't sign in. See [Billing](billing.md#unpaid-invoices).\n6. **An invitation link.** Invitations expire after 7 days. See\n   [Members and invitations](members-and-invites.md#invitations).\n7. **The desktop app.** Check [Known issues](known-issues.md) for your version.\n\nIf none of these fits, contact support with the error code and the time you tried.",
+          "rerank": 0.6832736659173325,
+          "cited": false
+        },
+        {
+          "rank": 4,
+          "label": "kb/api.md › API and API keys › Errors",
+          "source": "kb/api.md",
+          "text": "## Errors\n\n| status | code | meaning |\n| --- | --- | --- |\n| 401 | `API_KEY_INVALID` | the key doesn't exist, was revoked, or the header is malformed |\n| 401 | `API_KEY_MISSING` | no `Authorization` header |\n| 403 | `API_KEY_SCOPE` | the key lacks the scope for this endpoint |\n| 403 | `AUTH_402_ORG_SUSPENDED` | the workspace is suspended |\n| 429 | `RATE_LIMITED` | over the rate limit; wait for `Retry-After` seconds |",
+          "rerank": 0.5508502171244902,
+          "cited": false
+        },
+        {
+          "rank": 5,
+          "label": "kb/api.md › API and API keys › Creating and managing keys",
+          "source": "kb/api.md",
+          "text": "## Creating and managing keys\n\nAdmins and owners create keys in **Admin › API keys › New key**, give them a name and choose\nscopes (`tasks:read`, `tasks:write`, `projects:read`, `projects:write`, `members:read`). The\nfull key is shown once; afterwards only its prefix is visible.\n\nA key belongs to the person who created it and acts with their permissions. A key is\n**revoked**:\n\n- when someone revokes it in **Admin › API keys**;\n- automatically, when the member who created it is **deactivated** or removed from the\n  organization;\n- when the organization's workspace is suspended (it works again after payment).\n\nA revoked key can't be restored: create a new key and replace it in your integration. To avoid\nbreakage when people leave, create integration keys from a dedicated service member.",
+          "rerank": 0.018670594146286235,
+          "cited": false
+        }
+      ],
+      "crm_calls": [
+        {
+          "tool": "get_ticket",
+          "arguments": {
+            "ticket_id": "T-1005"
+          }
+        },
+        {
+          "tool": "get_user",
+          "arguments": {
+            "user": "u_105"
+          }
+        },
+        {
+          "tool": "list_user_tickets",
+          "arguments": {
+            "user": "u_105",
+            "exclude_ticket": "T-1005"
+          }
+        }
+      ],
+      "model": "qwen3:8b",
+      "seconds": 13.5,
+      "timings": {
+        "retrieval": 1.95,
+        "llm": 11.5
+      },
+      "tokens": {
+        "prompt": 2339,
+        "completion": 238
+      }
+    },
+    {
+      "id": "api-key",
+      "with_context": true,
+      "passed": true,
+      "retrieval": true,
+      "answer_ok": true,
+      "missing": [],
+      "question": "Why isn't authorization working?",
+      "answer": "The API key `fd_live_3f9a` is invalid because it was revoked on 2026-10-10 when the creator, Leo Martin (u_108), was deactivated [5]. This is why your requests are failing with the `API_KEY_INVALID` error [1]. \n\nTo fix this, you need to create a new API key with the necessary scopes. Since you are the owner and billing admin of the organization, you can do this by navigating to **Admin › API keys › New key**, giving it a name, and selecting the appropriate scopes. Replace the old key in your integration with the new one.",
+      "agent_note": "the API key was revoked because the creator was deactivated (evidence: API key fd_live_3f9a was revoked on 2026-10-10 when Leo Martin was deactivated).",
+      "ticket_id": "T-1006",
+      "user_id": "u_107",
+      "context": [
+        {
+          "name": "TICKET",
+          "text": "ticket T-1006 · status open · priority urgent · area api\nsubject: API returns 401 since the weekend\ncreated: 2026-10-15 09:05 UTC (3 hours ago)\ncustomer: Alex Chen <alex@kitelabs.dev> (u_107), owner of Kite Labs (org_kite)\nerror code attached by the app: API_KEY_INVALID\nenvironment: api, key fd_live_3f9a\nconversation:\n  [2026-10-15 09:05 customer] Our warehouse sync stopped working: every request to the API now fails with 401 Unauthorized. We didn't change anything in the code. Authorization header is the same as always."
+        },
+        {
+          "name": "CUSTOMER AND ORGANIZATION",
+          "text": "user u_107 · Alex Chen <alex@kitelabs.dev> · prefers language: en\norganization: Kite Labs (org_kite) · plan Team · role owner, billing admin\naccount status: active\nsign-in methods: password, google · two-factor: authenticator app (8 backup codes left)\nlast successful sign-in: 2026-10-15 10:02 UTC (2 hours ago)\nrecent sign-in failures: none\nclients: web app (Chrome 141); API with key fd_live_3f9a (recent errors: HTTP 401 API_KEY_INVALID ×412, last 2026-10-15 09:00 UTC (3 hours ago))\n\norganization Kite Labs (org_kite):\n  plan: Team · seats: 6 · members: 1\n  subscription: active, renews 2027-01-05\n  single sign-on: off\n  two-factor required for all members: no\n  owner and admins: Alex Chen (u_107, owner, billing admin)\n  API key fd_live_3f9a \"warehouse-sync\" created 2026-04-02 by Leo Martin (u_108) (deactivated 2026-10-10): REVOKED 2026-10-10 (creator deactivated)\n  API key fd_live_77c1 \"zapier\" created 2026-08-14 by Alex Chen (u_107): active, scopes tasks:read"
+        }
+      ],
+      "search_query": "Why isn't authorization working?. API returns 401 since the weekend. api. error API_KEY_INVALID. api, key fd_live_3f9a",
+      "passages": [
+        {
+          "rank": 1,
+          "label": "kb/api.md › API and API keys › Errors",
+          "source": "kb/api.md",
+          "text": "## Errors\n\n| status | code | meaning |\n| --- | --- | --- |\n| 401 | `API_KEY_INVALID` | the key doesn't exist, was revoked, or the header is malformed |\n| 401 | `API_KEY_MISSING` | no `Authorization` header |\n| 403 | `API_KEY_SCOPE` | the key lacks the scope for this endpoint |\n| 403 | `AUTH_402_ORG_SUSPENDED` | the workspace is suspended |\n| 429 | `RATE_LIMITED` | over the rate limit; wait for `Retry-After` seconds |",
+          "rerank": 0.9132799229393963,
+          "cited": true
+        },
+        {
+          "rank": 2,
+          "label": "kb/api.md › API and API keys › Authentication",
+          "source": "kb/api.md",
+          "text": "# API and API keys\n\nThe REST API lives at `https://api.flowdesk.app/v2`. It is available on the Team plan and above.\n\n## Authentication\n\nEvery request needs an API key in the `Authorization` header:\n\n```\nAuthorization: Bearer fd_live_3f9a...\n```\n\nKeys start with `fd_live_`. Query parameters (`?api_key=`) are not accepted.",
+          "rerank": 0.8918270089035618,
+          "cited": false
+        },
+        {
+          "rank": 3,
+          "label": "kb/error-codes.md › Error codes › Export and import errors",
+          "source": "kb/error-codes.md",
+          "text": "## API errors\n\nSee [API errors](api.md#errors): `API_KEY_INVALID`, `API_KEY_MISSING`, `API_KEY_SCOPE`,\n`RATE_LIMITED`.\n\n## Export and import errors\n\n| code | what it means | what to do |\n| --- | --- | --- |\n| `EXPORT_TOO_LARGE` | a CSV export over 50,000 rows | filter the export, or use the full workspace export ([Export](export-and-data.md#csv-export)) |\n| `IMPORT_BAD_HEADER` | the CSV's first row doesn't match the template | download the template from the import dialog |",
+          "rerank": 0.20292039154522004,
+          "cited": false
+        },
+        {
+          "rank": 4,
+          "label": "kb/two-factor.md › Two-factor authentication › Codes are rejected",
+          "source": "kb/two-factor.md",
+          "text": "## Codes are rejected\n\nA code is valid for 30 seconds and is computed from the current time, so the clock of the\ndevice running the authenticator app matters. If codes fail with `AUTH_401_OTP_INVALID` even\nthough you type them correctly, the device's clock is almost always off by more than 30 seconds.\nThis often happens after travelling, when the time zone or time was set by hand.\n\nTo fix it:\n\n1. On the phone, turn on automatic date and time (Android: **Settings › System › Date & time ›\n   Set time automatically**; iOS: **Settings › General › Date & Time › Set Automatically**).\n2. In Google Authenticator on Android you can also use **Settings › Time correction for codes ›\n   Sync now**.\n3. Wait for a fresh code and try again.\n\nUntil the clock is fixed, a **backup code** gets you in.",
+          "rerank": 0.04064160914560465,
+          "cited": false
+        },
+        {
+          "rank": 5,
+          "label": "kb/api.md › API and API keys › Creating and managing keys",
+          "source": "kb/api.md",
+          "text": "## Creating and managing keys\n\nAdmins and owners create keys in **Admin › API keys › New key**, give them a name and choose\nscopes (`tasks:read`, `tasks:write`, `projects:read`, `projects:write`, `members:read`). The\nfull key is shown once; afterwards only its prefix is visible.\n\nA key belongs to the person who created it and acts with their permissions. A key is\n**revoked**:\n\n- when someone revokes it in **Admin › API keys**;\n- automatically, when the member who created it is **deactivated** or removed from the\n  organization;\n- when the organization's workspace is suspended (it works again after payment).\n\nA revoked key can't be restored: create a new key and replace it in your integration. To avoid\nbreakage when people leave, create integration keys from a dedicated service member.",
+          "rerank": 0.03712512382904982,
+          "cited": true
+        }
+      ],
+      "crm_calls": [
+        {
+          "tool": "get_ticket",
+          "arguments": {
+            "ticket_id": "T-1006"
+          }
+        },
+        {
+          "tool": "get_user",
+          "arguments": {
+            "user": "u_107"
+          }
+        },
+        {
+          "tool": "list_user_tickets",
+          "arguments": {
+            "user": "u_107",
+            "exclude_ticket": "T-1006"
+          }
+        }
+      ],
+      "model": "qwen3:8b",
+      "seconds": 16.7,
+      "timings": {
+        "retrieval": 2.06,
+        "llm": 14.6
+      },
+      "tokens": {
+        "prompt": 1889,
+        "completion": 182
+      }
+    },
+    {
+      "id": "invite-ru",
+      "with_context": true,
+      "passed": true,
+      "retrieval": true,
+      "answer_ok": true,
+      "missing": [],
+      "question": "Почему не работает авторизация?",
+      "answer": "Вы не можете войти, потому что приглашение истекло. Приглашение, отправленное вашему коллеге, было отправлено 6 октября 2026 года и истекло 5 октября 2026 года. Ссылка из письма больше не работает, и вы не можете использовать её для входа [1]. \n\nЧтобы восстановить доступ, ваш администратор Owen Grant может переслать приглашение, и новая ссылка будет действительна в течение 7 дней.",
+      "agent_note": "приглашение истекло (дата истечения: 5 октября 2026 года)",
+      "ticket_id": "T-1007",
+      "user_id": "u_109",
+      "context": [
+        {
+          "name": "TICKET",
+          "text": "ticket T-1007 · status open · priority normal · area sign-in\nsubject: Не могу войти\ncreated: 2026-10-15 10:20 UTC (2 hours ago)\ncustomer: Nina Ivanova <nina.ivanova@acme-logistics.com> (u_109), member of Acme Logistics (org_acme)\nerror code attached by the app: INVITE_EXPIRED\nenvironment: web, Yandex Browser 25\nconversation:\n  [2026-10-15 10:20 customer] Коллега пригласил меня в Flowdesk, но ссылка из письма не работает, войти не получается. Почему не работает авторизация?"
+        },
+        {
+          "name": "CUSTOMER AND ORGANIZATION",
+          "text": "user u_109 · Nina Ivanova <nina.ivanova@acme-logistics.com> · prefers language: ru\norganization: Acme Logistics (org_acme) · plan Business · role member\naccount status: INVITED, has not accepted yet: invitation sent 2026-10-06 09:00 UTC (9 days ago) by Owen Grant (u_110)\nsign-in methods: none yet · two-factor: off\nlast successful sign-in: never\nrecent sign-in failures: INVITE_EXPIRED ×2, last 2026-10-15 10:15 UTC (2 hours ago)\nclients: none\n\norganization Acme Logistics (org_acme):\n  plan: Business · seats: 40 · members: 3\n  subscription: active, renews 2027-03-01\n  single sign-on: REQUIRED via Okta (SAML 2.0) for acme-logistics.com\n  two-factor required for all members: no\n  owner and admins: Owen Grant (u_110, owner, billing admin)"
+        }
+      ],
+      "search_query": "Почему не работает авторизация?. Не могу войти. sign-in. error INVITE_EXPIRED. web, Yandex Browser 25. invitation expired resend invite. require SSO sign in with SSO",
+      "passages": [
+        {
+          "rank": 1,
+          "label": "kb/members-and-invites.md › Members and invitations › Invitations",
+          "source": "kb/members-and-invites.md",
+          "text": "## Invitations\n\nAdmins invite people in **Admin › Members › Invite** by email. The invitee gets an email with a\nlink to create their account. Each invitation needs a free seat.\n\n- An invitation is valid for **7 days**. After that the link shows \"This invitation has expired\"\n  (`INVITE_EXPIRED`) and can't be used to sign up or sign in.\n- An admin can **resend** it in **Admin › Members › Pending › Resend**; the new link is valid\n  for another 7 days and the old one stops working.\n- If the organization requires SSO, the invitee signs in with SSO instead of creating a\n  password; the invitation still has to be accepted first.\n- An invitee can't ask support to activate the account: only the organization's admins can\n  invite or resend.",
+          "rerank": 0.9196185306009134,
+          "cited": true
+        },
+        {
+          "rank": 2,
+          "label": "kb/faq.md › Flowdesk FAQ › I can't sign in. What should I check?",
+          "source": "kb/faq.md",
+          "text": "# Flowdesk FAQ\n\n## I can't sign in. What should I check?\n\nMost sign-in problems have one of a handful of causes. Go through them in order:\n\n1. **The error message.** Every sign-in error has a code (for example `AUTH_423_LOCKED`); see\n   [Error codes](error-codes.md) for what each one means.\n2. **Too many attempts.** After 5 wrong passwords in 15 minutes the account is locked for\n   30 minutes. See [Signing in](sign-in.md#account-lockout).\n3. **Your organization uses SSO.** If your admin turned on \"Require SSO\", the email and password\n   form no longer works for you: use **Sign in with SSO**. See [Single sign-on](sso.md).\n4. **Two-factor codes.** Codes rejected right after the password usually mean the clock on your\n   phone is off. See [Two-factor authentication](two-factor.md#codes-are-rejected).\n5. **Your organization's subscription.** If an invoice is unpaid for more than 14 days, the\n   workspace is suspended and members can't sign in. See [Billing](billing.md#unpaid-invoices).\n6. **An invitation link.** Invitations expire after 7 days. See\n   [Members and invitations](members-and-invites.md#invitations).\n7. **The desktop app.** Check [Known issues](known-issues.md) for your version.\n\nIf none of these fits, contact support with the error code and the time you tried.",
+          "rerank": 0.8367772360775889,
+          "cited": false
+        },
+        {
+          "rank": 3,
+          "label": "kb/sso.md › Single sign-on (SSO) › Signing in with SSO",
+          "source": "kb/sso.md",
+          "text": "## Signing in with SSO\n\nOn the sign-in page click **Sign in with SSO**, enter your work email (or the organization's\nworkspace name), and you are sent to your company's identity provider. After signing in there\nyou come back to Flowdesk.\n\nIf the identity provider says you are not assigned to the application, ask your IT team to\nassign you to the Flowdesk app in Okta, Entra ID or Google Workspace. Flowdesk support cannot\nchange assignments in your identity provider.",
+          "rerank": 0.8275923126295888,
+          "cited": false
+        },
+        {
+          "rank": 4,
+          "label": "kb/sso.md › Single sign-on (SSO) › Require SSO",
+          "source": "kb/sso.md",
+          "text": "## Require SSO\n\nWith **Require SSO** on, members of the organization can only sign in through the identity\nprovider:\n\n- the email and password form rejects them with `AUTH_403_SSO_REQUIRED` (\"Your organization\n  requires single sign-on\");\n- **Sign in with Google** is disabled for them;\n- password reset emails no longer contain a reset link;\n- owners can still sign in with a password, so a broken SSO configuration never locks everyone\n  out.\n\nWhen an admin turns it on, existing sessions stay valid until they expire; the change shows up\nthe next time someone signs in.",
+          "rerank": 0.6800075440248634,
+          "cited": false
+        },
+        {
+          "rank": 5,
+          "label": "kb/sso.md › Single sign-on (SSO) › Setting up SSO",
+          "source": "kb/sso.md",
+          "text": "# Single sign-on (SSO)\n\nAvailable on the **Business** and **Enterprise** plans. Flowdesk supports SAML 2.0 with Okta,\nMicrosoft Entra ID (Azure AD), Google Workspace and OneLogin.\n\n## Setting up SSO\n\nAn owner opens **Admin › Security › Single sign-on**, adds the identity provider's metadata URL\nand verifies the email domain (for example `acme.com`) with a DNS TXT record. Users are created\non first sign-in if \"Just-in-time provisioning\" is on. Enterprise plans also support SCIM.",
+          "rerank": 0.5593060020286205,
+          "cited": false
+        }
+      ],
+      "crm_calls": [
+        {
+          "tool": "get_ticket",
+          "arguments": {
+            "ticket_id": "T-1007"
+          }
+        },
+        {
+          "tool": "get_user",
+          "arguments": {
+            "user": "u_109"
+          }
+        },
+        {
+          "tool": "list_user_tickets",
+          "arguments": {
+            "user": "u_109",
+            "exclude_ticket": "T-1007"
+          }
+        }
+      ],
+      "model": "qwen3:8b",
+      "seconds": 14.2,
+      "timings": {
+        "retrieval": 1.16,
+        "llm": 13.1
+      },
+      "tokens": {
+        "prompt": 1959,
+        "completion": 147
+      }
+    },
+    {
+      "id": "export",
+      "with_context": true,
+      "passed": true,
+      "retrieval": true,
+      "answer_ok": true,
+      "missing": [],
+      "question": "Why does my export fail?",
+      "answer": "Your export fails because the CSV file contains more than 50,000 rows, which exceeds the row limit for standard CSV exports. This error is indicated by the `EXPORT_TOO_LARGE` code [1]. To resolve this, you can either filter the export to reduce the number of rows or use the full workspace export feature, which is available for Business and Enterprise plans [2].",
+      "agent_note": "export exceeds row limit (evidence: 72480 rows)",
+      "ticket_id": "T-1008",
+      "user_id": "u_111",
+      "context": [
+        {
+          "name": "TICKET",
+          "text": "ticket T-1008 · status open · priority normal · area export\nsubject: CSV export fails\ncreated: 2026-10-14 15:00 UTC (21 hours ago)\ncustomer: Lena Vogel <lena.vogel@orbit-analytics.io> (u_111), admin of Orbit Analytics (org_orbit)\nerror code attached by the app: EXPORT_TOO_LARGE\nenvironment: web, Firefox 143, rows 72480\nconversation:\n  [2026-10-14 15:00 customer] I'm trying to export all tasks of the Ops project to CSV for our quarterly audit and the export fails every time."
+        },
+        {
+          "name": "CUSTOMER AND ORGANIZATION",
+          "text": "user u_111 · Lena Vogel <lena.vogel@orbit-analytics.io> · prefers language: en\norganization: Orbit Analytics (org_orbit) · plan Enterprise · role admin\naccount status: active\nsign-in methods: password · two-factor: authenticator app (10 backup codes left)\nlast successful sign-in: 2026-10-15 08:20 UTC (4 hours ago)\nrecent sign-in failures: none\nclients: web app (Firefox 143)\n\norganization Orbit Analytics (org_orbit):\n  plan: Enterprise · seats: 150 · members: 2\n  subscription: active, renews 2027-06-30\n  single sign-on: off\n  two-factor required for all members: yes\n  owner and admins: Lena Vogel (u_111, admin)"
+        }
+      ],
+      "search_query": "Why does my export fail?. CSV export fails. export. error EXPORT_TOO_LARGE. web, Firefox 143, rows 72480",
+      "passages": [
+        {
+          "rank": 1,
+          "label": "kb/error-codes.md › Error codes › Export and import errors",
+          "source": "kb/error-codes.md",
+          "text": "## API errors\n\nSee [API errors](api.md#errors): `API_KEY_INVALID`, `API_KEY_MISSING`, `API_KEY_SCOPE`,\n`RATE_LIMITED`.\n\n## Export and import errors\n\n| code | what it means | what to do |\n| --- | --- | --- |\n| `EXPORT_TOO_LARGE` | a CSV export over 50,000 rows | filter the export, or use the full workspace export ([Export](export-and-data.md#csv-export)) |\n| `IMPORT_BAD_HEADER` | the CSV's first row doesn't match the template | download the template from the import dialog |",
+          "rerank": 0.6238663657065594,
+          "cited": true
+        },
+        {
+          "rank": 2,
+          "label": "kb/export-and-data.md › Export, import and your data › CSV export",
+          "source": "kb/export-and-data.md",
+          "text": "# Export, import and your data\n\n## CSV export\n\nAny project's task list can be exported to CSV from **Project › … › Export › CSV**, with the\ncurrent filters applied. One CSV export holds at most **50,000 rows**; a bigger export fails\nwith `EXPORT_TOO_LARGE`.\n\nFor more rows:\n\n- filter the view (for example by date range or status) and export it in parts;\n- or, on Business and Enterprise, use the **full workspace export**: **Admin › Data › Export\n  workspace**. It contains every project as JSON and CSV files without a row limit, is prepared\n  in the background, and a download link (valid 7 days) is emailed to the admin within 24 hours.\n- or page through `GET /v2/tasks` in the API.",
+          "rerank": 0.501759737914765,
+          "cited": true
+        },
+        {
+          "rank": 3,
+          "label": "kb/export-and-data.md › Export, import and your data › Import",
+          "source": "kb/export-and-data.md",
+          "text": "## Import\n\nImport tasks from CSV, Trello, Asana or Jira in **Project › … › Import**. CSV files must use the\ntemplate from the import dialog (`IMPORT_BAD_HEADER` otherwise). Up to 20,000 tasks per import.",
+          "rerank": 0.051645571133619575,
+          "cited": false
+        },
+        {
+          "rank": 4,
+          "label": "kb/changelog.md › Changelog › 3.3.0 (2026-07-28)",
+          "source": "kb/changelog.md",
+          "text": "## 3.3.2 (2026-08-20)\n\n- Desktop (macOS): fixed a crash on start on macOS 15.6.\n\n## 3.3.0 (2026-07-28)\n\n- New: full workspace export for Business and Enterprise.\n- New: invitations can be resent from **Admin › Members › Pending**.",
+          "rerank": 0.01019841605495531,
+          "cited": false
+        },
+        {
+          "rank": 5,
+          "label": "kb/error-codes.md › Error codes › Sign-in errors",
+          "source": "kb/error-codes.md",
+          "text": "| code | message | what it means | what to do |\n| --- | --- | --- | --- |\n| `SSO_NOT_ASSIGNED` | You don't have access to this app | the identity provider hasn't assigned Flowdesk to you | ask your IT team |",
+          "rerank": 0.003013294451393804,
+          "cited": false
+        }
+      ],
+      "crm_calls": [
+        {
+          "tool": "get_ticket",
+          "arguments": {
+            "ticket_id": "T-1008"
+          }
+        },
+        {
+          "tool": "get_user",
+          "arguments": {
+            "user": "u_111"
+          }
+        },
+        {
+          "tool": "list_user_tickets",
+          "arguments": {
+            "user": "u_111",
+            "exclude_ticket": "T-1008"
+          }
+        }
+      ],
+      "model": "qwen3:8b",
+      "seconds": 10.4,
+      "timings": {
+        "retrieval": 1.53,
+        "llm": 8.9
+      },
+      "tokens": {
+        "prompt": 1510,
+        "completion": 100
+      }
+    },
+    {
+      "id": "slack",
+      "with_context": true,
+      "passed": true,
+      "retrieval": true,
+      "answer_ok": true,
+      "missing": [],
+      "question": "Why did our notifications stop?",
+      "answer": "Your Slack integration is disconnected because the Slack token was revoked when the user who connected it left the workspace. This is indicated by the \"Disconnected\" status and the reason \"Slack token revoked\" in your organization's settings [1]. \n\nTo fix this, an admin (like Jin Park or Raj Patel) needs to reconnect the Slack integration through **Admin › Integrations › Slack › Reconnect**. The channel settings will remain unchanged after reconnecting.",
+      "agent_note": "Slack integration disconnected due to revoked token (evidence: Slack token revoked in organization settings)",
+      "ticket_id": "T-1009",
+      "user_id": "u_112",
+      "context": [
+        {
+          "name": "TICKET",
+          "text": "ticket T-1009 · status open · priority normal · area integrations\nsubject: Slack notifications stopped\ncreated: 2026-10-13 10:10 UTC (2 days ago)\ncustomer: Raj Patel <raj@brightpath.studio> (u_112), owner of Brightpath Studio (org_brightpath)\nerror code attached by the app: none\nenvironment: web, Chrome 141\nconversation:\n  [2026-10-13 10:10 customer] We stopped getting Flowdesk notifications in our #design channel on Saturday. Nothing changed on our side as far as I know."
+        },
+        {
+          "name": "CUSTOMER AND ORGANIZATION",
+          "text": "user u_112 · Raj Patel <raj@brightpath.studio> · prefers language: en\norganization: Brightpath Studio (org_brightpath) · plan Team · role owner, billing admin\naccount status: active\nsign-in methods: password · two-factor: authenticator app (9 backup codes left)\nlast successful sign-in: 2026-10-14 18:45 UTC (17 hours ago)\nrecent sign-in failures: none\nclients: web app (Chrome 141)\n\norganization Brightpath Studio (org_brightpath):\n  plan: Team · seats: 12 · members: 3\n  subscription: active, renews 2026-11-20\n  single sign-on: off\n  two-factor required for all members: no\n  owner and admins: Jin Park (u_103, admin); Raj Patel (u_112, owner, billing admin)\n  integration Slack: DISCONNECTED since 2026-10-10 16:40 UTC (4 days ago): Slack token revoked (the Slack user who connected it left the workspace)"
+        },
+        {
+          "name": "EARLIER TICKETS",
+          "text": "tickets of Raj Patel (u_112) other than T-1009, newest first:\n  T-1010 · solved · low · 2026-09-02 · billing · Adding more people\n    last agent reply: Admin › Billing › Seats, then Add seats. You're charged pro rata for the rest of the period."
+        }
+      ],
+      "search_query": "Why did our notifications stop?. Slack notifications stopped. integrations. web, Chrome 141",
+      "passages": [
+        {
+          "rank": 1,
+          "label": "kb/integrations.md › Integrations › Slack",
+          "source": "kb/integrations.md",
+          "text": "# Integrations\n\nIntegrations are available on the Team plan and above. Admins manage them in\n**Admin › Integrations**.\n\n## Slack\n\nSends task notifications to Slack channels and lets people create tasks with `/flowdesk`.\n\n- Connect: **Admin › Integrations › Slack › Connect**, then choose channels per project.\n- The connection uses the Slack token of the person who connected it. If that person leaves the\n  Slack workspace, or a Slack admin removes the app, Slack revokes the token: notifications stop\n  and the integration shows **Disconnected** (`SLACK_TOKEN_REVOKED`). An admin has to click\n  **Reconnect**; channel settings are kept.\n- Private channels: invite the Flowdesk bot to the channel (`/invite @Flowdesk`) or it can't\n  post there.",
+          "rerank": 0.303711180963245,
+          "cited": true
+        },
+        {
+          "rank": 2,
+          "label": "kb/getting-started.md › Getting started with Flowdesk › Notifications",
+          "source": "kb/getting-started.md",
+          "text": "## Invite your team\n\n**Admin › Members › Invite**. See [Members and invitations](members-and-invites.md).\n\n## Notifications\n\nFlowdesk notifies you in the app, by email and on mobile when you're assigned, mentioned, or\na task you follow changes. Change it in **Profile › Notifications**. Team notifications in Slack:\nsee [Integrations](integrations.md#slack).\n\n## Keyboard shortcuts\n\n`c` creates a task, `/` searches, `g p` goes to projects, `?` shows all shortcuts.",
+          "rerank": 0.022215549318633825,
+          "cited": false
+        },
+        {
+          "rank": 3,
+          "label": "kb/known-issues.md › Known issues › Mobile app on Android 16: notifications delayed",
+          "source": "kb/known-issues.md",
+          "text": "## Mobile app on Android 16: notifications delayed\n\n**Status: investigating.**\n\nWith battery optimisation on, push notifications can arrive up to 15 minutes late. Workaround:\n**Settings › Apps › Flowdesk › Battery › Unrestricted**.",
+          "rerank": 0.0007758296838302048,
+          "cited": false
+        },
+        {
+          "rank": 4,
+          "label": "kb/error-codes.md › Error codes › Integration errors",
+          "source": "kb/error-codes.md",
+          "text": "## Integration errors\n\n| code | what it means | what to do |\n| --- | --- | --- |\n| `SLACK_TOKEN_REVOKED` | the Slack connection was revoked on Slack's side | reconnect Slack ([Slack](integrations.md#slack)) |\n| `GITHUB_APP_SUSPENDED` | the Flowdesk GitHub app was suspended in your GitHub organization | unsuspend it in GitHub settings |",
+          "rerank": 0.00043376212636925054,
+          "cited": false
+        },
+        {
+          "rank": 5,
+          "label": "kb/changelog.md › Changelog › 3.4.2 (2026-10-02)",
+          "source": "kb/changelog.md",
+          "text": "# Changelog\n\n## 3.4.2 (2026-10-02)\n\n- Desktop (macOS): fixed the sign-in loop on macOS 26 where the app returned to the sign-in\n  screen after signing in through the browser.\n- Mobile: two-factor codes can be pasted from the clipboard.\n- Web: faster loading of projects with more than 5,000 tasks.",
+          "rerank": 0.00032288746592716,
+          "cited": false
+        }
+      ],
+      "crm_calls": [
+        {
+          "tool": "get_ticket",
+          "arguments": {
+            "ticket_id": "T-1009"
+          }
+        },
+        {
+          "tool": "get_user",
+          "arguments": {
+            "user": "u_112"
+          }
+        },
+        {
+          "tool": "list_user_tickets",
+          "arguments": {
+            "user": "u_112",
+            "exclude_ticket": "T-1009"
+          }
+        }
+      ],
+      "model": "qwen3:8b",
+      "seconds": 11.8,
+      "timings": {
+        "retrieval": 1.57,
+        "llm": 10.2
+      },
+      "tokens": {
+        "prompt": 1662,
+        "completion": 113
+      }
+    },
+    {
+      "id": "owner-user",
+      "with_context": true,
+      "passed": true,
+      "retrieval": true,
+      "answer_ok": true,
+      "missing": [],
+      "question": "Nobody on my team can sign in. Why?",
+      "answer": "Your organization's workspace is suspended, which is why nobody on your team can sign in. This happens when an invoice remains unpaid for more than 14 days, and the workspace is suspended after 14 days past due [2]. \n\nTo resolve this, as the owner and billing admin, you need to pay the outstanding invoice or update the payment method in **Admin › Billing**. Once the invoice is paid, access will return for everyone within a few minutes [2].",
+      "agent_note": "organization's workspace is suspended (evidence: subscription is past due and workspace is suspended).",
+      "ticket_id": null,
+      "user_id": "u_106",
+      "context": [
+        {
+          "name": "CUSTOMER AND ORGANIZATION",
+          "text": "user u_106 · Priya Raman <priya.raman@northwind-health.org> · prefers language: en\norganization: Northwind Health (org_northwind) · plan Business · role owner, billing admin\naccount status: active\nsign-in methods: password · two-factor: authenticator app (10 backup codes left)\nlast successful sign-in: 2026-09-20 10:12 UTC (25 days ago)\nrecent sign-in failures: none\nclients: web app (Chrome 141)\n\norganization Northwind Health (org_northwind):\n  plan: Business · seats: 25 · members: 2\n  subscription: PAST DUE since 2026-09-28 (17 days ago); workspace SUSPENDED since 2026-10-12 (3 days ago); unpaid invoice INV-20260928-0441 (350.00 USD)\n  single sign-on: off\n  two-factor required for all members: no\n  owner and admins: Priya Raman (u_106, owner, billing admin)"
+        }
+      ],
+      "search_query": "Nobody on my team can sign in. Why?. workspace suspended unpaid invoice. subscription past due unpaid invoice",
+      "passages": [
+        {
+          "rank": 1,
+          "label": "kb/faq.md › Flowdesk FAQ › I can't sign in. What should I check?",
+          "source": "kb/faq.md",
+          "text": "# Flowdesk FAQ\n\n## I can't sign in. What should I check?\n\nMost sign-in problems have one of a handful of causes. Go through them in order:\n\n1. **The error message.** Every sign-in error has a code (for example `AUTH_423_LOCKED`); see\n   [Error codes](error-codes.md) for what each one means.\n2. **Too many attempts.** After 5 wrong passwords in 15 minutes the account is locked for\n   30 minutes. See [Signing in](sign-in.md#account-lockout).\n3. **Your organization uses SSO.** If your admin turned on \"Require SSO\", the email and password\n   form no longer works for you: use **Sign in with SSO**. See [Single sign-on](sso.md).\n4. **Two-factor codes.** Codes rejected right after the password usually mean the clock on your\n   phone is off. See [Two-factor authentication](two-factor.md#codes-are-rejected).\n5. **Your organization's subscription.** If an invoice is unpaid for more than 14 days, the\n   workspace is suspended and members can't sign in. See [Billing](billing.md#unpaid-invoices).\n6. **An invitation link.** Invitations expire after 7 days. See\n   [Members and invitations](members-and-invites.md#invitations).\n7. **The desktop app.** Check [Known issues](known-issues.md) for your version.\n\nIf none of these fits, contact support with the error code and the time you tried.",
+          "rerank": 0.9880176437551339,
+          "cited": false
+        },
+        {
+          "rank": 2,
+          "label": "kb/billing.md › Plans and billing › Unpaid invoices",
+          "source": "kb/billing.md",
+          "text": "## Unpaid invoices\n\nIf a payment fails, the subscription becomes **past due** and the owner and billing admins are\nemailed. Flowdesk retries the card on days 3, 7 and 14.\n\n- During the first **14 days** past due, everything keeps working.\n- After 14 days the workspace is **suspended**: members can't sign in and get\n  `AUTH_402_ORG_SUSPENDED` (\"Your organization's workspace is suspended\"). Integrations and the\n  API stop too.\n- Owners and billing admins can still sign in, but only to **Admin › Billing**, where they can\n  pay the open invoice or change the card. Access returns for everyone within a few minutes of a\n  successful payment.\n- Data of a suspended workspace is kept for **90 days**, then deleted.\n\nMembers can't pay on behalf of the organization; they need to contact their owner or billing\nadmin.",
+          "rerank": 0.943006522596904,
+          "cited": true
+        },
+        {
+          "rank": 3,
+          "label": "kb/error-codes.md › Error codes › Sign-in errors",
+          "source": "kb/error-codes.md",
+          "text": "# Error codes\n\nEvery error Flowdesk shows has a code. The support form attaches the last one automatically.\n\n## Sign-in errors\n\n| code | message | what it means | what to do |\n| --- | --- | --- | --- |\n| `AUTH_401_BAD_PASSWORD` | Incorrect email or password | the password doesn't match | retype it, or reset it with **Forgot password?** |\n| `AUTH_401_OTP_INVALID` | That code didn't work | the two-factor code is wrong or expired | check the device clock, or use a backup code ([Two-factor](two-factor.md#codes-are-rejected)) |\n| `AUTH_402_ORG_SUSPENDED` | Your organization's workspace is suspended | the subscription is unpaid for more than 14 days | the owner or a billing admin pays in **Admin › Billing** ([Billing](billing.md#unpaid-invoices)) |\n| `AUTH_403_SSO_REQUIRED` | Your organization requires single sign-on | password and Google sign-in are off for this organization | use **Sign in with SSO** ([SSO](sso.md#require-sso)) |\n| `AUTH_403_DEACTIVATED` | This account has been deactivated | an admin deactivated the member | ask an admin of the organization |\n| `AUTH_423_LOCKED` | Too many attempts. Try again later | 5 failed passwords in 15 minutes locked the account for 30 minutes | wait, reset the password, or ask an admin to unlock ([Lockout](sign-in.md#account-lockout)) |\n| `INVITE_EXPIRED` | This invitation has expired | the invitation is older than 7 days | ask an admin to resend it ([Invitations](members-and-invites.md#invitations)) |\n| `INVITE_USED` | This invitation was already used | the account exists already | sign in normally |",
+          "rerank": 0.4913557701756745,
+          "cited": false
+        },
+        {
+          "rank": 4,
+          "label": "kb/api.md › API and API keys › Creating and managing keys",
+          "source": "kb/api.md",
+          "text": "## Creating and managing keys\n\nAdmins and owners create keys in **Admin › API keys › New key**, give them a name and choose\nscopes (`tasks:read`, `tasks:write`, `projects:read`, `projects:write`, `members:read`). The\nfull key is shown once; afterwards only its prefix is visible.\n\nA key belongs to the person who created it and acts with their permissions. A key is\n**revoked**:\n\n- when someone revokes it in **Admin › API keys**;\n- automatically, when the member who created it is **deactivated** or removed from the\n  organization;\n- when the organization's workspace is suspended (it works again after payment).\n\nA revoked key can't be restored: create a new key and replace it in your integration. To avoid\nbreakage when people leave, create integration keys from a dedicated service member.",
+          "rerank": 0.05075753767169078,
+          "cited": false
+        },
+        {
+          "rank": 5,
+          "label": "kb/api.md › API and API keys › Errors",
+          "source": "kb/api.md",
+          "text": "## Errors\n\n| status | code | meaning |\n| --- | --- | --- |\n| 401 | `API_KEY_INVALID` | the key doesn't exist, was revoked, or the header is malformed |\n| 401 | `API_KEY_MISSING` | no `Authorization` header |\n| 403 | `API_KEY_SCOPE` | the key lacks the scope for this endpoint |\n| 403 | `AUTH_402_ORG_SUSPENDED` | the workspace is suspended |\n| 429 | `RATE_LIMITED` | over the rate limit; wait for `Retry-After` seconds |",
+          "rerank": 0.02143402035364706,
+          "cited": false
+        }
+      ],
+      "crm_calls": [
+        {
+          "tool": "get_user",
+          "arguments": {
+            "user": "u_106"
+          }
+        },
+        {
+          "tool": "list_user_tickets",
+          "arguments": {
+            "user": "u_106"
+          }
+        }
+      ],
+      "model": "qwen3:8b",
+      "seconds": 14.8,
+      "timings": {
+        "retrieval": 1.94,
+        "llm": 12.9
+      },
+      "tokens": {
+        "prompt": 2168,
+        "completion": 119
+      }
+    },
+    {
+      "id": "reset-link",
+      "with_context": true,
+      "passed": true,
+      "retrieval": true,
+      "answer_ok": true,
+      "missing": [],
+      "question": "How long is a password reset link valid?",
+      "answer": "A password reset link is valid for **1 hour** from the time it is sent to your email. This information is outlined in the documentation [2].",
+      "agent_note": "no customer context.",
+      "ticket_id": null,
+      "user_id": null,
+      "context": [],
+      "search_query": "How long is a password reset link valid?",
+      "passages": [
+        {
+          "rank": 1,
+          "label": "kb/sign-in.md › Signing in › Resetting a password",
+          "source": "kb/sign-in.md",
+          "text": "## Passwords\n\nA password needs at least 10 characters. It is checked against lists of leaked passwords;\na rejected password says so. Changing your password signs you out on all other devices.\n\n## Resetting a password\n\n**Forgot password?** on the sign-in page sends a reset link to your email from\n`no-reply@flowdesk.app`. The link is valid for **1 hour** and can be used once. If no email\narrives within 10 minutes, check the spam folder, then ask your admin to confirm the email\naddress on your account.\n\nResetting your password also **unlocks** an account that was locked after too many attempts.\n\nIf your organization requires SSO, there is no Flowdesk password to reset: the reset email\nsays so and points you to your company's identity provider.",
+          "rerank": 0.9748424915609799,
+          "cited": false
+        },
+        {
+          "rank": 2,
+          "label": "kb/faq.md › Flowdesk FAQ › I forgot my password",
+          "source": "kb/faq.md",
+          "text": "## I forgot my password\n\nClick **Forgot password?** on the sign-in page and enter your email. The reset link arrives from\n`no-reply@flowdesk.app` within a few minutes (check spam) and is valid for 1 hour. Resetting the\npassword also unlocks a locked account.",
+          "rerank": 0.9407705819223522,
+          "cited": true
+        },
+        {
+          "rank": 3,
+          "label": "kb/sso.md › Single sign-on (SSO) › Require SSO",
+          "source": "kb/sso.md",
+          "text": "## Require SSO\n\nWith **Require SSO** on, members of the organization can only sign in through the identity\nprovider:\n\n- the email and password form rejects them with `AUTH_403_SSO_REQUIRED` (\"Your organization\n  requires single sign-on\");\n- **Sign in with Google** is disabled for them;\n- password reset emails no longer contain a reset link;\n- owners can still sign in with a password, so a broken SSO configuration never locks everyone\n  out.\n\nWhen an admin turns it on, existing sessions stay valid until they expire; the change shows up\nthe next time someone signs in.",
+          "rerank": 0.016446000863607233,
+          "cited": false
+        },
+        {
+          "rank": 4,
+          "label": "kb/error-codes.md › Error codes › Sign-in errors",
+          "source": "kb/error-codes.md",
+          "text": "# Error codes\n\nEvery error Flowdesk shows has a code. The support form attaches the last one automatically.\n\n## Sign-in errors\n\n| code | message | what it means | what to do |\n| --- | --- | --- | --- |\n| `AUTH_401_BAD_PASSWORD` | Incorrect email or password | the password doesn't match | retype it, or reset it with **Forgot password?** |\n| `AUTH_401_OTP_INVALID` | That code didn't work | the two-factor code is wrong or expired | check the device clock, or use a backup code ([Two-factor](two-factor.md#codes-are-rejected)) |\n| `AUTH_402_ORG_SUSPENDED` | Your organization's workspace is suspended | the subscription is unpaid for more than 14 days | the owner or a billing admin pays in **Admin › Billing** ([Billing](billing.md#unpaid-invoices)) |\n| `AUTH_403_SSO_REQUIRED` | Your organization requires single sign-on | password and Google sign-in are off for this organization | use **Sign in with SSO** ([SSO](sso.md#require-sso)) |\n| `AUTH_403_DEACTIVATED` | This account has been deactivated | an admin deactivated the member | ask an admin of the organization |\n| `AUTH_423_LOCKED` | Too many attempts. Try again later | 5 failed passwords in 15 minutes locked the account for 30 minutes | wait, reset the password, or ask an admin to unlock ([Lockout](sign-in.md#account-lockout)) |\n| `INVITE_EXPIRED` | This invitation has expired | the invitation is older than 7 days | ask an admin to resend it ([Invitations](members-and-invites.md#invitations)) |\n| `INVITE_USED` | This invitation was already used | the account exists already | sign in normally |",
+          "rerank": 0.01035229198201911,
+          "cited": false
+        },
+        {
+          "rank": 5,
+          "label": "kb/sign-in.md › Signing in › Account lockout",
+          "source": "kb/sign-in.md",
+          "text": "## Account lockout\n\nAfter **5 failed password attempts within 15 minutes**, the account is locked for\n**30 minutes**. While it is locked, every sign-in attempt fails with `AUTH_423_LOCKED`\n(\"Too many attempts. Try again later\"), even with the correct password, and does not extend\nthe lock.\n\nTo get back in sooner:\n\n- reset your password with **Forgot password?**: a completed reset unlocks the account at once;\n- or ask an admin of your organization to open **Admin › Members**, find you and click\n  **Unlock**.\n\nSupport can't unlock accounts on the Free and Team plans faster than these two ways.",
+          "rerank": 0.009582406557776557,
+          "cited": false
+        }
+      ],
+      "crm_calls": [],
+      "model": "qwen3:8b",
+      "seconds": 8.4,
+      "timings": {
+        "retrieval": 2.02,
+        "llm": 6.4
+      },
+      "tokens": {
+        "prompt": 1567,
+        "completion": 40
+      }
+    },
+    {
+      "id": "sso-plans",
+      "with_context": true,
+      "passed": true,
+      "retrieval": true,
+      "answer_ok": true,
+      "missing": [],
+      "question": "Which plans include single sign-on?",
+      "answer": "The plans that include single sign-on (SSO) are the **Business** and **Enterprise** plans [2].",
+      "agent_note": "no customer context.",
+      "ticket_id": null,
+      "user_id": null,
+      "context": [],
+      "search_query": "Which plans include single sign-on?",
+      "passages": [
+        {
+          "rank": 1,
+          "label": "kb/sign-in.md › Signing in",
+          "source": "kb/sign-in.md",
+          "text": "# Signing in\n\nFlowdesk accepts three ways of signing in: **email and password**, **Sign in with Google**, and\n**single sign-on (SSO)** for organizations on the Business and Enterprise plans. Which ones you\ncan use depends on your organization's settings.",
+          "rerank": 0.9821789005548819,
+          "cited": false
+        },
+        {
+          "rank": 2,
+          "label": "kb/sso.md › Single sign-on (SSO) › Setting up SSO",
+          "source": "kb/sso.md",
+          "text": "# Single sign-on (SSO)\n\nAvailable on the **Business** and **Enterprise** plans. Flowdesk supports SAML 2.0 with Okta,\nMicrosoft Entra ID (Azure AD), Google Workspace and OneLogin.\n\n## Setting up SSO\n\nAn owner opens **Admin › Security › Single sign-on**, adds the identity provider's metadata URL\nand verifies the email domain (for example `acme.com`) with a DNS TXT record. Users are created\non first sign-in if \"Just-in-time provisioning\" is on. Enterprise plans also support SCIM.",
+          "rerank": 0.9767681998631077,
+          "cited": true
+        },
+        {
+          "rank": 3,
+          "label": "kb/error-codes.md › Error codes › Sign-in errors",
+          "source": "kb/error-codes.md",
+          "text": "# Error codes\n\nEvery error Flowdesk shows has a code. The support form attaches the last one automatically.\n\n## Sign-in errors\n\n| code | message | what it means | what to do |\n| --- | --- | --- | --- |\n| `AUTH_401_BAD_PASSWORD` | Incorrect email or password | the password doesn't match | retype it, or reset it with **Forgot password?** |\n| `AUTH_401_OTP_INVALID` | That code didn't work | the two-factor code is wrong or expired | check the device clock, or use a backup code ([Two-factor](two-factor.md#codes-are-rejected)) |\n| `AUTH_402_ORG_SUSPENDED` | Your organization's workspace is suspended | the subscription is unpaid for more than 14 days | the owner or a billing admin pays in **Admin › Billing** ([Billing](billing.md#unpaid-invoices)) |\n| `AUTH_403_SSO_REQUIRED` | Your organization requires single sign-on | password and Google sign-in are off for this organization | use **Sign in with SSO** ([SSO](sso.md#require-sso)) |\n| `AUTH_403_DEACTIVATED` | This account has been deactivated | an admin deactivated the member | ask an admin of the organization |\n| `AUTH_423_LOCKED` | Too many attempts. Try again later | 5 failed passwords in 15 minutes locked the account for 30 minutes | wait, reset the password, or ask an admin to unlock ([Lockout](sign-in.md#account-lockout)) |\n| `INVITE_EXPIRED` | This invitation has expired | the invitation is older than 7 days | ask an admin to resend it ([Invitations](members-and-invites.md#invitations)) |\n| `INVITE_USED` | This invitation was already used | the account exists already | sign in normally |",
+          "rerank": 0.11222851946095143,
+          "cited": false
+        },
+        {
+          "rank": 4,
+          "label": "kb/sso.md › Single sign-on (SSO) › Signing in with SSO",
+          "source": "kb/sso.md",
+          "text": "## Signing in with SSO\n\nOn the sign-in page click **Sign in with SSO**, enter your work email (or the organization's\nworkspace name), and you are sent to your company's identity provider. After signing in there\nyou come back to Flowdesk.\n\nIf the identity provider says you are not assigned to the application, ask your IT team to\nassign you to the Flowdesk app in Okta, Entra ID or Google Workspace. Flowdesk support cannot\nchange assignments in your identity provider.",
+          "rerank": 0.05855270418543967,
+          "cited": false
+        },
+        {
+          "rank": 5,
+          "label": "kb/sso.md › Single sign-on (SSO) › Troubleshooting SSO",
+          "source": "kb/sso.md",
+          "text": "## Troubleshooting SSO\n\n- `SSO_NOT_ASSIGNED`: you are not assigned to Flowdesk in the identity provider; contact your IT.\n- `SSO_SIGNATURE_INVALID`: the identity provider's certificate changed; an owner has to upload\n  the new metadata.\n- A loop between Flowdesk and the identity provider usually means third-party cookies are\n  blocked for `flowdesk.app`.",
+          "rerank": 0.05232951856595116,
+          "cited": false
+        }
+      ],
+      "crm_calls": [],
+      "model": "qwen3:8b",
+      "seconds": 6.6,
+      "timings": {
+        "retrieval": 1.27,
+        "llm": 5.4
+      },
+      "tokens": {
+        "prompt": 1431,
+        "completion": 33
+      }
+    },
+    {
+      "id": "linux",
+      "with_context": true,
+      "passed": true,
+      "retrieval": true,
+      "answer_ok": true,
+      "missing": [],
+      "question": "Is there a Flowdesk desktop app for Linux?",
+      "answer": "There is no official Flowdesk desktop app for Linux at this time. The desktop apps are available for macOS and Windows, and for iOS and Android as mobile apps [1]. \n\nIf you're using a Linux-based system, you can still access Flowdesk through your web browser, as long as it is compatible with the supported browsers (the two latest versions of Chrome, Edge, Firefox, and Safari) [1].",
+      "agent_note": "no customer context.",
+      "ticket_id": null,
+      "user_id": null,
+      "context": [],
+      "search_query": "Is there a Flowdesk desktop app for Linux?",
+      "passages": [
+        {
+          "rank": 1,
+          "label": "kb/faq.md › Flowdesk FAQ › Is there a desktop or mobile app?",
+          "source": "kb/faq.md",
+          "text": "## Which browsers are supported?\n\nThe two latest versions of Chrome, Edge, Firefox and Safari. Yandex Browser and other\nChromium-based browsers work but are not tested.\n\n## Is there a desktop or mobile app?\n\nYes: Flowdesk for macOS and Windows, and for iOS and Android. They sign in through your\nbrowser and then return you to the app. Updates: on macOS **Flowdesk › Check for updates**, on\nWindows **Help › Check for updates**.",
+          "rerank": 0.9508553312023293,
+          "cited": true
+        },
+        {
+          "rank": 2,
+          "label": "kb/faq.md › Flowdesk FAQ › I can't sign in. What should I check?",
+          "source": "kb/faq.md",
+          "text": "# Flowdesk FAQ\n\n## I can't sign in. What should I check?\n\nMost sign-in problems have one of a handful of causes. Go through them in order:\n\n1. **The error message.** Every sign-in error has a code (for example `AUTH_423_LOCKED`); see\n   [Error codes](error-codes.md) for what each one means.\n2. **Too many attempts.** After 5 wrong passwords in 15 minutes the account is locked for\n   30 minutes. See [Signing in](sign-in.md#account-lockout).\n3. **Your organization uses SSO.** If your admin turned on \"Require SSO\", the email and password\n   form no longer works for you: use **Sign in with SSO**. See [Single sign-on](sso.md).\n4. **Two-factor codes.** Codes rejected right after the password usually mean the clock on your\n   phone is off. See [Two-factor authentication](two-factor.md#codes-are-rejected).\n5. **Your organization's subscription.** If an invoice is unpaid for more than 14 days, the\n   workspace is suspended and members can't sign in. See [Billing](billing.md#unpaid-invoices).\n6. **An invitation link.** Invitations expire after 7 days. See\n   [Members and invitations](members-and-invites.md#invitations).\n7. **The desktop app.** Check [Known issues](known-issues.md) for your version.\n\nIf none of these fits, contact support with the error code and the time you tried.",
+          "rerank": 0.3459269040245331,
+          "cited": false
+        },
+        {
+          "rank": 3,
+          "label": "kb/known-issues.md › Known issues › Desktop app for macOS 3.4.0 and 3.4.1: sign-in loop",
+          "source": "kb/known-issues.md",
+          "text": "# Known issues\n\nProblems we know about, with workarounds. Fixed issues stay listed for 60 days.\n\n## Desktop app for macOS 3.4.0 and 3.4.1: sign-in loop\n\n**Status: fixed in 3.4.2 (released 2026-10-02).**\n\nAfter signing in through the browser (with Google, SSO or a password), the browser says you are\nsigned in, but the app shows the sign-in screen again. It happens on macOS 26 because the app\ncan't save its refresh token in the keychain. The web app is not affected.\n\nFix: update the app to 3.4.2 or later with **Flowdesk › Check for updates**, or download it from\n`flowdesk.app/download`. If the app can't get past the sign-in screen to update, download the\ninstaller from the website and install it over the old version. If the loop continues after\nupdating, open **Keychain Access**, delete the items named \"Flowdesk\", and sign in again.",
+          "rerank": 0.33632360244678705,
+          "cited": false
+        },
+        {
+          "rank": 4,
+          "label": "kb/getting-started.md › Getting started with Flowdesk › Create an organization",
+          "source": "kb/getting-started.md",
+          "text": "# Getting started with Flowdesk\n\nFlowdesk is a task tracker for teams: projects, tasks with assignees and due dates, boards,\na calendar view, comments and attachments.\n\n## Create an organization\n\nSign up at `flowdesk.app` with your work email. The first person becomes the organization's\n**owner**. New organizations start on a 14-day Business trial; afterwards they continue on the\nplan you choose, or on Free.",
+          "rerank": 0.2016789705565235,
+          "cited": false
+        },
+        {
+          "rank": 5,
+          "label": "kb/integrations.md › Integrations › GitHub",
+          "source": "kb/integrations.md",
+          "text": "## GitHub\n\nLinks pull requests and commits to tasks when their title or branch contains the task key\n(`OPS-142`). Install the Flowdesk GitHub app from **Admin › Integrations › GitHub**.\nA merged pull request can move the task to Done (per project setting).",
+          "rerank": 0.15562296291196925,
+          "cited": false
+        }
+      ],
+      "crm_calls": [],
+      "model": "qwen3:8b",
+      "seconds": 10.0,
+      "timings": {
+        "retrieval": 1.35,
+        "llm": 8.7
+      },
+      "tokens": {
+        "prompt": 1504,
+        "completion": 92
+      }
+    },
+    {
+      "id": "locked",
+      "with_context": false,
+      "passed": false,
+      "retrieval": true,
+      "answer_ok": false,
+      "missing": [
+        "locked | lockout",
+        "forgot password | reset your password | reset the password | unlock"
+      ],
+      "question": "Why isn't authorization working?",
+      "answer": "If you're experiencing issues with authorization, it could be due to several reasons. First, ensure that you are using the correct API key in the `Authorization` header with the format `Bearer fd_live_...` [2]. If the key is missing or malformed, you will receive an `API_KEY_INVALID` or `API_KEY_MISSING` error. Additionally, check if the API key has the necessary scope for the endpoint you are accessing, as a missing scope will result in an `API_KEY_SCOPE` error [1]. If you're unsure about the key's validity or scope, verify it with your organization's admin or check the API documentation for required scopes.",
+      "agent_note": "no customer context.",
+      "ticket_id": null,
+      "user_id": null,
+      "context": [],
+      "search_query": "Why isn't authorization working?",
+      "passages": [
+        {
+          "rank": 1,
+          "label": "kb/api.md › API and API keys › Errors",
+          "source": "kb/api.md",
+          "text": "## Errors\n\n| status | code | meaning |\n| --- | --- | --- |\n| 401 | `API_KEY_INVALID` | the key doesn't exist, was revoked, or the header is malformed |\n| 401 | `API_KEY_MISSING` | no `Authorization` header |\n| 403 | `API_KEY_SCOPE` | the key lacks the scope for this endpoint |\n| 403 | `AUTH_402_ORG_SUSPENDED` | the workspace is suspended |\n| 429 | `RATE_LIMITED` | over the rate limit; wait for `Retry-After` seconds |",
+          "rerank": 0.009615648749278352,
+          "cited": true
+        },
+        {
+          "rank": 2,
+          "label": "kb/api.md › API and API keys › Authentication",
+          "source": "kb/api.md",
+          "text": "# API and API keys\n\nThe REST API lives at `https://api.flowdesk.app/v2`. It is available on the Team plan and above.\n\n## Authentication\n\nEvery request needs an API key in the `Authorization` header:\n\n```\nAuthorization: Bearer fd_live_3f9a...\n```\n\nKeys start with `fd_live_`. Query parameters (`?api_key=`) are not accepted.",
+          "rerank": 0.0020319354354283135,
+          "cited": true
+        },
+        {
+          "rank": 3,
+          "label": "kb/faq.md › Flowdesk FAQ › I can't sign in. What should I check?",
+          "source": "kb/faq.md",
+          "text": "# Flowdesk FAQ\n\n## I can't sign in. What should I check?\n\nMost sign-in problems have one of a handful of causes. Go through them in order:\n\n1. **The error message.** Every sign-in error has a code (for example `AUTH_423_LOCKED`); see\n   [Error codes](error-codes.md) for what each one means.\n2. **Too many attempts.** After 5 wrong passwords in 15 minutes the account is locked for\n   30 minutes. See [Signing in](sign-in.md#account-lockout).\n3. **Your organization uses SSO.** If your admin turned on \"Require SSO\", the email and password\n   form no longer works for you: use **Sign in with SSO**. See [Single sign-on](sso.md).\n4. **Two-factor codes.** Codes rejected right after the password usually mean the clock on your\n   phone is off. See [Two-factor authentication](two-factor.md#codes-are-rejected).\n5. **Your organization's subscription.** If an invoice is unpaid for more than 14 days, the\n   workspace is suspended and members can't sign in. See [Billing](billing.md#unpaid-invoices).\n6. **An invitation link.** Invitations expire after 7 days. See\n   [Members and invitations](members-and-invites.md#invitations).\n7. **The desktop app.** Check [Known issues](known-issues.md) for your version.\n\nIf none of these fits, contact support with the error code and the time you tried.",
+          "rerank": 0.000659879324798877,
+          "cited": false
+        },
+        {
+          "rank": 4,
+          "label": "kb/error-codes.md › Error codes › Sign-in errors",
+          "source": "kb/error-codes.md",
+          "text": "# Error codes\n\nEvery error Flowdesk shows has a code. The support form attaches the last one automatically.\n\n## Sign-in errors\n\n| code | message | what it means | what to do |\n| --- | --- | --- | --- |\n| `AUTH_401_BAD_PASSWORD` | Incorrect email or password | the password doesn't match | retype it, or reset it with **Forgot password?** |\n| `AUTH_401_OTP_INVALID` | That code didn't work | the two-factor code is wrong or expired | check the device clock, or use a backup code ([Two-factor](two-factor.md#codes-are-rejected)) |\n| `AUTH_402_ORG_SUSPENDED` | Your organization's workspace is suspended | the subscription is unpaid for more than 14 days | the owner or a billing admin pays in **Admin › Billing** ([Billing](billing.md#unpaid-invoices)) |\n| `AUTH_403_SSO_REQUIRED` | Your organization requires single sign-on | password and Google sign-in are off for this organization | use **Sign in with SSO** ([SSO](sso.md#require-sso)) |\n| `AUTH_403_DEACTIVATED` | This account has been deactivated | an admin deactivated the member | ask an admin of the organization |\n| `AUTH_423_LOCKED` | Too many attempts. Try again later | 5 failed passwords in 15 minutes locked the account for 30 minutes | wait, reset the password, or ask an admin to unlock ([Lockout](sign-in.md#account-lockout)) |\n| `INVITE_EXPIRED` | This invitation has expired | the invitation is older than 7 days | ask an admin to resend it ([Invitations](members-and-invites.md#invitations)) |\n| `INVITE_USED` | This invitation was already used | the account exists already | sign in normally |",
+          "rerank": 0.00031033818896470305,
+          "cited": false
+        },
+        {
+          "rank": 5,
+          "label": "kb/billing.md › Plans and billing › Unpaid invoices",
+          "source": "kb/billing.md",
+          "text": "## Unpaid invoices\n\nIf a payment fails, the subscription becomes **past due** and the owner and billing admins are\nemailed. Flowdesk retries the card on days 3, 7 and 14.\n\n- During the first **14 days** past due, everything keeps working.\n- After 14 days the workspace is **suspended**: members can't sign in and get\n  `AUTH_402_ORG_SUSPENDED` (\"Your organization's workspace is suspended\"). Integrations and the\n  API stop too.\n- Owners and billing admins can still sign in, but only to **Admin › Billing**, where they can\n  pay the open invoice or change the card. Access returns for everyone within a few minutes of a\n  successful payment.\n- Data of a suspended workspace is kept for **90 days**, then deleted.\n\nMembers can't pay on behalf of the organization; they need to contact their owner or billing\nadmin.",
+          "rerank": 0.00024994452063051856,
+          "cited": false
+        }
+      ],
+      "crm_calls": [],
+      "model": "qwen3:8b",
+      "seconds": 13.8,
+      "timings": {
+        "retrieval": 1.3,
+        "llm": 12.5
+      },
+      "tokens": {
+        "prompt": 1814,
+        "completion": 143
+      }
+    },
+    {
+      "id": "sso",
+      "with_context": false,
+      "passed": false,
+      "retrieval": false,
+      "answer_ok": false,
+      "missing": [
+        "sso | single sign-on",
+        "sign in with sso"
+      ],
+      "question": "Why isn't authorization working?",
+      "answer": "If you're experiencing issues with authorization, it could be due to several reasons. First, ensure that you are using the correct API key in the `Authorization` header with the format `Bearer fd_live_...` [2]. If the key is missing or malformed, you will receive an `API_KEY_INVALID` or `API_KEY_MISSING` error. Additionally, check if the API key has the necessary scope for the endpoint you are accessing, as a missing scope will result in an `API_KEY_SCOPE` error [1]. If you're unsure about the key's validity or scope, verify it with your organization's admin or check the API documentation for required scopes.",
+      "agent_note": "no customer context.",
+      "ticket_id": null,
+      "user_id": null,
+      "context": [],
+      "search_query": "Why isn't authorization working?",
+      "passages": [
+        {
+          "rank": 1,
+          "label": "kb/api.md › API and API keys › Errors",
+          "source": "kb/api.md",
+          "text": "## Errors\n\n| status | code | meaning |\n| --- | --- | --- |\n| 401 | `API_KEY_INVALID` | the key doesn't exist, was revoked, or the header is malformed |\n| 401 | `API_KEY_MISSING` | no `Authorization` header |\n| 403 | `API_KEY_SCOPE` | the key lacks the scope for this endpoint |\n| 403 | `AUTH_402_ORG_SUSPENDED` | the workspace is suspended |\n| 429 | `RATE_LIMITED` | over the rate limit; wait for `Retry-After` seconds |",
+          "rerank": 0.009615648749278352,
+          "cited": true
+        },
+        {
+          "rank": 2,
+          "label": "kb/api.md › API and API keys › Authentication",
+          "source": "kb/api.md",
+          "text": "# API and API keys\n\nThe REST API lives at `https://api.flowdesk.app/v2`. It is available on the Team plan and above.\n\n## Authentication\n\nEvery request needs an API key in the `Authorization` header:\n\n```\nAuthorization: Bearer fd_live_3f9a...\n```\n\nKeys start with `fd_live_`. Query parameters (`?api_key=`) are not accepted.",
+          "rerank": 0.0020319354354283135,
+          "cited": true
+        },
+        {
+          "rank": 3,
+          "label": "kb/faq.md › Flowdesk FAQ › I can't sign in. What should I check?",
+          "source": "kb/faq.md",
+          "text": "# Flowdesk FAQ\n\n## I can't sign in. What should I check?\n\nMost sign-in problems have one of a handful of causes. Go through them in order:\n\n1. **The error message.** Every sign-in error has a code (for example `AUTH_423_LOCKED`); see\n   [Error codes](error-codes.md) for what each one means.\n2. **Too many attempts.** After 5 wrong passwords in 15 minutes the account is locked for\n   30 minutes. See [Signing in](sign-in.md#account-lockout).\n3. **Your organization uses SSO.** If your admin turned on \"Require SSO\", the email and password\n   form no longer works for you: use **Sign in with SSO**. See [Single sign-on](sso.md).\n4. **Two-factor codes.** Codes rejected right after the password usually mean the clock on your\n   phone is off. See [Two-factor authentication](two-factor.md#codes-are-rejected).\n5. **Your organization's subscription.** If an invoice is unpaid for more than 14 days, the\n   workspace is suspended and members can't sign in. See [Billing](billing.md#unpaid-invoices).\n6. **An invitation link.** Invitations expire after 7 days. See\n   [Members and invitations](members-and-invites.md#invitations).\n7. **The desktop app.** Check [Known issues](known-issues.md) for your version.\n\nIf none of these fits, contact support with the error code and the time you tried.",
+          "rerank": 0.000659879324798877,
+          "cited": false
+        },
+        {
+          "rank": 4,
+          "label": "kb/error-codes.md › Error codes › Sign-in errors",
+          "source": "kb/error-codes.md",
+          "text": "# Error codes\n\nEvery error Flowdesk shows has a code. The support form attaches the last one automatically.\n\n## Sign-in errors\n\n| code | message | what it means | what to do |\n| --- | --- | --- | --- |\n| `AUTH_401_BAD_PASSWORD` | Incorrect email or password | the password doesn't match | retype it, or reset it with **Forgot password?** |\n| `AUTH_401_OTP_INVALID` | That code didn't work | the two-factor code is wrong or expired | check the device clock, or use a backup code ([Two-factor](two-factor.md#codes-are-rejected)) |\n| `AUTH_402_ORG_SUSPENDED` | Your organization's workspace is suspended | the subscription is unpaid for more than 14 days | the owner or a billing admin pays in **Admin › Billing** ([Billing](billing.md#unpaid-invoices)) |\n| `AUTH_403_SSO_REQUIRED` | Your organization requires single sign-on | password and Google sign-in are off for this organization | use **Sign in with SSO** ([SSO](sso.md#require-sso)) |\n| `AUTH_403_DEACTIVATED` | This account has been deactivated | an admin deactivated the member | ask an admin of the organization |\n| `AUTH_423_LOCKED` | Too many attempts. Try again later | 5 failed passwords in 15 minutes locked the account for 30 minutes | wait, reset the password, or ask an admin to unlock ([Lockout](sign-in.md#account-lockout)) |\n| `INVITE_EXPIRED` | This invitation has expired | the invitation is older than 7 days | ask an admin to resend it ([Invitations](members-and-invites.md#invitations)) |\n| `INVITE_USED` | This invitation was already used | the account exists already | sign in normally |",
+          "rerank": 0.00031033818896470305,
+          "cited": false
+        },
+        {
+          "rank": 5,
+          "label": "kb/billing.md › Plans and billing › Unpaid invoices",
+          "source": "kb/billing.md",
+          "text": "## Unpaid invoices\n\nIf a payment fails, the subscription becomes **past due** and the owner and billing admins are\nemailed. Flowdesk retries the card on days 3, 7 and 14.\n\n- During the first **14 days** past due, everything keeps working.\n- After 14 days the workspace is **suspended**: members can't sign in and get\n  `AUTH_402_ORG_SUSPENDED` (\"Your organization's workspace is suspended\"). Integrations and the\n  API stop too.\n- Owners and billing admins can still sign in, but only to **Admin › Billing**, where they can\n  pay the open invoice or change the card. Access returns for everyone within a few minutes of a\n  successful payment.\n- Data of a suspended workspace is kept for **90 days**, then deleted.\n\nMembers can't pay on behalf of the organization; they need to contact their owner or billing\nadmin.",
+          "rerank": 0.00024994452063051856,
+          "cited": false
+        }
+      ],
+      "crm_calls": [],
+      "model": "qwen3:8b",
+      "seconds": 7.7,
+      "timings": {
+        "retrieval": 1.16,
+        "llm": 6.6
+      },
+      "tokens": {
+        "prompt": 1814,
+        "completion": 143
+      }
+    },
+    {
+      "id": "desktop",
+      "with_context": false,
+      "passed": false,
+      "retrieval": false,
+      "answer_ok": false,
+      "missing": [
+        "3.4.2",
+        "update"
+      ],
+      "question": "Why isn't authorization working?",
+      "answer": "If you're experiencing issues with authorization, it could be due to several reasons. First, ensure that you are using the correct API key in the `Authorization` header with the format `Bearer fd_live_...` [2]. If the key is missing or malformed, you will receive an `API_KEY_INVALID` or `API_KEY_MISSING` error. Additionally, check if the API key has the necessary scope for the endpoint you are accessing, as a missing scope will result in an `API_KEY_SCOPE` error [1]. If you're unsure about the key's validity or scope, verify it with your organization's admin or check the API documentation for required scopes.",
+      "agent_note": "no customer context.",
+      "ticket_id": null,
+      "user_id": null,
+      "context": [],
+      "search_query": "Why isn't authorization working?",
+      "passages": [
+        {
+          "rank": 1,
+          "label": "kb/api.md › API and API keys › Errors",
+          "source": "kb/api.md",
+          "text": "## Errors\n\n| status | code | meaning |\n| --- | --- | --- |\n| 401 | `API_KEY_INVALID` | the key doesn't exist, was revoked, or the header is malformed |\n| 401 | `API_KEY_MISSING` | no `Authorization` header |\n| 403 | `API_KEY_SCOPE` | the key lacks the scope for this endpoint |\n| 403 | `AUTH_402_ORG_SUSPENDED` | the workspace is suspended |\n| 429 | `RATE_LIMITED` | over the rate limit; wait for `Retry-After` seconds |",
+          "rerank": 0.009615648749278352,
+          "cited": true
+        },
+        {
+          "rank": 2,
+          "label": "kb/api.md › API and API keys › Authentication",
+          "source": "kb/api.md",
+          "text": "# API and API keys\n\nThe REST API lives at `https://api.flowdesk.app/v2`. It is available on the Team plan and above.\n\n## Authentication\n\nEvery request needs an API key in the `Authorization` header:\n\n```\nAuthorization: Bearer fd_live_3f9a...\n```\n\nKeys start with `fd_live_`. Query parameters (`?api_key=`) are not accepted.",
+          "rerank": 0.0020319354354283135,
+          "cited": true
+        },
+        {
+          "rank": 3,
+          "label": "kb/faq.md › Flowdesk FAQ › I can't sign in. What should I check?",
+          "source": "kb/faq.md",
+          "text": "# Flowdesk FAQ\n\n## I can't sign in. What should I check?\n\nMost sign-in problems have one of a handful of causes. Go through them in order:\n\n1. **The error message.** Every sign-in error has a code (for example `AUTH_423_LOCKED`); see\n   [Error codes](error-codes.md) for what each one means.\n2. **Too many attempts.** After 5 wrong passwords in 15 minutes the account is locked for\n   30 minutes. See [Signing in](sign-in.md#account-lockout).\n3. **Your organization uses SSO.** If your admin turned on \"Require SSO\", the email and password\n   form no longer works for you: use **Sign in with SSO**. See [Single sign-on](sso.md).\n4. **Two-factor codes.** Codes rejected right after the password usually mean the clock on your\n   phone is off. See [Two-factor authentication](two-factor.md#codes-are-rejected).\n5. **Your organization's subscription.** If an invoice is unpaid for more than 14 days, the\n   workspace is suspended and members can't sign in. See [Billing](billing.md#unpaid-invoices).\n6. **An invitation link.** Invitations expire after 7 days. See\n   [Members and invitations](members-and-invites.md#invitations).\n7. **The desktop app.** Check [Known issues](known-issues.md) for your version.\n\nIf none of these fits, contact support with the error code and the time you tried.",
+          "rerank": 0.000659879324798877,
+          "cited": false
+        },
+        {
+          "rank": 4,
+          "label": "kb/error-codes.md › Error codes › Sign-in errors",
+          "source": "kb/error-codes.md",
+          "text": "# Error codes\n\nEvery error Flowdesk shows has a code. The support form attaches the last one automatically.\n\n## Sign-in errors\n\n| code | message | what it means | what to do |\n| --- | --- | --- | --- |\n| `AUTH_401_BAD_PASSWORD` | Incorrect email or password | the password doesn't match | retype it, or reset it with **Forgot password?** |\n| `AUTH_401_OTP_INVALID` | That code didn't work | the two-factor code is wrong or expired | check the device clock, or use a backup code ([Two-factor](two-factor.md#codes-are-rejected)) |\n| `AUTH_402_ORG_SUSPENDED` | Your organization's workspace is suspended | the subscription is unpaid for more than 14 days | the owner or a billing admin pays in **Admin › Billing** ([Billing](billing.md#unpaid-invoices)) |\n| `AUTH_403_SSO_REQUIRED` | Your organization requires single sign-on | password and Google sign-in are off for this organization | use **Sign in with SSO** ([SSO](sso.md#require-sso)) |\n| `AUTH_403_DEACTIVATED` | This account has been deactivated | an admin deactivated the member | ask an admin of the organization |\n| `AUTH_423_LOCKED` | Too many attempts. Try again later | 5 failed passwords in 15 minutes locked the account for 30 minutes | wait, reset the password, or ask an admin to unlock ([Lockout](sign-in.md#account-lockout)) |\n| `INVITE_EXPIRED` | This invitation has expired | the invitation is older than 7 days | ask an admin to resend it ([Invitations](members-and-invites.md#invitations)) |\n| `INVITE_USED` | This invitation was already used | the account exists already | sign in normally |",
+          "rerank": 0.00031033818896470305,
+          "cited": false
+        },
+        {
+          "rank": 5,
+          "label": "kb/billing.md › Plans and billing › Unpaid invoices",
+          "source": "kb/billing.md",
+          "text": "## Unpaid invoices\n\nIf a payment fails, the subscription becomes **past due** and the owner and billing admins are\nemailed. Flowdesk retries the card on days 3, 7 and 14.\n\n- During the first **14 days** past due, everything keeps working.\n- After 14 days the workspace is **suspended**: members can't sign in and get\n  `AUTH_402_ORG_SUSPENDED` (\"Your organization's workspace is suspended\"). Integrations and the\n  API stop too.\n- Owners and billing admins can still sign in, but only to **Admin › Billing**, where they can\n  pay the open invoice or change the card. Access returns for everyone within a few minutes of a\n  successful payment.\n- Data of a suspended workspace is kept for **90 days**, then deleted.\n\nMembers can't pay on behalf of the organization; they need to contact their owner or billing\nadmin.",
+          "rerank": 0.00024994452063051856,
+          "cited": false
+        }
+      ],
+      "crm_calls": [],
+      "model": "qwen3:8b",
+      "seconds": 8.2,
+      "timings": {
+        "retrieval": 1.58,
+        "llm": 6.6
+      },
+      "tokens": {
+        "prompt": 1814,
+        "completion": 143
+      }
+    },
+    {
+      "id": "2fa",
+      "with_context": false,
+      "passed": false,
+      "retrieval": false,
+      "answer_ok": false,
+      "missing": [
+        "clock | time",
+        "automatic | sync"
+      ],
+      "question": "Why isn't authorization working?",
+      "answer": "If you're experiencing issues with authorization, it could be due to several reasons. First, ensure that you are using the correct API key in the `Authorization` header with the format `Bearer fd_live_...` [2]. If the key is missing or malformed, you will receive an `API_KEY_INVALID` or `API_KEY_MISSING` error. Additionally, check if the API key has the necessary scope for the endpoint you are accessing, as a missing scope will result in an `API_KEY_SCOPE` error [1]. If you're unsure about the key's validity or scope, verify it with your organization's admin or check the API documentation for required scopes.",
+      "agent_note": "no customer context.",
+      "ticket_id": null,
+      "user_id": null,
+      "context": [],
+      "search_query": "Why isn't authorization working?",
+      "passages": [
+        {
+          "rank": 1,
+          "label": "kb/api.md › API and API keys › Errors",
+          "source": "kb/api.md",
+          "text": "## Errors\n\n| status | code | meaning |\n| --- | --- | --- |\n| 401 | `API_KEY_INVALID` | the key doesn't exist, was revoked, or the header is malformed |\n| 401 | `API_KEY_MISSING` | no `Authorization` header |\n| 403 | `API_KEY_SCOPE` | the key lacks the scope for this endpoint |\n| 403 | `AUTH_402_ORG_SUSPENDED` | the workspace is suspended |\n| 429 | `RATE_LIMITED` | over the rate limit; wait for `Retry-After` seconds |",
+          "rerank": 0.009615648749278352,
+          "cited": true
+        },
+        {
+          "rank": 2,
+          "label": "kb/api.md › API and API keys › Authentication",
+          "source": "kb/api.md",
+          "text": "# API and API keys\n\nThe REST API lives at `https://api.flowdesk.app/v2`. It is available on the Team plan and above.\n\n## Authentication\n\nEvery request needs an API key in the `Authorization` header:\n\n```\nAuthorization: Bearer fd_live_3f9a...\n```\n\nKeys start with `fd_live_`. Query parameters (`?api_key=`) are not accepted.",
+          "rerank": 0.0020319354354283135,
+          "cited": true
+        },
+        {
+          "rank": 3,
+          "label": "kb/faq.md › Flowdesk FAQ › I can't sign in. What should I check?",
+          "source": "kb/faq.md",
+          "text": "# Flowdesk FAQ\n\n## I can't sign in. What should I check?\n\nMost sign-in problems have one of a handful of causes. Go through them in order:\n\n1. **The error message.** Every sign-in error has a code (for example `AUTH_423_LOCKED`); see\n   [Error codes](error-codes.md) for what each one means.\n2. **Too many attempts.** After 5 wrong passwords in 15 minutes the account is locked for\n   30 minutes. See [Signing in](sign-in.md#account-lockout).\n3. **Your organization uses SSO.** If your admin turned on \"Require SSO\", the email and password\n   form no longer works for you: use **Sign in with SSO**. See [Single sign-on](sso.md).\n4. **Two-factor codes.** Codes rejected right after the password usually mean the clock on your\n   phone is off. See [Two-factor authentication](two-factor.md#codes-are-rejected).\n5. **Your organization's subscription.** If an invoice is unpaid for more than 14 days, the\n   workspace is suspended and members can't sign in. See [Billing](billing.md#unpaid-invoices).\n6. **An invitation link.** Invitations expire after 7 days. See\n   [Members and invitations](members-and-invites.md#invitations).\n7. **The desktop app.** Check [Known issues](known-issues.md) for your version.\n\nIf none of these fits, contact support with the error code and the time you tried.",
+          "rerank": 0.000659879324798877,
+          "cited": false
+        },
+        {
+          "rank": 4,
+          "label": "kb/error-codes.md › Error codes › Sign-in errors",
+          "source": "kb/error-codes.md",
+          "text": "# Error codes\n\nEvery error Flowdesk shows has a code. The support form attaches the last one automatically.\n\n## Sign-in errors\n\n| code | message | what it means | what to do |\n| --- | --- | --- | --- |\n| `AUTH_401_BAD_PASSWORD` | Incorrect email or password | the password doesn't match | retype it, or reset it with **Forgot password?** |\n| `AUTH_401_OTP_INVALID` | That code didn't work | the two-factor code is wrong or expired | check the device clock, or use a backup code ([Two-factor](two-factor.md#codes-are-rejected)) |\n| `AUTH_402_ORG_SUSPENDED` | Your organization's workspace is suspended | the subscription is unpaid for more than 14 days | the owner or a billing admin pays in **Admin › Billing** ([Billing](billing.md#unpaid-invoices)) |\n| `AUTH_403_SSO_REQUIRED` | Your organization requires single sign-on | password and Google sign-in are off for this organization | use **Sign in with SSO** ([SSO](sso.md#require-sso)) |\n| `AUTH_403_DEACTIVATED` | This account has been deactivated | an admin deactivated the member | ask an admin of the organization |\n| `AUTH_423_LOCKED` | Too many attempts. Try again later | 5 failed passwords in 15 minutes locked the account for 30 minutes | wait, reset the password, or ask an admin to unlock ([Lockout](sign-in.md#account-lockout)) |\n| `INVITE_EXPIRED` | This invitation has expired | the invitation is older than 7 days | ask an admin to resend it ([Invitations](members-and-invites.md#invitations)) |\n| `INVITE_USED` | This invitation was already used | the account exists already | sign in normally |",
+          "rerank": 0.00031033818896470305,
+          "cited": false
+        },
+        {
+          "rank": 5,
+          "label": "kb/billing.md › Plans and billing › Unpaid invoices",
+          "source": "kb/billing.md",
+          "text": "## Unpaid invoices\n\nIf a payment fails, the subscription becomes **past due** and the owner and billing admins are\nemailed. Flowdesk retries the card on days 3, 7 and 14.\n\n- During the first **14 days** past due, everything keeps working.\n- After 14 days the workspace is **suspended**: members can't sign in and get\n  `AUTH_402_ORG_SUSPENDED` (\"Your organization's workspace is suspended\"). Integrations and the\n  API stop too.\n- Owners and billing admins can still sign in, but only to **Admin › Billing**, where they can\n  pay the open invoice or change the card. Access returns for everyone within a few minutes of a\n  successful payment.\n- Data of a suspended workspace is kept for **90 days**, then deleted.\n\nMembers can't pay on behalf of the organization; they need to contact their owner or billing\nadmin.",
+          "rerank": 0.00024994452063051856,
+          "cited": false
+        }
+      ],
+      "crm_calls": [],
+      "model": "qwen3:8b",
+      "seconds": 7.9,
+      "timings": {
+        "retrieval": 1.3,
+        "llm": 6.6
+      },
+      "tokens": {
+        "prompt": 1814,
+        "completion": 143
+      }
+    },
+    {
+      "id": "suspended",
+      "with_context": false,
+      "passed": false,
+      "retrieval": true,
+      "answer_ok": false,
+      "missing": [
+        "suspended",
+        "priya",
+        "invoice | payment | pay "
+      ],
+      "question": "Why isn't authorization working?",
+      "answer": "If you're experiencing issues with authorization, it could be due to several reasons. First, ensure that you are using the correct API key in the `Authorization` header with the format `Bearer fd_live_...` [2]. If the key is missing or malformed, you will receive an `API_KEY_INVALID` or `API_KEY_MISSING` error. Additionally, check if the API key has the necessary scope for the endpoint you are accessing, as a missing scope will result in an `API_KEY_SCOPE` error [1]. If you're unsure about the key's validity or scope, verify it with your organization's admin or check the API documentation for required scopes.",
+      "agent_note": "no customer context.",
+      "ticket_id": null,
+      "user_id": null,
+      "context": [],
+      "search_query": "Why isn't authorization working?",
+      "passages": [
+        {
+          "rank": 1,
+          "label": "kb/api.md › API and API keys › Errors",
+          "source": "kb/api.md",
+          "text": "## Errors\n\n| status | code | meaning |\n| --- | --- | --- |\n| 401 | `API_KEY_INVALID` | the key doesn't exist, was revoked, or the header is malformed |\n| 401 | `API_KEY_MISSING` | no `Authorization` header |\n| 403 | `API_KEY_SCOPE` | the key lacks the scope for this endpoint |\n| 403 | `AUTH_402_ORG_SUSPENDED` | the workspace is suspended |\n| 429 | `RATE_LIMITED` | over the rate limit; wait for `Retry-After` seconds |",
+          "rerank": 0.009615648749278352,
+          "cited": true
+        },
+        {
+          "rank": 2,
+          "label": "kb/api.md › API and API keys › Authentication",
+          "source": "kb/api.md",
+          "text": "# API and API keys\n\nThe REST API lives at `https://api.flowdesk.app/v2`. It is available on the Team plan and above.\n\n## Authentication\n\nEvery request needs an API key in the `Authorization` header:\n\n```\nAuthorization: Bearer fd_live_3f9a...\n```\n\nKeys start with `fd_live_`. Query parameters (`?api_key=`) are not accepted.",
+          "rerank": 0.0020319354354283135,
+          "cited": true
+        },
+        {
+          "rank": 3,
+          "label": "kb/faq.md › Flowdesk FAQ › I can't sign in. What should I check?",
+          "source": "kb/faq.md",
+          "text": "# Flowdesk FAQ\n\n## I can't sign in. What should I check?\n\nMost sign-in problems have one of a handful of causes. Go through them in order:\n\n1. **The error message.** Every sign-in error has a code (for example `AUTH_423_LOCKED`); see\n   [Error codes](error-codes.md) for what each one means.\n2. **Too many attempts.** After 5 wrong passwords in 15 minutes the account is locked for\n   30 minutes. See [Signing in](sign-in.md#account-lockout).\n3. **Your organization uses SSO.** If your admin turned on \"Require SSO\", the email and password\n   form no longer works for you: use **Sign in with SSO**. See [Single sign-on](sso.md).\n4. **Two-factor codes.** Codes rejected right after the password usually mean the clock on your\n   phone is off. See [Two-factor authentication](two-factor.md#codes-are-rejected).\n5. **Your organization's subscription.** If an invoice is unpaid for more than 14 days, the\n   workspace is suspended and members can't sign in. See [Billing](billing.md#unpaid-invoices).\n6. **An invitation link.** Invitations expire after 7 days. See\n   [Members and invitations](members-and-invites.md#invitations).\n7. **The desktop app.** Check [Known issues](known-issues.md) for your version.\n\nIf none of these fits, contact support with the error code and the time you tried.",
+          "rerank": 0.000659879324798877,
+          "cited": false
+        },
+        {
+          "rank": 4,
+          "label": "kb/error-codes.md › Error codes › Sign-in errors",
+          "source": "kb/error-codes.md",
+          "text": "# Error codes\n\nEvery error Flowdesk shows has a code. The support form attaches the last one automatically.\n\n## Sign-in errors\n\n| code | message | what it means | what to do |\n| --- | --- | --- | --- |\n| `AUTH_401_BAD_PASSWORD` | Incorrect email or password | the password doesn't match | retype it, or reset it with **Forgot password?** |\n| `AUTH_401_OTP_INVALID` | That code didn't work | the two-factor code is wrong or expired | check the device clock, or use a backup code ([Two-factor](two-factor.md#codes-are-rejected)) |\n| `AUTH_402_ORG_SUSPENDED` | Your organization's workspace is suspended | the subscription is unpaid for more than 14 days | the owner or a billing admin pays in **Admin › Billing** ([Billing](billing.md#unpaid-invoices)) |\n| `AUTH_403_SSO_REQUIRED` | Your organization requires single sign-on | password and Google sign-in are off for this organization | use **Sign in with SSO** ([SSO](sso.md#require-sso)) |\n| `AUTH_403_DEACTIVATED` | This account has been deactivated | an admin deactivated the member | ask an admin of the organization |\n| `AUTH_423_LOCKED` | Too many attempts. Try again later | 5 failed passwords in 15 minutes locked the account for 30 minutes | wait, reset the password, or ask an admin to unlock ([Lockout](sign-in.md#account-lockout)) |\n| `INVITE_EXPIRED` | This invitation has expired | the invitation is older than 7 days | ask an admin to resend it ([Invitations](members-and-invites.md#invitations)) |\n| `INVITE_USED` | This invitation was already used | the account exists already | sign in normally |",
+          "rerank": 0.00031033818896470305,
+          "cited": false
+        },
+        {
+          "rank": 5,
+          "label": "kb/billing.md › Plans and billing › Unpaid invoices",
+          "source": "kb/billing.md",
+          "text": "## Unpaid invoices\n\nIf a payment fails, the subscription becomes **past due** and the owner and billing admins are\nemailed. Flowdesk retries the card on days 3, 7 and 14.\n\n- During the first **14 days** past due, everything keeps working.\n- After 14 days the workspace is **suspended**: members can't sign in and get\n  `AUTH_402_ORG_SUSPENDED` (\"Your organization's workspace is suspended\"). Integrations and the\n  API stop too.\n- Owners and billing admins can still sign in, but only to **Admin › Billing**, where they can\n  pay the open invoice or change the card. Access returns for everyone within a few minutes of a\n  successful payment.\n- Data of a suspended workspace is kept for **90 days**, then deleted.\n\nMembers can't pay on behalf of the organization; they need to contact their owner or billing\nadmin.",
+          "rerank": 0.00024994452063051856,
+          "cited": false
+        }
+      ],
+      "crm_calls": [],
+      "model": "qwen3:8b",
+      "seconds": 7.5,
+      "timings": {
+        "retrieval": 0.94,
+        "llm": 6.6
+      },
+      "tokens": {
+        "prompt": 1814,
+        "completion": 143
+      }
+    },
+    {
+      "id": "api-key",
+      "with_context": false,
+      "passed": false,
+      "retrieval": true,
+      "answer_ok": false,
+      "missing": [
+        "revoked",
+        "leo",
+        "new key | new api key | create a new"
+      ],
+      "question": "Why isn't authorization working?",
+      "answer": "If you're experiencing issues with authorization, it could be due to several reasons. First, ensure that you are using the correct API key in the `Authorization` header with the format `Bearer fd_live_...` [2]. If the key is missing or malformed, you will receive an `API_KEY_INVALID` or `API_KEY_MISSING` error. Additionally, check if the API key has the necessary scope for the endpoint you are accessing, as a missing scope will result in an `API_KEY_SCOPE` error [1]. If you're unsure about the key's validity or scope, verify it with your organization's admin or check the API documentation for required scopes.",
+      "agent_note": "no customer context.",
+      "ticket_id": null,
+      "user_id": null,
+      "context": [],
+      "search_query": "Why isn't authorization working?",
+      "passages": [
+        {
+          "rank": 1,
+          "label": "kb/api.md › API and API keys › Errors",
+          "source": "kb/api.md",
+          "text": "## Errors\n\n| status | code | meaning |\n| --- | --- | --- |\n| 401 | `API_KEY_INVALID` | the key doesn't exist, was revoked, or the header is malformed |\n| 401 | `API_KEY_MISSING` | no `Authorization` header |\n| 403 | `API_KEY_SCOPE` | the key lacks the scope for this endpoint |\n| 403 | `AUTH_402_ORG_SUSPENDED` | the workspace is suspended |\n| 429 | `RATE_LIMITED` | over the rate limit; wait for `Retry-After` seconds |",
+          "rerank": 0.009615648749278352,
+          "cited": true
+        },
+        {
+          "rank": 2,
+          "label": "kb/api.md › API and API keys › Authentication",
+          "source": "kb/api.md",
+          "text": "# API and API keys\n\nThe REST API lives at `https://api.flowdesk.app/v2`. It is available on the Team plan and above.\n\n## Authentication\n\nEvery request needs an API key in the `Authorization` header:\n\n```\nAuthorization: Bearer fd_live_3f9a...\n```\n\nKeys start with `fd_live_`. Query parameters (`?api_key=`) are not accepted.",
+          "rerank": 0.0020319354354283135,
+          "cited": true
+        },
+        {
+          "rank": 3,
+          "label": "kb/faq.md › Flowdesk FAQ › I can't sign in. What should I check?",
+          "source": "kb/faq.md",
+          "text": "# Flowdesk FAQ\n\n## I can't sign in. What should I check?\n\nMost sign-in problems have one of a handful of causes. Go through them in order:\n\n1. **The error message.** Every sign-in error has a code (for example `AUTH_423_LOCKED`); see\n   [Error codes](error-codes.md) for what each one means.\n2. **Too many attempts.** After 5 wrong passwords in 15 minutes the account is locked for\n   30 minutes. See [Signing in](sign-in.md#account-lockout).\n3. **Your organization uses SSO.** If your admin turned on \"Require SSO\", the email and password\n   form no longer works for you: use **Sign in with SSO**. See [Single sign-on](sso.md).\n4. **Two-factor codes.** Codes rejected right after the password usually mean the clock on your\n   phone is off. See [Two-factor authentication](two-factor.md#codes-are-rejected).\n5. **Your organization's subscription.** If an invoice is unpaid for more than 14 days, the\n   workspace is suspended and members can't sign in. See [Billing](billing.md#unpaid-invoices).\n6. **An invitation link.** Invitations expire after 7 days. See\n   [Members and invitations](members-and-invites.md#invitations).\n7. **The desktop app.** Check [Known issues](known-issues.md) for your version.\n\nIf none of these fits, contact support with the error code and the time you tried.",
+          "rerank": 0.000659879324798877,
+          "cited": false
+        },
+        {
+          "rank": 4,
+          "label": "kb/error-codes.md › Error codes › Sign-in errors",
+          "source": "kb/error-codes.md",
+          "text": "# Error codes\n\nEvery error Flowdesk shows has a code. The support form attaches the last one automatically.\n\n## Sign-in errors\n\n| code | message | what it means | what to do |\n| --- | --- | --- | --- |\n| `AUTH_401_BAD_PASSWORD` | Incorrect email or password | the password doesn't match | retype it, or reset it with **Forgot password?** |\n| `AUTH_401_OTP_INVALID` | That code didn't work | the two-factor code is wrong or expired | check the device clock, or use a backup code ([Two-factor](two-factor.md#codes-are-rejected)) |\n| `AUTH_402_ORG_SUSPENDED` | Your organization's workspace is suspended | the subscription is unpaid for more than 14 days | the owner or a billing admin pays in **Admin › Billing** ([Billing](billing.md#unpaid-invoices)) |\n| `AUTH_403_SSO_REQUIRED` | Your organization requires single sign-on | password and Google sign-in are off for this organization | use **Sign in with SSO** ([SSO](sso.md#require-sso)) |\n| `AUTH_403_DEACTIVATED` | This account has been deactivated | an admin deactivated the member | ask an admin of the organization |\n| `AUTH_423_LOCKED` | Too many attempts. Try again later | 5 failed passwords in 15 minutes locked the account for 30 minutes | wait, reset the password, or ask an admin to unlock ([Lockout](sign-in.md#account-lockout)) |\n| `INVITE_EXPIRED` | This invitation has expired | the invitation is older than 7 days | ask an admin to resend it ([Invitations](members-and-invites.md#invitations)) |\n| `INVITE_USED` | This invitation was already used | the account exists already | sign in normally |",
+          "rerank": 0.00031033818896470305,
+          "cited": false
+        },
+        {
+          "rank": 5,
+          "label": "kb/billing.md › Plans and billing › Unpaid invoices",
+          "source": "kb/billing.md",
+          "text": "## Unpaid invoices\n\nIf a payment fails, the subscription becomes **past due** and the owner and billing admins are\nemailed. Flowdesk retries the card on days 3, 7 and 14.\n\n- During the first **14 days** past due, everything keeps working.\n- After 14 days the workspace is **suspended**: members can't sign in and get\n  `AUTH_402_ORG_SUSPENDED` (\"Your organization's workspace is suspended\"). Integrations and the\n  API stop too.\n- Owners and billing admins can still sign in, but only to **Admin › Billing**, where they can\n  pay the open invoice or change the card. Access returns for everyone within a few minutes of a\n  successful payment.\n- Data of a suspended workspace is kept for **90 days**, then deleted.\n\nMembers can't pay on behalf of the organization; they need to contact their owner or billing\nadmin.",
+          "rerank": 0.00024994452063051856,
+          "cited": false
+        }
+      ],
+      "crm_calls": [],
+      "model": "qwen3:8b",
+      "seconds": 7.4,
+      "timings": {
+        "retrieval": 0.94,
+        "llm": 6.5
+      },
+      "tokens": {
+        "prompt": 1814,
+        "completion": 143
+      }
+    },
+    {
+      "id": "invite-ru",
+      "with_context": false,
+      "passed": false,
+      "retrieval": false,
+      "answer_ok": false,
+      "missing": [
+        "приглашени",
+        "7 дней | семи дней | 7 days",
+        "owen | оуэн"
+      ],
+      "question": "Почему не работает авторизация?",
+      "answer": "Авторизация не работает, потому что возможно отсутствует или недействителен API-ключ. Убедитесь, что вы используете правильный API-ключ в заголовке `Authorization` в формате `Bearer fd_live_...` [3]. Если ключ корректный, проверьте, не истек ли его срок действия или не был ли он отозван. Также убедитесь, что вы используете HTTPS и правильно формируете заголовок [3].",
+      "agent_note": "no customer context.",
+      "ticket_id": null,
+      "user_id": null,
+      "context": [],
+      "search_query": "Почему не работает авторизация?",
+      "passages": [
+        {
+          "rank": 1,
+          "label": "kb/api.md › API and API keys › Errors",
+          "source": "kb/api.md",
+          "text": "## Errors\n\n| status | code | meaning |\n| --- | --- | --- |\n| 401 | `API_KEY_INVALID` | the key doesn't exist, was revoked, or the header is malformed |\n| 401 | `API_KEY_MISSING` | no `Authorization` header |\n| 403 | `API_KEY_SCOPE` | the key lacks the scope for this endpoint |\n| 403 | `AUTH_402_ORG_SUSPENDED` | the workspace is suspended |\n| 429 | `RATE_LIMITED` | over the rate limit; wait for `Retry-After` seconds |",
+          "rerank": 0.019734107342033763,
+          "cited": false
+        },
+        {
+          "rank": 2,
+          "label": "kb/two-factor.md › Two-factor authentication › Codes are rejected",
+          "source": "kb/two-factor.md",
+          "text": "## Codes are rejected\n\nA code is valid for 30 seconds and is computed from the current time, so the clock of the\ndevice running the authenticator app matters. If codes fail with `AUTH_401_OTP_INVALID` even\nthough you type them correctly, the device's clock is almost always off by more than 30 seconds.\nThis often happens after travelling, when the time zone or time was set by hand.\n\nTo fix it:\n\n1. On the phone, turn on automatic date and time (Android: **Settings › System › Date & time ›\n   Set time automatically**; iOS: **Settings › General › Date & Time › Set Automatically**).\n2. In Google Authenticator on Android you can also use **Settings › Time correction for codes ›\n   Sync now**.\n3. Wait for a fresh code and try again.\n\nUntil the clock is fixed, a **backup code** gets you in.",
+          "rerank": 0.0051139354406239765,
+          "cited": false
+        },
+        {
+          "rank": 3,
+          "label": "kb/api.md › API and API keys › Authentication",
+          "source": "kb/api.md",
+          "text": "# API and API keys\n\nThe REST API lives at `https://api.flowdesk.app/v2`. It is available on the Team plan and above.\n\n## Authentication\n\nEvery request needs an API key in the `Authorization` header:\n\n```\nAuthorization: Bearer fd_live_3f9a...\n```\n\nKeys start with `fd_live_`. Query parameters (`?api_key=`) are not accepted.",
+          "rerank": 0.004674890506474123,
+          "cited": true
+        },
+        {
+          "rank": 4,
+          "label": "kb/error-codes.md › Error codes › Sign-in errors",
+          "source": "kb/error-codes.md",
+          "text": "# Error codes\n\nEvery error Flowdesk shows has a code. The support form attaches the last one automatically.\n\n## Sign-in errors\n\n| code | message | what it means | what to do |\n| --- | --- | --- | --- |\n| `AUTH_401_BAD_PASSWORD` | Incorrect email or password | the password doesn't match | retype it, or reset it with **Forgot password?** |\n| `AUTH_401_OTP_INVALID` | That code didn't work | the two-factor code is wrong or expired | check the device clock, or use a backup code ([Two-factor](two-factor.md#codes-are-rejected)) |\n| `AUTH_402_ORG_SUSPENDED` | Your organization's workspace is suspended | the subscription is unpaid for more than 14 days | the owner or a billing admin pays in **Admin › Billing** ([Billing](billing.md#unpaid-invoices)) |\n| `AUTH_403_SSO_REQUIRED` | Your organization requires single sign-on | password and Google sign-in are off for this organization | use **Sign in with SSO** ([SSO](sso.md#require-sso)) |\n| `AUTH_403_DEACTIVATED` | This account has been deactivated | an admin deactivated the member | ask an admin of the organization |\n| `AUTH_423_LOCKED` | Too many attempts. Try again later | 5 failed passwords in 15 minutes locked the account for 30 minutes | wait, reset the password, or ask an admin to unlock ([Lockout](sign-in.md#account-lockout)) |\n| `INVITE_EXPIRED` | This invitation has expired | the invitation is older than 7 days | ask an admin to resend it ([Invitations](members-and-invites.md#invitations)) |\n| `INVITE_USED` | This invitation was already used | the account exists already | sign in normally |",
+          "rerank": 0.0007169036452756821,
+          "cited": false
+        },
+        {
+          "rank": 5,
+          "label": "kb/members-and-invites.md › Members and invitations › Deactivating members",
+          "source": "kb/members-and-invites.md",
+          "text": "## Deactivating members\n\n**Admin › Members › … › Deactivate** frees the seat. The member can't sign in\n(`AUTH_403_DEACTIVATED`), their tasks stay, and **API keys they created are revoked**.\nReactivate them from the same menu (needs a free seat); revoked keys stay revoked.",
+          "rerank": 0.00031827312595678623,
+          "cited": false
+        }
+      ],
+      "crm_calls": [],
+      "model": "qwen3:8b",
+      "seconds": 9.7,
+      "timings": {
+        "retrieval": 0.95,
+        "llm": 8.7
+      },
+      "tokens": {
+        "prompt": 1543,
+        "completion": 113
+      }
+    },
+    {
+      "id": "export",
+      "with_context": false,
+      "passed": true,
+      "retrieval": true,
+      "answer_ok": true,
+      "missing": [],
+      "question": "Why does my export fail?",
+      "answer": "Your export may fail because the CSV file exceeds the 50,000 row limit, which triggers the `EXPORT_TOO_LARGE` error. To resolve this, you can filter the view to reduce the number of rows, export in parts, or use the full workspace export (available for Business and Enterprise plans) [1]. If you're using the API, ensure your `GET /v2/tasks` request is properly formatted and within rate limits [2].",
+      "agent_note": "export limit exceeded (evidence: CSV export over 50,000 rows).",
+      "ticket_id": null,
+      "user_id": null,
+      "context": [],
+      "search_query": "Why does my export fail?",
+      "passages": [
+        {
+          "rank": 1,
+          "label": "kb/export-and-data.md › Export, import and your data › CSV export",
+          "source": "kb/export-and-data.md",
+          "text": "# Export, import and your data\n\n## CSV export\n\nAny project's task list can be exported to CSV from **Project › … › Export › CSV**, with the\ncurrent filters applied. One CSV export holds at most **50,000 rows**; a bigger export fails\nwith `EXPORT_TOO_LARGE`.\n\nFor more rows:\n\n- filter the view (for example by date range or status) and export it in parts;\n- or, on Business and Enterprise, use the **full workspace export**: **Admin › Data › Export\n  workspace**. It contains every project as JSON and CSV files without a row limit, is prepared\n  in the background, and a download link (valid 7 days) is emailed to the admin within 24 hours.\n- or page through `GET /v2/tasks` in the API.",
+          "rerank": 0.16764499280034909,
+          "cited": true
+        },
+        {
+          "rank": 2,
+          "label": "kb/error-codes.md › Error codes › Export and import errors",
+          "source": "kb/error-codes.md",
+          "text": "## API errors\n\nSee [API errors](api.md#errors): `API_KEY_INVALID`, `API_KEY_MISSING`, `API_KEY_SCOPE`,\n`RATE_LIMITED`.\n\n## Export and import errors\n\n| code | what it means | what to do |\n| --- | --- | --- |\n| `EXPORT_TOO_LARGE` | a CSV export over 50,000 rows | filter the export, or use the full workspace export ([Export](export-and-data.md#csv-export)) |\n| `IMPORT_BAD_HEADER` | the CSV's first row doesn't match the template | download the template from the import dialog |",
+          "rerank": 0.07784657224042098,
+          "cited": true
+        },
+        {
+          "rank": 3,
+          "label": "kb/changelog.md › Changelog › 3.3.0 (2026-07-28)",
+          "source": "kb/changelog.md",
+          "text": "## 3.3.2 (2026-08-20)\n\n- Desktop (macOS): fixed a crash on start on macOS 15.6.\n\n## 3.3.0 (2026-07-28)\n\n- New: full workspace export for Business and Enterprise.\n- New: invitations can be resent from **Admin › Members › Pending**.",
+          "rerank": 0.01744447068013045,
+          "cited": false
+        },
+        {
+          "rank": 4,
+          "label": "kb/export-and-data.md › Export, import and your data › Import",
+          "source": "kb/export-and-data.md",
+          "text": "## Import\n\nImport tasks from CSV, Trello, Asana or Jira in **Project › … › Import**. CSV files must use the\ntemplate from the import dialog (`IMPORT_BAD_HEADER` otherwise). Up to 20,000 tasks per import.",
+          "rerank": 0.0031295354914058337,
+          "cited": false
+        },
+        {
+          "rank": 5,
+          "label": "kb/export-and-data.md › Export, import and your data › Deleting data",
+          "source": "kb/export-and-data.md",
+          "text": "## Attachments and storage\n\nFiles up to 10 MB on Free and 100 MB on paid plans. Storage: 2 GB on Free, 100 GB per\norganization on Team, 1 TB on Business, unlimited on Enterprise.\n\n## Deleting data\n\nDeleted tasks and projects stay in **Trash** for 30 days. An owner can delete the whole\norganization in **Admin › Organization › Delete**; data is erased within 30 days, backups within\n90.\n\n## Audit log\n\nBusiness and Enterprise: **Admin › Security › Audit log** lists sign-ins, permission changes,\nexports and API key events for the last 12 months.",
+          "rerank": 0.0005485730865596442,
+          "cited": false
+        }
+      ],
+      "crm_calls": [],
+      "model": "qwen3:8b",
+      "seconds": 9.2,
+      "timings": {
+        "retrieval": 1.01,
+        "llm": 8.2
+      },
+      "tokens": {
+        "prompt": 1257,
+        "completion": 117
+      }
+    },
+    {
+      "id": "slack",
+      "with_context": false,
+      "passed": true,
+      "retrieval": true,
+      "answer_ok": true,
+      "missing": [],
+      "question": "Why did our notifications stop?",
+      "answer": "Your notifications may have stopped because the Slack integration is disconnected due to a revoked token, which can happen if the person who connected it left the Slack workspace or if the app was removed [1]. Another possibility is that the mobile app on Android 16 is experiencing delayed notifications if battery optimization is enabled, which can be resolved by disabling it [2]. \n\nTo fix this, check the Slack integration status in **Admin › Integrations** and reconnect if needed. For the mobile app, ensure battery optimization is disabled for Flowdesk.",
+      "agent_note": "no customer context.",
+      "ticket_id": null,
+      "user_id": null,
+      "context": [],
+      "search_query": "Why did our notifications stop?",
+      "passages": [
+        {
+          "rank": 1,
+          "label": "kb/integrations.md › Integrations › Slack",
+          "source": "kb/integrations.md",
+          "text": "# Integrations\n\nIntegrations are available on the Team plan and above. Admins manage them in\n**Admin › Integrations**.\n\n## Slack\n\nSends task notifications to Slack channels and lets people create tasks with `/flowdesk`.\n\n- Connect: **Admin › Integrations › Slack › Connect**, then choose channels per project.\n- The connection uses the Slack token of the person who connected it. If that person leaves the\n  Slack workspace, or a Slack admin removes the app, Slack revokes the token: notifications stop\n  and the integration shows **Disconnected** (`SLACK_TOKEN_REVOKED`). An admin has to click\n  **Reconnect**; channel settings are kept.\n- Private channels: invite the Flowdesk bot to the channel (`/invite @Flowdesk`) or it can't\n  post there.",
+          "rerank": 0.009841191541337944,
+          "cited": true
+        },
+        {
+          "rank": 2,
+          "label": "kb/known-issues.md › Known issues › Mobile app on Android 16: notifications delayed",
+          "source": "kb/known-issues.md",
+          "text": "## Mobile app on Android 16: notifications delayed\n\n**Status: investigating.**\n\nWith battery optimisation on, push notifications can arrive up to 15 minutes late. Workaround:\n**Settings › Apps › Flowdesk › Battery › Unrestricted**.",
+          "rerank": 0.0052887514842558615,
+          "cited": true
+        },
+        {
+          "rank": 3,
+          "label": "kb/getting-started.md › Getting started with Flowdesk › Notifications",
+          "source": "kb/getting-started.md",
+          "text": "## Invite your team\n\n**Admin › Members › Invite**. See [Members and invitations](members-and-invites.md).\n\n## Notifications\n\nFlowdesk notifies you in the app, by email and on mobile when you're assigned, mentioned, or\na task you follow changes. Change it in **Profile › Notifications**. Team notifications in Slack:\nsee [Integrations](integrations.md#slack).\n\n## Keyboard shortcuts\n\n`c` creates a task, `/` searches, `g p` goes to projects, `?` shows all shortcuts.",
+          "rerank": 0.00019779946871085346,
+          "cited": false
+        },
+        {
+          "rank": 4,
+          "label": "kb/sign-in.md › Signing in › Sessions",
+          "source": "kb/sign-in.md",
+          "text": "## Sessions\n\nA browser session lasts 30 days. Desktop and mobile apps keep you signed in with a refresh token\nstored in the system keychain; it is renewed automatically. **Profile › Sessions** lists your\nactive sessions and lets you sign out of each.",
+          "rerank": 7.775564779573394e-05,
+          "cited": false
+        },
+        {
+          "rank": 5,
+          "label": "kb/sign-in.md › Signing in › Sign in with Google",
+          "source": "kb/sign-in.md",
+          "text": "## Sign in with Google\n\nUses your Google account with the same email address as your Flowdesk account. If your Flowdesk\nemail changes, Google sign-in stops working until you sign in with a password once and link\nGoogle again under **Profile › Sign-in methods**.",
+          "rerank": 6.083450624114021e-05,
+          "cited": false
+        }
+      ],
+      "crm_calls": [],
+      "model": "qwen3:8b",
+      "seconds": 8.5,
+      "timings": {
+        "retrieval": 0.98,
+        "llm": 7.5
+      },
+      "tokens": {
+        "prompt": 1106,
+        "completion": 116
+      }
+    },
+    {
+      "id": "owner-user",
+      "with_context": false,
+      "passed": true,
+      "retrieval": true,
+      "answer_ok": true,
+      "missing": [],
+      "question": "Nobody on my team can sign in. Why?",
+      "answer": "If nobody on your team can sign in, it could be due to one of the following reasons:\n\n1. **Your organization's subscription is suspended**. If an invoice is unpaid for more than 14 days, the workspace is suspended, and members can't sign in. This results in the error `AUTH_402_ORG_SUSPENDED` [3]. Owners and billing admins can still sign in to the billing section to resolve the issue.\n\n2. **Members have been deactivated**. If members were deactivated, they will receive the error `AUTH_403_DEACTIVATED` and won't be able to sign in. Admins can reactivate them through the \"Members\" section, provided there is a free seat available [2].\n\n3. **Your organization requires SSO**. If your organization has \"Require SSO\" enabled, members can only sign in through the identity provider. The email and password form will reject them with `AUTH_403_SSO_REQUIRED` [4]. Ensure that SSO is properly configured or check with your admin.\n\n4. **Account lockout due to too many failed attempts**. If members have entered incorrect passwords multiple times, their accounts may be locked. This results in the error `AUTH_423_LOCKED` [1].\n\n5. **Invitations have expired**. If members are trying to sign in using an expired invitation link, they will be unable to access the workspace. Invitations expire after 7 days [1].\n\nIf none of these apply, contact support with the error code and the time you tried to sign in.",
+      "agent_note": "no customer context.",
+      "ticket_id": null,
+      "user_id": null,
+      "context": [],
+      "search_query": "Nobody on my team can sign in. Why?",
+      "passages": [
+        {
+          "rank": 1,
+          "label": "kb/faq.md › Flowdesk FAQ › I can't sign in. What should I check?",
+          "source": "kb/faq.md",
+          "text": "# Flowdesk FAQ\n\n## I can't sign in. What should I check?\n\nMost sign-in problems have one of a handful of causes. Go through them in order:\n\n1. **The error message.** Every sign-in error has a code (for example `AUTH_423_LOCKED`); see\n   [Error codes](error-codes.md) for what each one means.\n2. **Too many attempts.** After 5 wrong passwords in 15 minutes the account is locked for\n   30 minutes. See [Signing in](sign-in.md#account-lockout).\n3. **Your organization uses SSO.** If your admin turned on \"Require SSO\", the email and password\n   form no longer works for you: use **Sign in with SSO**. See [Single sign-on](sso.md).\n4. **Two-factor codes.** Codes rejected right after the password usually mean the clock on your\n   phone is off. See [Two-factor authentication](two-factor.md#codes-are-rejected).\n5. **Your organization's subscription.** If an invoice is unpaid for more than 14 days, the\n   workspace is suspended and members can't sign in. See [Billing](billing.md#unpaid-invoices).\n6. **An invitation link.** Invitations expire after 7 days. See\n   [Members and invitations](members-and-invites.md#invitations).\n7. **The desktop app.** Check [Known issues](known-issues.md) for your version.\n\nIf none of these fits, contact support with the error code and the time you tried.",
+          "rerank": 0.06272174337521873,
+          "cited": true
+        },
+        {
+          "rank": 2,
+          "label": "kb/members-and-invites.md › Members and invitations › Deactivating members",
+          "source": "kb/members-and-invites.md",
+          "text": "## Deactivating members\n\n**Admin › Members › … › Deactivate** frees the seat. The member can't sign in\n(`AUTH_403_DEACTIVATED`), their tasks stay, and **API keys they created are revoked**.\nReactivate them from the same menu (needs a free seat); revoked keys stay revoked.",
+          "rerank": 0.01023618838932412,
+          "cited": true
+        },
+        {
+          "rank": 3,
+          "label": "kb/billing.md › Plans and billing › Unpaid invoices",
+          "source": "kb/billing.md",
+          "text": "## Unpaid invoices\n\nIf a payment fails, the subscription becomes **past due** and the owner and billing admins are\nemailed. Flowdesk retries the card on days 3, 7 and 14.\n\n- During the first **14 days** past due, everything keeps working.\n- After 14 days the workspace is **suspended**: members can't sign in and get\n  `AUTH_402_ORG_SUSPENDED` (\"Your organization's workspace is suspended\"). Integrations and the\n  API stop too.\n- Owners and billing admins can still sign in, but only to **Admin › Billing**, where they can\n  pay the open invoice or change the card. Access returns for everyone within a few minutes of a\n  successful payment.\n- Data of a suspended workspace is kept for **90 days**, then deleted.\n\nMembers can't pay on behalf of the organization; they need to contact their owner or billing\nadmin.",
+          "rerank": 0.0013035875559477455,
+          "cited": true
+        },
+        {
+          "rank": 4,
+          "label": "kb/sign-in.md › Signing in",
+          "source": "kb/sign-in.md",
+          "text": "# Signing in\n\nFlowdesk accepts three ways of signing in: **email and password**, **Sign in with Google**, and\n**single sign-on (SSO)** for organizations on the Business and Enterprise plans. Which ones you\ncan use depends on your organization's settings.",
+          "rerank": 0.0012471682486830903,
+          "cited": true
+        },
+        {
+          "rank": 5,
+          "label": "kb/sso.md › Single sign-on (SSO) › Require SSO",
+          "source": "kb/sso.md",
+          "text": "## Require SSO\n\nWith **Require SSO** on, members of the organization can only sign in through the identity\nprovider:\n\n- the email and password form rejects them with `AUTH_403_SSO_REQUIRED` (\"Your organization\n  requires single sign-on\");\n- **Sign in with Google** is disabled for them;\n- password reset emails no longer contain a reset link;\n- owners can still sign in with a password, so a broken SSO configuration never locks everyone\n  out.\n\nWhen an admin turns it on, existing sessions stay valid until they expire; the change shows up\nthe next time someone signs in.",
+          "rerank": 0.0011449166068942561,
+          "cited": false
+        }
+      ],
+      "crm_calls": [],
+      "model": "qwen3:8b",
+      "seconds": 20.0,
+      "timings": {
+        "retrieval": 1.2,
+        "llm": 18.8
+      },
+      "tokens": {
+        "prompt": 1461,
+        "completion": 337
+      }
+    }
+  ]
+}

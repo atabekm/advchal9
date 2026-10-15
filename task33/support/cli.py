@@ -6,6 +6,8 @@
                        what the model would be given (context, search query, passages), no model
     serve [--port 8033]
                        the HTTP service: POST /ask and the web page at /
+    eval [ID ...] [--ablation]
+                       run cases.json and check the answers; --ablation also without the context
     index [--full]     embed new and changed kb/ documents into index/index.db
     files              what is indexed: one line per document
     search QUERY       the passages retrieval finds for a query, with scores
@@ -114,6 +116,19 @@ def cmd_context(args) -> int:
     return 0
 
 
+def cmd_eval(args) -> int:
+    from . import evaluate as ev
+
+    async def go(crm):
+        assistant = Assistant(Retriever(args.db), crm, LocalLLM(args.model))
+        return await ev.evaluate(assistant, ev.load(only=args.ids), ablation=args.ablation), assistant.llm.model
+    (checks, model), _ = asyncio.run(with_crm(go))
+    print()
+    print(ev.summary(checks))
+    print(f"\n{ev.save(checks, model).relative_to(ev.TASK_DIR)}")
+    return 0 if all(c.passed for c in checks if c.with_context) else 2
+
+
 def cmd_serve(args) -> int:
     import uvicorn
 
@@ -141,6 +156,10 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--ticket")
     s.add_argument("--user")
     s.set_defaults(fn=cmd_context)
+    s = sub.add_parser("eval", help="run cases.json and check the answers")
+    s.add_argument("ids", nargs="*", help="only these case ids")
+    s.add_argument("--ablation", action="store_true", help="also run the context cases without their context")
+    s.set_defaults(fn=cmd_eval)
     s = sub.add_parser("serve", help="the HTTP service and web page")
     s.add_argument("--host", default="127.0.0.1")
     s.add_argument("--port", type=int, default=8033)

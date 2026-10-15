@@ -67,3 +67,14 @@ is the demo and the evaluation.
 4. **Evaluation and README**: the auth question on every auth ticket plus product and account
    questions; checks for the expected cause and source, with and without context. Results and
    real transcripts in the README.
+
+## Addendum: what the build changed
+
+- The search query takes account and subscription flags always, but organization-wide ones (a
+  revoked key, a disconnected integration) only without a ticket: Brightpath's broken Slack was
+  leaking into Tom's lockout query.
+- BM25 keeps error codes whole (`auth_423_locked`) as well as their parts; a table cut into
+  chunks repeats its header in every piece.
+- The prompt forbids internal ids and ends with a citation reminder; the page takes deep links
+  (`/?ticket=T-1003&ask=1`), and the service loads the reranker at startup.
+- `eval --ablation` reruns the context cases without their context: 10/10 with it, 3/10 without.
