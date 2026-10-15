@@ -1,0 +1,167 @@
+{
+  "today": "2026-10-15T12:00:00Z",
+  "organizations": [
+    {
+      "id": "org_acme",
+      "name": "Acme Logistics",
+      "plan": "Business",
+      "seats": 40,
+      "subscription": {"status": "active", "renews": "2027-03-01"},
+      "sso": {"enabled": true, "required": true, "provider": "Okta", "protocol": "SAML 2.0", "domain": "acme-logistics.com"},
+      "require_2fa": false,
+      "api_keys": []
+    },
+    {
+      "id": "org_brightpath",
+      "name": "Brightpath Studio",
+      "plan": "Team",
+      "seats": 12,
+      "subscription": {"status": "active", "renews": "2026-11-20"},
+      "sso": {"enabled": false},
+      "require_2fa": false,
+      "api_keys": [],
+      "integrations": [
+        {"name": "Slack", "status": "disconnected", "since": "2026-10-10T16:40:00Z", "reason": "Slack token revoked (the Slack user who connected it left the workspace)"}
+      ]
+    },
+    {
+      "id": "org_northwind",
+      "name": "Northwind Health",
+      "plan": "Business",
+      "seats": 25,
+      "subscription": {"status": "past_due", "past_due_since": "2026-09-28", "suspended_since": "2026-10-12", "unpaid_invoice": "INV-20260928-0441", "amount": "350.00 USD"},
+      "sso": {"enabled": false},
+      "require_2fa": false,
+      "api_keys": []
+    },
+    {
+      "id": "org_kite",
+      "name": "Kite Labs",
+      "plan": "Team",
+      "seats": 6,
+      "subscription": {"status": "active", "renews": "2027-01-05"},
+      "sso": {"enabled": false},
+      "require_2fa": false,
+      "api_keys": [
+        {"id": "key_3f9a", "prefix": "fd_live_3f9a", "name": "warehouse-sync", "created_by": "u_108", "created": "2026-04-02", "status": "revoked", "revoked": "2026-10-10", "revoked_reason": "creator deactivated"},
+        {"id": "key_77c1", "prefix": "fd_live_77c1", "name": "zapier", "created_by": "u_107", "created": "2026-08-14", "status": "active", "scopes": ["tasks:read"]}
+      ]
+    },
+    {
+      "id": "org_orbit",
+      "name": "Orbit Analytics",
+      "plan": "Enterprise",
+      "seats": 150,
+      "subscription": {"status": "active", "renews": "2027-06-30"},
+      "sso": {"enabled": false},
+      "require_2fa": true,
+      "api_keys": []
+    }
+  ],
+  "users": [
+    {"id": "u_101", "name": "Maria Lopez", "email": "maria.lopez@acme-logistics.com", "org": "org_acme", "role": "member", "status": "active", "language": "en",
+     "auth": {"methods": ["password"], "two_factor": "off", "last_login": "2026-09-30T08:05:00Z", "recent_failures": [{"at": "2026-10-15T08:51:00Z", "code": "AUTH_403_SSO_REQUIRED", "count": 3}]},
+     "clients": [{"app": "web", "browser": "Chrome 141"}]},
+    {"id": "u_102", "name": "Tom Becker", "email": "tom@brightpath.studio", "org": "org_brightpath", "role": "member", "status": "locked", "language": "en",
+     "locked": {"since": "2026-10-15T11:40:00Z", "until": "2026-10-15T12:10:00Z", "reason": "5 failed password attempts in 15 minutes"},
+     "auth": {"methods": ["password"], "two_factor": "off", "last_login": "2026-10-03T14:22:00Z", "recent_failures": [{"at": "2026-10-15T11:40:00Z", "code": "AUTH_401_BAD_PASSWORD", "count": 5}, {"at": "2026-10-15T11:52:00Z", "code": "AUTH_423_LOCKED", "count": 2}]},
+     "clients": [{"app": "web", "browser": "Firefox 143"}]},
+    {"id": "u_103", "name": "Jin Park", "email": "jin@brightpath.studio", "org": "org_brightpath", "role": "admin", "status": "active", "language": "en",
+     "auth": {"methods": ["google"], "two_factor": "off", "last_login": "2026-10-15T09:31:00Z", "recent_failures": []},
+     "clients": [{"app": "desktop", "version": "3.4.0", "os": "macOS 26.0"}, {"app": "web", "browser": "Safari 26"}]},
+    {"id": "u_104", "name": "Sara Okafor", "email": "sara.okafor@orbit-analytics.io", "org": "org_orbit", "role": "member", "status": "active", "language": "en",
+     "auth": {"methods": ["password"], "two_factor": "authenticator app", "backup_codes_left": 4, "last_login": "2026-10-08T07:44:00Z", "recent_failures": [{"at": "2026-10-15T06:10:00Z", "code": "AUTH_401_OTP_INVALID", "count": 6}]},
+     "clients": [{"app": "mobile", "os": "Android 16", "version": "3.4.2"}]},
+    {"id": "u_105", "name": "Daniel Weiss", "email": "d.weiss@northwind-health.org", "org": "org_northwind", "role": "member", "status": "active", "language": "de",
+     "auth": {"methods": ["password"], "two_factor": "off", "last_login": "2026-10-11T16:02:00Z", "recent_failures": [{"at": "2026-10-15T07:30:00Z", "code": "AUTH_402_ORG_SUSPENDED", "count": 4}]},
+     "clients": [{"app": "web", "browser": "Edge 141"}]},
+    {"id": "u_106", "name": "Priya Raman", "email": "priya.raman@northwind-health.org", "org": "org_northwind", "role": "owner", "billing_admin": true, "status": "active", "language": "en",
+     "auth": {"methods": ["password"], "two_factor": "authenticator app", "backup_codes_left": 10, "last_login": "2026-09-20T10:12:00Z", "recent_failures": []},
+     "clients": [{"app": "web", "browser": "Chrome 141"}]},
+    {"id": "u_107", "name": "Alex Chen", "email": "alex@kitelabs.dev", "org": "org_kite", "role": "owner", "billing_admin": true, "status": "active", "language": "en",
+     "auth": {"methods": ["password", "google"], "two_factor": "authenticator app", "backup_codes_left": 8, "last_login": "2026-10-15T10:02:00Z", "recent_failures": []},
+     "clients": [{"app": "web", "browser": "Chrome 141"}, {"app": "api", "key": "fd_live_3f9a", "recent_errors": [{"at": "2026-10-15T09:00:00Z", "status": 401, "code": "API_KEY_INVALID", "count": 412}]}]},
+    {"id": "u_108", "name": "Leo Martin", "email": "leo@kitelabs.dev", "org": "org_kite", "role": "admin", "status": "deactivated", "deactivated": "2026-10-10", "language": "en",
+     "auth": {"methods": ["password"], "two_factor": "off", "last_login": "2026-10-09T17:30:00Z", "recent_failures": []},
+     "clients": []},
+    {"id": "u_109", "name": "Nina Ivanova", "email": "nina.ivanova@acme-logistics.com", "org": "org_acme", "role": "member", "status": "invited", "language": "ru",
+     "invite": {"sent": "2026-10-06T09:00:00Z", "invited_by": "u_110", "accepted": false},
+     "auth": {"methods": [], "two_factor": "off", "last_login": null, "recent_failures": [{"at": "2026-10-15T10:15:00Z", "code": "INVITE_EXPIRED", "count": 2}]},
+     "clients": []},
+    {"id": "u_110", "name": "Owen Grant", "email": "owen.grant@acme-logistics.com", "org": "org_acme", "role": "owner", "billing_admin": true, "status": "active", "language": "en",
+     "auth": {"methods": ["sso"], "two_factor": "off", "last_login": "2026-10-15T08:00:00Z", "recent_failures": []},
+     "clients": [{"app": "web", "browser": "Chrome 141"}]},
+    {"id": "u_111", "name": "Lena Vogel", "email": "lena.vogel@orbit-analytics.io", "org": "org_orbit", "role": "admin", "status": "active", "language": "en",
+     "auth": {"methods": ["password"], "two_factor": "authenticator app", "backup_codes_left": 10, "last_login": "2026-10-15T08:20:00Z", "recent_failures": []},
+     "clients": [{"app": "web", "browser": "Firefox 143"}]},
+    {"id": "u_112", "name": "Raj Patel", "email": "raj@brightpath.studio", "org": "org_brightpath", "role": "owner", "billing_admin": true, "status": "active", "language": "en",
+     "auth": {"methods": ["password"], "two_factor": "authenticator app", "backup_codes_left": 9, "last_login": "2026-10-14T18:45:00Z", "recent_failures": []},
+     "clients": [{"app": "web", "browser": "Chrome 141"}]}
+  ],
+  "tickets": [
+    {"id": "T-1001", "user": "u_102", "subject": "Can't log in", "status": "open", "priority": "high", "area": "sign-in", "created": "2026-10-15T11:55:00Z",
+     "error_code": "AUTH_423_LOCKED", "environment": {"app": "web", "browser": "Firefox 143"},
+     "messages": [
+       {"from": "customer", "at": "2026-10-15T11:55:00Z", "text": "Authorization isn't working. I'm sure my password is right, I changed it last week. Now it just says something went wrong and won't even let me try."}
+     ]},
+    {"id": "T-1002", "user": "u_101", "subject": "Login not working since this morning", "status": "open", "priority": "normal", "area": "sign-in", "created": "2026-10-15T08:58:00Z",
+     "error_code": "AUTH_403_SSO_REQUIRED", "environment": {"app": "web", "browser": "Chrome 141"},
+     "messages": [
+       {"from": "customer", "at": "2026-10-15T08:58:00Z", "text": "Hi, I can't sign in anymore. Email and password worked fine until last week. I reset my password twice and it still refuses."}
+     ]},
+    {"id": "T-1003", "user": "u_103", "subject": "Desktop app keeps logging me out", "status": "open", "priority": "normal", "area": "desktop app", "created": "2026-10-15T09:40:00Z",
+     "error_code": null, "environment": {"app": "desktop", "version": "3.4.0", "os": "macOS 26.0"},
+     "messages": [
+       {"from": "customer", "at": "2026-10-15T09:40:00Z", "text": "Authorization doesn't work in the Mac app. I click Sign in with Google, the browser says I'm signed in, I go back to the app and it shows the login screen again. Every time. The website works fine."}
+     ]},
+    {"id": "T-1004", "user": "u_104", "subject": "Verification code rejected", "status": "open", "priority": "high", "area": "sign-in", "created": "2026-10-15T06:15:00Z",
+     "error_code": "AUTH_401_OTP_INVALID", "environment": {"app": "mobile", "os": "Android 16", "version": "3.4.2"},
+     "messages": [
+       {"from": "customer", "at": "2026-10-15T06:15:00Z", "text": "I enter my password and then the 6-digit code from my authenticator app and it says the code is invalid. I tried six times. I just got back from a conference in Singapore and set the time on my phone by hand there."}
+     ]},
+    {"id": "T-1005", "user": "u_105", "subject": "Anmeldung funktioniert nicht", "status": "open", "priority": "high", "area": "sign-in", "created": "2026-10-15T07:34:00Z",
+     "error_code": "AUTH_402_ORG_SUSPENDED", "environment": {"app": "web", "browser": "Edge 141"},
+     "messages": [
+       {"from": "customer", "at": "2026-10-15T07:34:00Z", "text": "Seit Montag kann sich niemand in unserem Team mehr anmelden. Was ist los?"}
+     ]},
+    {"id": "T-1006", "user": "u_107", "subject": "API returns 401 since the weekend", "status": "open", "priority": "urgent", "area": "api", "created": "2026-10-15T09:05:00Z",
+     "error_code": "API_KEY_INVALID", "environment": {"app": "api", "key": "fd_live_3f9a"},
+     "messages": [
+       {"from": "customer", "at": "2026-10-15T09:05:00Z", "text": "Our warehouse sync stopped working: every request to the API now fails with 401 Unauthorized. We didn't change anything in the code. Authorization header is the same as always."}
+     ]},
+    {"id": "T-1007", "user": "u_109", "subject": "Не могу войти", "status": "open", "priority": "normal", "area": "sign-in", "created": "2026-10-15T10:20:00Z",
+     "error_code": "INVITE_EXPIRED", "environment": {"app": "web", "browser": "Yandex Browser 25"},
+     "messages": [
+       {"from": "customer", "at": "2026-10-15T10:20:00Z", "text": "Коллега пригласил меня в Flowdesk, но ссылка из письма не работает, войти не получается. Почему не работает авторизация?"}
+     ]},
+    {"id": "T-1008", "user": "u_111", "subject": "CSV export fails", "status": "open", "priority": "normal", "area": "export", "created": "2026-10-14T15:00:00Z",
+     "error_code": "EXPORT_TOO_LARGE", "environment": {"app": "web", "browser": "Firefox 143", "rows": 72480},
+     "messages": [
+       {"from": "customer", "at": "2026-10-14T15:00:00Z", "text": "I'm trying to export all tasks of the Ops project to CSV for our quarterly audit and the export fails every time."}
+     ]},
+    {"id": "T-1009", "user": "u_112", "subject": "Slack notifications stopped", "status": "open", "priority": "normal", "area": "integrations", "created": "2026-10-13T10:10:00Z",
+     "error_code": null, "environment": {"app": "web", "browser": "Chrome 141"},
+     "messages": [
+       {"from": "customer", "at": "2026-10-13T10:10:00Z", "text": "We stopped getting Flowdesk notifications in our #design channel on Saturday. Nothing changed on our side as far as I know."}
+     ]},
+    {"id": "T-1010", "user": "u_112", "subject": "Adding more people", "status": "solved", "priority": "low", "area": "billing", "created": "2026-09-02T09:00:00Z",
+     "error_code": null, "environment": {"app": "web"},
+     "messages": [
+       {"from": "customer", "at": "2026-09-02T09:00:00Z", "text": "How do we add two more seats?"},
+       {"from": "agent", "at": "2026-09-02T09:40:00Z", "text": "Admin › Billing › Seats, then Add seats. You're charged pro rata for the rest of the period."}
+     ]},
+    {"id": "T-0987", "user": "u_102", "subject": "Forgot password", "status": "solved", "priority": "normal", "area": "sign-in", "created": "2026-10-08T13:00:00Z",
+     "error_code": null, "environment": {"app": "web"},
+     "messages": [
+       {"from": "customer", "at": "2026-10-08T13:00:00Z", "text": "I forgot my password and the reset email doesn't arrive."},
+       {"from": "agent", "at": "2026-10-08T13:30:00Z", "text": "It was in your spam folder; the sender is no-reply@flowdesk.app. The link is valid for 1 hour."},
+       {"from": "customer", "at": "2026-10-08T13:45:00Z", "text": "Found it, password changed, thanks."}
+     ]},
+    {"id": "T-0990", "user": "u_103", "subject": "Desktop app crashes on start", "status": "solved", "priority": "normal", "area": "desktop app", "created": "2026-08-21T10:00:00Z",
+     "error_code": null, "environment": {"app": "desktop", "version": "3.3.1", "os": "macOS 15.6"},
+     "messages": [
+       {"from": "customer", "at": "2026-08-21T10:00:00Z", "text": "The Mac app crashes right after launch."},
+       {"from": "agent", "at": "2026-08-21T10:20:00Z", "text": "Fixed in 3.3.2, please update via Flowdesk › Check for updates."}
+     ]}
+  ]
+}
