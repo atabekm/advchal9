@@ -52,7 +52,7 @@ class Hit:
         return f"{self.source} › {self.section}" if self.section else self.source
 
 
-def mentioned_tasks(question: str) -> set[str]:
+def tasks_in(question: str) -> set[str]:
     """{"task30", ...} for every task the question names, by number or by folder."""
     found = {f"task{int(n)}" for n in TASK_DIR_MENTION.findall(question)}
     for m in TASK_MENTION.finditer(question):
@@ -76,7 +76,7 @@ class Retriever:
         self._bm25: tuple[list, BM25] | None = None
 
     def search(self, question: str, k: int = K, wide: int = WIDE, rerank: bool = True) -> list[Hit]:
-        tasks = mentioned_tasks(question)
+        tasks = tasks_in(question)
         scope = tasks | {""} if tasks else set()
         rows, mat = self.store.matrix()
         if not rows:
