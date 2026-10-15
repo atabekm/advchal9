@@ -123,7 +123,7 @@ class CRM:
         clients = []
         for c in u.get("clients", []):
             if c["app"] == "api":
-                errs = "; ".join(f"HTTP {e['status']} {e['code']} ×{e["count"]}, last {self.when(e["at"])}"
+                errs = "; ".join(f"HTTP {e['status']} {e['code']} ×{e['count']}, last {self.when(e['at'])}"
                                  for e in c.get("recent_errors", []))
                 clients.append(f"API with key {c['key']}" + (f" (recent errors: {errs})" if errs else ""))
             else:
