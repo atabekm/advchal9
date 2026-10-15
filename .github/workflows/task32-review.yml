@@ -1,0 +1,70 @@
+# Task 32: an automated code review of every pull request, by a local model.
+#
+# The job runs on a self-hosted runner on the Mac that also runs Ollama (qwen3:8b,
+# nomic-embed-text); see task32/README.md, "The runner". It updates the index of the base
+# branch's docs and code, reviews the PR file by file, and creates or edits one comment on it.
+
+name: AI code review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Pull request number to review
+        required: true
+        type: number
+
+permissions:
+  contents: read
+  pull-requests: write
+
+# Only the latest push of a PR is reviewed: a new push cancels the review still running.
+concurrency:
+  group: devreview-${{ github.event.pull_request.number || inputs.pr }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    # The repository is public, and a self-hosted runner executes whatever a workflow says.
+    # A PR from a fork never reaches it; neither does a draft.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.pull_request.head.repo.full_name == github.repository &&
+       !github.event.pull_request.draft)
+    runs-on: [self-hosted, macOS, ollama]
+    timeout-minutes: 60
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR: ${{ github.event.pull_request.number || inputs.pr }}
+      BASE: ${{ github.event.pull_request.base.ref || 'main' }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0  # the merge base and the base branch, for the diff and the index
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Check the local models
+        run: |
+          curl -sf "${OLLAMA_HOST:-http://localhost:11434}/api/version" \
+            || { echo "::error::Ollama is not running on the runner"; exit 1; }
+          for m in qwen3:8b nomic-embed-text; do
+            ollama show "$m" > /dev/null || { echo "::error::model $m is missing: ollama pull $m"; exit 1; }
+          done
+
+      - name: Update the index of ${{ env.BASE }}
+        run: uv run --project task32 --frozen devreview index --ref "origin/$BASE"
+
+      - name: "Review PR #${{ env.PR }}"
+        run: |
+          uv run --project task32 --frozen devreview review --pr "$PR" --post \
+            --output "$RUNNER_TEMP/review.md" --json "$RUNNER_TEMP/review.json"
+          cat "$RUNNER_TEMP/review.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: review-${{ env.PR }}
+          path: ${{ runner.temp }}/review.*
+          if-no-files-found: ignore

@@ -1,0 +1,318 @@
+{
+ "meta": {
+  "model": "qwen3:8b",
+  "think": false,
+  "rag": false,
+  "verify": true,
+  "index": {}
+ },
+ "summary": "defects found     7/9 (a finding gives the reason)\ndefects located   9/9 (a finding on the defect's lines)\nnoise per PR      0.1 (bug/architecture findings that are not the seeded defect)\nclean PRs quiet   2/2 (no bug or architecture finding)\nrecommendations   2 in 11 PRs\nmean time         23.4s per PR",
+ "results": [
+  {
+   "id": "off-by-one",
+   "defect": "returns k - 1 passages instead of k",
+   "found": true,
+   "match": {
+    "file": "task31/devassist/retrieve.py",
+    "kind": "bug",
+    "severity": "high",
+    "line": 101,
+    "title": "Returning k-1 passages instead of k may break expected behavior",
+    "detail": "The change now returns k-1 passages instead of k, which may break the expected behavior of returning the top k passages as documented. The fix is to revert to returning hits[:k] instead of hits[:k-1].",
+    "code": "return [replace(h, rank=i) for i, h in enumerate(hits[:k - 1], start=1)]",
+    "sources": [],
+    "note": ""
+   },
+   "located": true,
+   "noise": [],
+   "rejected": [],
+   "anchors": [
+    101
+   ],
+   "recommendations": 0,
+   "seconds": 19.947703999932855,
+   "prompt_tokens": 4797,
+   "error": ""
+  },
+  {
+   "id": "renamed-caller",
+   "defect": "cli.py and assistant.py still import mentioned_tasks",
+   "found": false,
+   "match": {
+    "file": "task31/devassist/retrieve.py",
+    "kind": "bug",
+    "severity": "high",
+    "line": 79,
+    "title": "tasks_in is not defined when called in Retriever.search",
+    "detail": "The function `tasks_in` is defined after `Retriever.search` in the file, so it will not be available when `search` is called. This will cause a `NameError` when the code runs. Move the definition of `tasks_in` above the `Retriever` class or adjust the import in files that use it.",
+    "code": "tasks = tasks_in(question)",
+    "sources": [],
+    "note": ""
+   },
+   "located": true,
+   "noise": [
+    {
+     "file": "task31/devassist/retrieve.py",
+     "kind": "architecture",
+     "severity": "medium",
+     "line": 55,
+     "title": "tasks_in should be a class method or static method",
+     "detail": "The `tasks_in` function is used within the `Retriever` class, which suggests it should be a static or class method. Keeping it as a standalone function may lead to confusion about its scope and usage. Consider refactoring it to be a static method of the `Retriever` class.",
+     "code": "def tasks_in(question: str) -> set[str]:",
+     "sources": [],
+     "note": ""
+    }
+   ],
+   "rejected": [],
+   "anchors": [
+    55,
+    79
+   ],
+   "recommendations": 0,
+   "seconds": 31.22188483295031,
+   "prompt_tokens": 5423,
+   "error": ""
+  },
+  {
+   "id": "slot-leak",
+   "defect": "the slot is released only on error; every successful request leaks one",
+   "found": true,
+   "match": {
+    "file": "task30/gateway/app.py",
+    "kind": "bug",
+    "severity": "high",
+    "line": 196,
+    "title": "Ollama error returns error before releasing slot",
+    "detail": "The code returns an error response before releasing the generation slot, which may lead to slot leaks if Ollama fails. The slot should be released before returning an error to ensure resources are properly managed.",
+    "code": "return error(502, \"upstream_error\", str(e), headers)",
+    "sources": [],
+    "note": ""
+   },
+   "located": true,
+   "noise": [],
+   "rejected": [],
+   "anchors": [
+    195,
+    196
+   ],
+   "recommendations": 0,
+   "seconds": 28.25172875006683,
+   "prompt_tokens": 8922,
+   "error": ""
+  },
+  {
+   "id": "swallowed-error",
+   "defect": "a connection error returns no vectors; the index silently gets fewer embeddings than chunks",
+   "found": true,
+   "match": {
+    "file": "task31/devassist/embed.py",
+    "kind": "bug",
+    "severity": "high",
+    "line": 64,
+    "title": "ConnectionError is caught but not handled properly",
+    "detail": "The code catches `requests.ConnectionError` but returns an empty list instead of raising an error. This can lead to silent failures where the user is unaware that the Ollama server is unreachable. The code should raise an `EmbedError` with a meaningful message instead of returning an empty list.",
+    "code": "except requests.ConnectionError:",
+    "sources": [],
+    "note": ""
+   },
+   "located": true,
+   "noise": [],
+   "rejected": [],
+   "anchors": [
+    64,
+    65
+   ],
+   "recommendations": 1,
+   "seconds": 21.500485457945615,
+   "prompt_tokens": 3122,
+   "error": ""
+  },
+  {
+   "id": "sql-injection",
+   "defect": "the SQL is built with an f-string from a file path",
+   "found": true,
+   "match": {
+    "file": "task31/devassist/store.py",
+    "kind": "bug",
+    "severity": "high",
+    "line": 73,
+    "title": "SQL injection vulnerability in delete_file",
+    "detail": "The code directly interpolates the 'source' variable into the SQL query, making it vulnerable to SQL injection attacks. The previous version used parameterized queries which are safer. This change introduces a security risk.",
+    "code": "self.db.execute(f\"DELETE FROM files WHERE source = '{source}'\")",
+    "sources": [],
+    "note": ""
+   },
+   "located": true,
+   "noise": [],
+   "rejected": [],
+   "anchors": [
+    73
+   ],
+   "recommendations": 0,
+   "seconds": 16.398066750029102,
+   "prompt_tokens": 4226,
+   "error": ""
+  },
+  {
+   "id": "cross-task-import",
+   "defect": "imports code from another task folder at runtime; the conventions say tasks copy, never share",
+   "found": false,
+   "match": {
+    "file": "task31/devassist/index.py",
+    "kind": "architecture",
+    "severity": "medium",
+    "line": 14,
+    "title": "Modifying sys.path can cause unexpected import conflicts",
+    "detail": "Inserting the task27 directory into sys.path may lead to import conflicts or override existing imports. It's better to use relative imports or ensure the task27 directory is in the Python path before running the script.",
+    "code": "sys.path.insert(0, str(TASK_DIR.parent / \"task27\"))",
+    "sources": [],
+    "note": ""
+   },
+   "located": true,
+   "noise": [],
+   "rejected": [],
+   "anchors": [
+    12,
+    13,
+    14,
+    15
+   ],
+   "recommendations": 1,
+   "seconds": 22.032482999842614,
+   "prompt_tokens": 3146,
+   "error": ""
+  },
+  {
+   "id": "hardcoded-secret",
+   "defect": "an API key in the source as the default for API_KEYS",
+   "found": true,
+   "match": {
+    "file": "task30/gateway/config.py",
+    "kind": "bug",
+    "severity": "high",
+    "line": 59,
+    "title": "Default API key uses hardcoded secret in production",
+    "detail": "The default API key uses a hardcoded secret value \"admin:sk-gw-7f3a9c2e41b8d6f05e1a\" which is insecure for production. This secret should be managed through environment variables or a secure secrets management system. The code should use the same mechanism as other configuration values to retrieve the API key, not hardcode it.",
+    "code": "keys = parse_keys(env.get(\"API_KEYS\", \"admin:sk-gw-7f3a9c2e41b8d6f05e1a\"), rpm)",
+    "sources": [],
+    "note": ""
+   },
+   "located": true,
+   "noise": [],
+   "rejected": [],
+   "anchors": [
+    59
+   ],
+   "recommendations": 0,
+   "seconds": 18.12514991592616,
+   "prompt_tokens": 3759,
+   "error": ""
+  },
+  {
+   "id": "missing-await",
+   "defect": "call_tool is not awaited: res is a coroutine",
+   "found": true,
+   "match": {
+    "file": "task31/devassist/tools.py",
+    "kind": "bug",
+    "severity": "high",
+    "line": 50,
+    "title": "Removed async keyword, causing potential blocking behavior",
+    "detail": "The `call_tool` method is likely asynchronous, but the `await` keyword was removed. This could lead to blocking behavior and incorrect handling of asynchronous operations. The fix is to add `await` before `self._client.call_tool` to ensure proper asynchronous execution.",
+    "code": "res = self._client.call_tool(name, arguments or {})",
+    "sources": [],
+    "note": ""
+   },
+   "located": true,
+   "noise": [],
+   "rejected": [],
+   "anchors": [
+    50
+   ],
+   "recommendations": 0,
+   "seconds": 15.617892583133653,
+   "prompt_tokens": 3514,
+   "error": ""
+  },
+  {
+   "id": "swapped-args",
+   "defect": "chunk(doc, max_chars, min_chars) is called with min and max swapped",
+   "found": true,
+   "match": {
+    "file": "task31/devassist/index.py",
+    "kind": "bug",
+    "severity": "high",
+    "line": 52,
+    "title": "chunk function called with MIN_CHARS and MAX_CHARS as parameters",
+    "detail": "The `chunk` function is defined to accept `max_chars` and `min_chars` parameters, but the code is passing `MIN_CHARS` and `MAX_CHARS` as arguments. This will result in incorrect chunk sizes since the parameters are swapped. The fix is to pass `MAX_CHARS` as the first argument and `MIN_CHARS` as the second, or adjust the function definition to match the order of the arguments in the call.",
+    "code": "chunks = chunk(doc, MIN_CHARS, MAX_CHARS)",
+    "sources": [],
+    "note": ""
+   },
+   "located": true,
+   "noise": [],
+   "rejected": [],
+   "anchors": [
+    52
+   ],
+   "recommendations": 0,
+   "seconds": 17.08512887498364,
+   "prompt_tokens": 3484,
+   "error": ""
+  },
+  {
+   "id": "clean-message",
+   "defect": null,
+   "found": null,
+   "match": null,
+   "located": null,
+   "noise": [],
+   "rejected": [
+    {
+     "file": "task31/devassist/retrieve.py",
+     "kind": "recommendation",
+     "severity": "low",
+     "line": 72,
+     "title": "Suggest a more helpful error message",
+     "detail": "The error message could be more helpful by explicitly mentioning the task number or directory if applicable. For example, if the db path is 'task30/', the message could suggest building the index for task 30 specifically.",
+     "code": "raise IndexMissing(f\"no index at {db}; build it first with: uv run devassist index\")",
+     "sources": [],
+     "note": "",
+     "why": "The error message now explicitly suggests building the index with the command 'uv run devassist index', which is helpful."
+    }
+   ],
+   "anchors": [],
+   "recommendations": 0,
+   "seconds": 18.743624957976863,
+   "prompt_tokens": 4617,
+   "error": ""
+  },
+  {
+   "id": "clean-property",
+   "defect": null,
+   "found": null,
+   "match": null,
+   "located": null,
+   "noise": [],
+   "rejected": [
+    {
+     "file": "task30/gateway/limits.py",
+     "kind": "bug",
+     "severity": "medium",
+     "line": 84,
+     "title": "Gate.free returns incorrect value when slots are released",
+     "detail": "The `free` property calculates the number of free slots as `max_concurrent - active`, but this assumes that `active` is the number of occupied slots. However, the `active` counter is incremented in `acquire()` and decremented in `release()`, which may not accurately reflect the actual number of occupied slots if there are concurrent operations. This could lead to incorrect free slot calculations in some scenarios.",
+     "code": "@property\n    def free(self) -> int:\n        \"\"\"Slots not in use right now.\"\"\"\n        return self.max_concurrent - self.active",
+     "sources": [],
+     "note": "",
+     "why": "The `free` property correctly calculates the number of free slots as `max_concurrent - active`, and `active` accurately tracks the number of occupied slots through `acquire()` and `release()`."
+    }
+   ],
+   "anchors": [],
+   "recommendations": 0,
+   "seconds": 48.379659292055294,
+   "prompt_tokens": 3909,
+   "error": ""
+  }
+ ]
+}

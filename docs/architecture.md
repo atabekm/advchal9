@@ -29,6 +29,9 @@ the components that recur, so you know which task to open for a given piece.
    Docker, published through a Cloudflare Tunnel.
 6. **Developer assistant (task 31).** The RAG pieces again, pointed at this repository's own
    documentation, with an MCP server for the git state.
+7. **Code review (task 32).** The same index extended to the repository's code (chunked at
+   definitions), and a GitHub Actions workflow (`.github/workflows/task32-review.yml`) on a
+   self-hosted runner that reviews every pull request with qwen3:8b and comments on it.
 
 ## Shared components
 
@@ -45,6 +48,6 @@ the components that recur, so you know which task to open for a given piece.
 ## Models
 
 - **DeepSeek** (`deepseek-chat`, `deepseek-reasoner`): tasks 1–25, through the cloud API.
-- **qwen3:8b** in Ollama: tasks 26, 27, 29, 31. **qwen3:4b-instruct**: task 30.
+- **qwen3:8b** in Ollama: tasks 26, 27, 29, 31, 32. **qwen3:4b-instruct**: task 30.
 - **nomic-embed-text** (768-dim) in Ollama: every embedding since task 21.
 - **BAAI/bge-reranker-base** from the Hugging Face cache: reranking since task 23.
