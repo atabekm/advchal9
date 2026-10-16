@@ -37,11 +37,23 @@ def _clip(line: str) -> str:
     return line if len(line) <= MAX_LINE else line[:MAX_LINE] + " …"
 
 
+def _globs(pattern: str) -> list[str]:
+    """Models write several globs in one argument ("*.py|*.md", "*.py, .env.example"): split them."""
+    return [p for p in re.split(r"[|,;\s]+", pattern.strip()) if p]
+
+
 def _glob_match(rel: str, pattern: str) -> bool:
     """`**/*.py` style globs; a pattern without a slash matches the file name anywhere."""
-    if "/" not in pattern:
-        return fnmatch.fnmatchcase(PurePosixPath(rel).name, pattern)
-    return PurePosixPath(rel).full_match(pattern) or fnmatch.fnmatchcase(rel, pattern)
+    for one in _globs(pattern):
+        if "/" not in one:
+            if fnmatch.fnmatchcase(PurePosixPath(rel).name, one):
+                return True
+        elif PurePosixPath(rel).full_match(one) or fnmatch.fnmatchcase(rel, one):
+            return True
+    return False
+
+
+_NUMBERED = re.compile(r"^\s*\d+\| ?")
 
 
 class Workspace:
@@ -130,7 +142,10 @@ class Workspace:
         if pattern:
             found = [f for f in found if _glob_match(f, pattern) or _glob_match(f[len(prefix):], pattern)]
         if not found:
-            return "no files match"
+            top = sorted({f[len(prefix):].split("/")[0] + ("/" if "/" in f[len(prefix):] else "")
+                          for f in self.files() if f.startswith(prefix)})
+            return (f"no files match {pattern!r} under {base or '.'!r}. Patterns are globs such as '*.py' or "
+                    f"'docs/*.md'. It contains: {', '.join(top) or 'nothing'}")
         lines = []
         for f in found[:MAX_LIST]:
             try:
@@ -187,7 +202,8 @@ class Workspace:
                     hits.append(f"{f}:{n}: {_clip(line.strip())}")
                     files_hit.add(f)
         if not hits:
-            return note + f"no matches for {pattern!r} in {len(scope)} files"
+            return note + (f"no matches for {pattern!r} in {len(scope)} files. If you guessed a name, search for a "
+                           "shorter part of it (ignore_case=true), or read the file where it should be")
         head = f"{len(hits)} matches in {len(files_hit)} files"
         more = f"\n… {len(hits) - MAX_MATCHES} more; narrow it with path or glob" if len(hits) > MAX_MATCHES else ""
         return note + head + "\n" + "\n".join(hits[:MAX_MATCHES]) + more
@@ -226,10 +242,21 @@ class Workspace:
         if old == "":
             raise WorkspaceError("old is empty; to add text, include a line next to it in old and in new")
         if old == new:
-            raise WorkspaceError("old and new are the same")
+            raise WorkspaceError("old and new are the same; new must be the text as it should read after the change")
         count = text.count(old)
+        if count == 0 and _stripped(old) is not None:
+            # `old` pasted from read_file with its "12| " prefixes
+            old, new = _stripped(old), _stripped(new) if _stripped(new) is not None else new
+            count = text.count(old)
+            if old == new:
+                raise WorkspaceError("old and new are the same once the line numbers are removed")
         if count == 0:
-            raise WorkspaceError(f"old text not found in {rel}" + self._closest(text, old))
+            old, new, count = _match_loosely(text, old, new)
+        if count == 0:
+            marks = [x for x in old.splitlines() if re.match(r"[+-](\s|$)", x)]
+            hint = (" (lines starting with + or - look like diff markers; they are not part of the file)"
+                    if marks else "")
+            raise WorkspaceError(f"old text not found in {rel}{hint}" + self._closest(text, old))
         if count > 1 and not replace_all:
             lines = [text[:m.start()].count("\n") + 1 for m in re.finditer(re.escape(old), text)]
             raise WorkspaceError(f"old text occurs {count} times in {rel} (lines {', '.join(map(str, lines))}); "
@@ -243,7 +270,53 @@ class Workspace:
         shown = result.splitlines()
         lo, hi = max(1, first - 2), min(len(shown), last + 2)
         what = f"{count} replacements" if replace_all and count > 1 else f"lines {first}-{last}"
-        return f"edited {rel} ({what}); now:\n{_numbered(shown[lo - 1:hi], lo)}"
+        kept = set(new.splitlines())
+        removed = [x for x in old.splitlines() if x not in kept and x.strip()]
+        gone = ("\nremoved (no longer in the file):\n" + "\n".join(f"- {x}" for x in removed[:8])) if removed else ""
+        return f"edited {rel} ({what}){gone}\nnow:\n{_numbered(shown[lo - 1:hi], lo)}"
+
+    def insert_lines(self, path: str, after: str | int, text: str) -> str:
+        """Insert `text` as new lines after the line `after`: its number, its text (exact, or with other
+        whitespace), or a piece of text found in exactly one line. "" or 0 means the top."""
+        rel = self.rel(path)
+        content = self.text(rel)
+        if not text.strip():
+            raise WorkspaceError("text is empty")
+        block = text if text.endswith("\n") else text + "\n"
+        lines = content.splitlines(keepends=True)
+        after = str(after)
+        if after.strip() in ("", "0"):
+            at = 0
+        elif after.strip().isdigit():
+            at = int(after.strip())
+            if at > len(lines):
+                raise WorkspaceError(f"after: {rel} has {len(lines)} lines")
+        else:
+            anchor = _stripped(after) if _stripped(after) is not None else after
+            want = [x.rstrip() for x in anchor.rstrip("\n").split("\n")]
+            starts = [i for i in range(len(lines) - len(want) + 1)
+                      if [x.rstrip("\r\n").rstrip() for x in lines[i:i + len(want)]] == want]
+            if not starts:   # forgive indentation differences in the anchor
+                starts = [i for i in range(len(lines) - len(want) + 1)
+                          if [x.strip() for x in lines[i:i + len(want)]] == [w.strip() for w in want]]
+            if not starts and len(want) == 1:   # a piece of one line, e.g. a table row without its pipes
+                starts = [i for i, x in enumerate(lines) if want[0].strip() in x]
+            if not starts:
+                raise WorkspaceError(f"after: no such line in {rel}; give its line number or copy it from "
+                                     "read_file" + self._closest(content, anchor))
+            if len(starts) > 1:
+                raise WorkspaceError(f"after: the line occurs {len(starts)} times in {rel} (lines "
+                                     f"{', '.join(str(s + 1) for s in starts)}); give two lines to make it unique")
+            at = starts[0] + len(want)
+        if at and not lines[at - 1].endswith("\n"):
+            lines[at - 1] += "\n"
+        result = "".join(lines[:at]) + block + "".join(lines[at:])
+        self._stage(rel, result)
+        self.read_paths.add(rel)
+        first, last = at + 1, at + block.count("\n")
+        shown = result.splitlines()
+        lo, hi = max(1, first - 2), min(len(shown), last + 2)
+        return f"inserted lines {first}-{last} in {rel}; now:\n{_numbered(shown[lo - 1:hi], lo)}"
 
     def _closest(self, text: str, old: str) -> str:
         first = next((x.strip() for x in old.splitlines() if x.strip()), "")
@@ -253,7 +326,7 @@ class Workspace:
             return "; read the file again and copy the text exactly"
         n = next(i for i, x in enumerate(lines, 1) if x.strip() == best[0])
         lo = max(1, n - 1)
-        return (f"; the closest line is {n}. Copy old exactly from the file (indentation included):\n"
+        return (f"; the closest line is {n}. Copy it exactly from the file (indentation included):\n"
                 + _numbered(lines[lo - 1:n + 2], lo))
 
     def write_file(self, path: str, content: str) -> str:
@@ -313,6 +386,35 @@ class Workspace:
         n = len(self.staged)
         self.staged.clear()
         return n
+
+
+def _indent(line: str) -> str:
+    return line[:len(line) - len(line.lstrip())]
+
+
+def _match_loosely(text: str, old: str, new: str) -> tuple[str, str, int]:
+    """Find `old` line by line ignoring indentation and trailing spaces. If exactly one block matches,
+    return the file's real text for it, and `new` re-indented by what the model left out."""
+    want = [x.strip() for x in old.strip("\n").split("\n")]
+    lines = text.split("\n")
+    hits = [i for i in range(len(lines) - len(want) + 1) if [x.strip() for x in lines[i:i + len(want)]] == want]
+    if len(hits) != 1 or not any(want):
+        return old, new, 0
+    real = lines[hits[0]:hits[0] + len(want)]
+    first_real = next(x for x in real if x.strip())
+    first_old = next(x for x in old.strip("\n").split("\n") if x.strip())
+    pad = _indent(first_real)[len(_indent(first_old)):] if _indent(first_real).startswith(_indent(first_old)) else ""
+    new_lines = [pad + x if x.strip() else x for x in new.strip("\n").split("\n")]
+    return "\n".join(real), "\n".join(new_lines), 1
+
+
+def _stripped(text: str) -> str | None:
+    """`text` without read_file's "12| " prefixes, if every non-empty line has one."""
+    lines = text.split("\n")
+    body = [x for x in lines if x.strip()]
+    if body and all(_NUMBERED.match(x) for x in body):
+        return "\n".join(_NUMBERED.sub("", x, count=1) for x in lines)
+    return None
 
 
 def _py_outline(node: ast.AST, indent: str) -> list[str]:

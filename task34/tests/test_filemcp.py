@@ -66,7 +66,7 @@ def test_outline(ws):
 def test_edits_are_staged(ws, repo):
     before = (repo / "README.md").read_text()
     out = ws.edit_file("README.md", "parcel quote 2.5 --zone FR", "parcel quote 2.5 --to FR")
-    assert out.startswith("edited README.md (lines 29-29); now:") and "--to FR" in out
+    assert out.startswith("edited README.md (lines 29-29)\nremoved (no longer in the file):\n- parcel quote 2.5 --zone FR\nnow:") and "--to FR" in out
     assert (repo / "README.md").read_text() == before            # not on disk
     assert "--to FR" in ws.read_file("README.md")                 # but visible
     assert "README.md  (" in ws.list_files() and "[modified, staged]" in ws.list_files()
@@ -109,7 +109,7 @@ def test_over_mcp_in_process(repo):
     async def run():
         async with FilesClient(server=create_server(repo)) as fs:
             assert set(fs.names) == {"list_files", "read_file", "search", "outline", "edit_file", "write_file",
-                                     "git_log", "git_show", "git_diff", *CLIENT_TOOLS}
+                                     "git_log", "git_show", "git_diff", "insert_lines", *CLIENT_TOOLS}
             assert not {t.name for t in fs.model_tools} & set(CLIENT_TOOLS)
             log = await fs.call("git_log", {"revision_range": "v0.3.0..HEAD"})
             assert log.count("Mira Kovač") == 2 and log.splitlines()[0].endswith("2026-10-12 Mira Kovač (HEAD -> main)")
@@ -135,3 +135,39 @@ def test_stdio_subprocess(repo):
         async with FilesClient(repo) as fs:
             assert "parcel/rates.py" in await fs.call("list_files", {"pattern": "rates.py"})
     asyncio.run(run())
+
+
+def test_forgiving_inputs(ws):
+    assert ws.list_files(pattern="*.py|.env.example").startswith("13 files")
+    assert ws.list_files(pattern="docs/*.md, RULES.md").startswith("7 files")  # lenient: * crosses /
+    assert ws.list_files("docs", "*.txt").startswith("no files match '*.txt' under 'docs'. Patterns are globs")
+    assert "It contains: adr/, configuration.md, usage.md" in ws.list_files("docs", "*.txt")
+    assert "search for a shorter part of it" in ws.search("MAX_PARCEL_WEIGHT")
+    pasted = "14|     fuel_surcharge: Decimal = Decimal(\"0.00\")\n15|     max_weight_kg: Decimal = Decimal(\"30\")"
+    out = ws.edit_file("parcel/config.py", pasted, pasted.replace('"30"', '"25"'))
+    assert out.startswith("edited parcel/config.py (lines 15-16)\nremoved (no longer in the file):\n-     max_weight_kg")
+    out = ws.edit_file("parcel/config.py", 'max_weight_kg: Decimal = Decimal("25")\n', 'max_weight_kg: Decimal = Decimal("30")\n')
+    assert '16|     max_weight_kg: Decimal = Decimal("30")' in out          # indentation found and kept
+    with pytest.raises(WorkspaceError, match="look like diff markers"):
+        ws.edit_file("parcel/config.py", "    currency: str = \"EUR\"\n+    extra: int = 1", "x")
+
+
+def test_insert_lines(ws):
+    out = ws.insert_lines(".env.example", "PARCEL_FUEL_SURCHARGE=0.00", "PARCEL_MAX_WEIGHT_KG=30")
+    assert out.startswith("inserted lines 4-4 in .env.example")
+    assert ws.staged[".env.example"].endswith("PARCEL_FUEL_SURCHARGE=0.00\nPARCEL_MAX_WEIGHT_KG=30\n")
+    row = "| `PARCEL_FUEL_SURCHARGE` | `0.00` | fuel surcharge as a fraction of the price, e.g. `0.08` for 8 % |"
+    ws.insert_lines("docs/configuration.md", "8| " + row, "| `PARCEL_MAX_WEIGHT_KG` | `30` | max |\n")
+    assert row + "\n| `PARCEL_MAX_WEIGHT_KG` | `30` | max |\n\nA template" in ws.staged["docs/configuration.md"]
+    ws.insert_lines("README.md", "", "<!-- top -->")
+    assert ws.staged["README.md"].startswith("<!-- top -->\n# parcel\n")
+    ws.insert_lines("parcel/config.py", "currency: str = \"EUR\"", "    region: str = \"eu\"")  # indentation forgiven
+    assert '    currency: str = "EUR"\n    region: str = "eu"\n' in ws.staged["parcel/config.py"]
+    with pytest.raises(WorkspaceError, match="occurs 4 times"):
+        ws.insert_lines("docs/usage.md", "```", "x")
+    ws.insert_lines(".env.example", "1", "# see docs/configuration.md")
+    assert ws.staged[".env.example"].startswith("# parcel settings, all optional\n# see docs/configuration.md\n")
+    ws.insert_lines("docs/configuration.md", "`PARCEL_CURRENCY` | `EUR` | currency code", "| `PARCEL_X` | | |")
+    assert "anything |\n| `PARCEL_X` | | |\n| `PARCEL_FUEL" in ws.staged["docs/configuration.md"]
+    with pytest.raises(WorkspaceError, match="no such line"):
+        ws.insert_lines("RULES.md", "8. **Nothing.**", "x")

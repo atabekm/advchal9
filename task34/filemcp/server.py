@@ -7,6 +7,7 @@ Tools for the model:
     search         regex (or literal) search over files: path:line: text
     outline        definitions of a .py file (with signatures, docstrings) or headings of a .md file
     edit_file      replace an exact piece of text that occurs once (staged)
+    insert_lines   add lines after a given line, leaving the rest as it is (staged)
     write_file     create a file, or replace one already read (staged)
     git_log        commits, optionally in a range ("v0.3.0..HEAD") or touching a path
     git_show       one commit: message, files changed, patch
@@ -105,8 +106,17 @@ def create_server(root: Path | str) -> MCPServer:
     def edit_file(path: str, old: str, new: str, replace_all: bool = False) -> str:
         """Replace the exact text `old` with `new` in a file. `old` must occur exactly once (include a few
         surrounding lines to make it unique) unless `replace_all`. Copy `old` from read_file without the
-        line numbers, indentation included. The change is staged; the result shows the changed lines."""
+        line numbers, indentation included. Everything in `old` is replaced; to add lines without changing
+        any, use insert_lines. The change is staged; the result shows the lines removed and the region now."""
         return run(ws.edit_file, path, old, new, replace_all)
+
+    @mcp.tool()
+    def insert_lines(path: str, after: str, text: str) -> str:
+        """Add new lines to a file without changing the existing ones: `text` goes right after the line
+        `after`, given as its line number from read_file ("8") or its text (e.g. a table row or a heading,
+        which must occur once). after="0" inserts at the top. Use it to add a table row, a list item, a
+        setting or a section. The change is staged."""
+        return run(ws.insert_lines, path, after, text)
 
     @mcp.tool()
     def write_file(path: str, content: str) -> str:
