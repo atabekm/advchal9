@@ -1,0 +1,34 @@
+[project]
+name = "support"
+version = "0.1.0"
+description = "A user support assistant: RAG over the product docs, customer and ticket context over MCP"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.143.0",
+    "mcp>=2.3.0",
+    "numpy>=2.5.4",
+    "requests>=2.34.2",
+    "sentence-transformers>=6.1.0",
+    "uvicorn>=0.54.0",
+]
+
+[project.scripts]
+support = "support.cli:main"
+supportmcp = "supportmcp.server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["support", "supportmcp"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+filterwarnings = ["ignore:builtin type .* has no __module__:DeprecationWarning"]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=9.1.1",
+]

@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flowdesk Support Assistant</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --text: #1d2330; --muted: #677085; --line: #e3e6ec;
+    --accent: #3b5bdb; --accent-soft: #e8edff; --note: #fff7e0; --note-line: #f0c64a;
+    --ok: #2b8a3e; --warn: #c2410c; --code: #f1f3f6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #14161b; --panel: #1c1f26; --text: #e6e8ee; --muted: #9aa2b4; --line: #2c313b;
+      --accent: #7b93ff; --accent-soft: #252c45; --note: #2e2816; --note-line: #9a7a1e;
+      --ok: #69db7c; --warn: #ff9f5a; --code: #262a33; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif; }
+  header { padding: 14px 24px; border-bottom: 1px solid var(--line); background: var(--panel);
+    display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  header h1 { font-size: 18px; margin: 0; }
+  header .sub { color: var(--muted); font-size: 13px; }
+  main { display: grid; grid-template-columns: minmax(300px, 380px) 1fr; gap: 20px; padding: 20px 24px;
+    max-width: 1400px; margin: 0 auto; }
+  @media (max-width: 860px) { main { grid-template-columns: 1fr; padding: 16px; } header { padding: 12px 16px; } }
+  section.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 10px; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 12px; background: var(--bg); padding: 3px; border-radius: 8px; }
+  .tabs button { flex: 1; border: 0; background: transparent; color: var(--muted); padding: 6px; border-radius: 6px;
+    cursor: pointer; font: inherit; font-size: 13px; }
+  .tabs button.on { background: var(--panel); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+  .list { display: flex; flex-direction: column; gap: 6px; max-height: 360px; overflow-y: auto; }
+  .item { text-align: left; border: 1px solid var(--line); background: var(--panel); color: var(--text);
+    border-radius: 8px; padding: 8px 10px; cursor: pointer; font: inherit; }
+  .item:hover { border-color: var(--accent); }
+  .item.on { border-color: var(--accent); background: var(--accent-soft); }
+  .item .top { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); }
+  .item .title { font-weight: 600; margin-top: 2px; overflow-wrap: anywhere; }
+  .pill { display: inline-block; font-size: 11px; padding: 0 6px; border-radius: 9px; border: 1px solid var(--line); }
+  .pill.open { color: var(--warn); border-color: currentColor; }
+  .pill.solved { color: var(--ok); border-color: currentColor; }
+  .none-note { color: var(--muted); font-size: 14px; }
+  details.ctx { margin-top: 8px; border-top: 1px solid var(--line); padding-top: 8px; }
+  details.ctx summary { cursor: pointer; font-size: 13px; color: var(--muted); }
+  pre { white-space: pre-wrap; overflow-wrap: anywhere; background: var(--code); padding: 10px; border-radius: 6px;
+    font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; margin: 6px 0; }
+  .ask { display: flex; flex-direction: column; gap: 10px; }
+  .who { font-size: 13px; color: var(--muted); }
+  .who b { color: var(--text); }
+  textarea { width: 100%; min-height: 70px; resize: vertical; padding: 10px; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--panel); color: var(--text); font: inherit; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .chip { border: 1px solid var(--line); background: var(--bg); color: var(--text); border-radius: 14px;
+    padding: 3px 10px; font: inherit; font-size: 13px; cursor: pointer; }
+  .chip:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); color: #fff; border: 0; border-radius: 8px; padding: 8px 18px;
+    font: inherit; font-weight: 600; cursor: pointer; margin-left: auto; }
+  button.primary:disabled { opacity: .5; cursor: wait; }
+  #result { margin-top: 16px; display: none; }
+  .answer { font-size: 15.5px; }
+  .answer p { margin: 0 0 10px; }
+  .answer ul, .answer ol { margin: 0 0 10px; padding-left: 22px; }
+  .answer code { background: var(--code); padding: 1px 4px; border-radius: 4px; font-size: 13px; }
+  .cite { color: var(--accent); font-size: 11px; font-weight: 700; cursor: pointer; vertical-align: super; }
+  .note { background: var(--note); border-left: 3px solid var(--note-line); padding: 8px 12px; border-radius: 4px;
+    margin: 12px 0; font-size: 14px; }
+  .note b { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+  .sources { margin-top: 12px; }
+  .source { border: 1px solid var(--line); border-radius: 8px; margin-bottom: 6px; }
+  .source summary { padding: 6px 10px; cursor: pointer; font-size: 13px; display: flex; gap: 8px; }
+  .source summary .n { font-weight: 700; color: var(--accent); min-width: 22px; }
+  .source.uncited summary { color: var(--muted); }
+  .source.flash { outline: 2px solid var(--accent); }
+  .meta { color: var(--muted); font-size: 12px; margin-top: 10px; overflow-wrap: anywhere; }
+  .error { color: var(--warn); }
+  .spinner { color: var(--muted); font-size: 14px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Flowdesk Support Assistant</h1>
+  <span class="sub">answers from the FAQ and docs (RAG), with the customer's ticket from the CRM (MCP)</span>
+  <span class="sub" id="health"></span>
+</header>
+<main>
+  <section class="panel">
+    <h2>Customer context</h2>
+    <div class="tabs" role="tablist">
+      <button data-mode="ticket" class="on">Ticket</button>
+      <button data-mode="user">User</button>
+      <button data-mode="none">No context</button>
+    </div>
+    <div id="picker" class="list"></div>
+    <details class="ctx" id="ctx-box">
+      <summary>What the assistant sees from the CRM</summary>
+      <div id="ctx"></div>
+    </details>
+  </section>
+
+  <section class="panel">
+    <h2>Question</h2>
+    <div class="ask">
+      <div class="who" id="who"></div>
+      <textarea id="q" placeholder="Ask about Flowdesk…">Why isn't authorization working?</textarea>
+      <div class="row">
+        <button class="chip" data-q="Why isn't authorization working?">Why isn't authorization working?</button>
+        <button class="chip" data-q="What should I do now?">What should I do now?</button>
+        <button class="chip" data-q="How do I export more than 50,000 tasks?">Export &gt; 50k tasks</button>
+        <button class="chip" data-q="Почему не работает авторизация?">Почему не работает авторизация?</button>
+        <button class="primary" id="go">Ask</button>
+      </div>
+    </div>
+    <div id="result">
+      <div class="answer" id="answer"></div>
+      <div class="note" id="note"></div>
+      <div class="sources" id="sources"></div>
+      <div class="meta" id="meta"></div>
+    </div>
+  </section>
+</main>
+<script>
+const $ = (s) => document.querySelector(s);
+let mode = "ticket", tickets = [], users = [], selected = { ticket: null, user: null };
+
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(body.detail || `HTTP ${r.status}`);
+  return body;
+}
+
+function renderPicker() {
+  const box = $("#picker");
+  if (mode === "none") {
+    box.innerHTML = `<p class="none-note">The question is answered from the knowledge base only, as if asked by an anonymous visitor.</p>`;
+  } else if (mode === "ticket") {
+    box.innerHTML = tickets.map((t) => `
+      <button class="item ${selected.ticket === t.id ? "on" : ""}" data-id="${esc(t.id)}">
+        <div class="top"><span>${esc(t.id)} · ${esc(t.user_name)}</span><span class="pill ${esc(t.status)}">${esc(t.status)}</span></div>
+        <div class="title">${esc(t.subject)}</div>
+        <div class="top"><span>${esc(t.area)}</span><span>${esc(t.created)}</span></div>
+      </button>`).join("");
+  } else {
+    box.innerHTML = users.map((u) => `
+      <button class="item ${selected.user === u.id ? "on" : ""}" data-id="${esc(u.id)}">
+        <div class="top"><span>${esc(u.id)} · ${esc(u.organization)}</span><span class="pill">${esc(u.status)}</span></div>
+        <div class="title">${esc(u.name)}</div>
+        <div class="top"><span>${esc(u.role)}</span></div>
+      </button>`).join("");
+  }
+  box.querySelector(".item.on")?.scrollIntoView({ block: "nearest" });
+  box.querySelectorAll(".item").forEach((b) => b.onclick = () => {
+    selected[mode] = b.dataset.id;
+    clearResult(); renderPicker(); loadContext(true);
+  });
+  renderWho();
+}
+
+function current() {
+  if (mode === "ticket" && selected.ticket) return { ticket_id: selected.ticket };
+  if (mode === "user" && selected.user) return { user_id: selected.user };
+  return {};
+}
+
+function renderWho() {
+  const c = current();
+  if (c.ticket_id) {
+    const t = tickets.find((x) => x.id === c.ticket_id);
+    $("#who").innerHTML = `Asking as <b>${esc(t?.user_name)}</b> about ticket <b>${esc(c.ticket_id)}</b>: ${esc(t?.subject)}`;
+  } else if (c.user_id) {
+    const u = users.find((x) => x.id === c.user_id);
+    $("#who").innerHTML = `Asking as <b>${esc(u?.name)}</b> (${esc(u?.organization)}), no ticket`;
+  } else {
+    $("#who").innerHTML = mode === "none" ? "Asking <b>without customer context</b>" : "Pick a " + mode + " on the left, or ask without one";
+  }
+}
+
+let contextSeq = 0;  // a slow response for a ticket clicked earlier must not overwrite a newer one
+
+// `prefill`: put the ticket's first customer message into the question box.
+async function loadContext(prefill = false) {
+  const c = current(), seq = ++contextSeq;
+  if (!c.ticket_id && !c.user_id) { $("#ctx").innerHTML = `<p class="none-note">No customer context.</p>`; return; }
+  $("#ctx").innerHTML = `<p class="spinner">Loading from the CRM…</p>`;
+  try {
+    const body = await api("/context?" + new URLSearchParams(c));
+    if (seq !== contextSeq) return;
+    renderContext(body.context);
+    const ticket = body.context.find((b) => b.name === "TICKET");
+    const m = ticket && ticket.text.match(/^\s*\[[^\]]* customer\] (.+)$/m);
+    if (prefill && m) $("#q").value = m[1];
+  } catch (e) { if (seq === contextSeq) $("#ctx").innerHTML = `<p class="error">${esc(e.message)}</p>`; }
+}
+
+function clearResult() {
+  $("#result").style.display = "none";
+  $("#answer").innerHTML = ""; $("#note").style.display = "none"; $("#sources").innerHTML = ""; $("#meta").textContent = "";
+}
+
+function renderContext(blocks) {
+  $("#ctx").innerHTML = blocks.length
+    ? blocks.map((b) => `<h2 style="margin-top:10px">${esc(b.name)}</h2><pre>${esc(b.text)}</pre>`).join("")
+    : `<p class="none-note">No customer context.</p>`;
+}
+
+// A small Markdown subset: paragraphs, lists, **bold**, `code`, and [n] citations.
+function markdown(text) {
+  const inline = (s) => esc(s)
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
+    .replace(/\[(\d+(?:,\s*\d+)*)\]/g, (_, nums) => nums.split(/,\s*/).map((n) => `<span class="cite" data-n="${n}">[${n}]</span>`).join(""));
+  const out = []; let list = null;
+  for (const raw of text.split("\n")) {
+    const line = raw.trim();
+    const m = line.match(/^(?:([-*•])|(\d+)[.)])\s+(.*)$/);
+    if (m) {
+      const tag = m[1] ? "ul" : "ol";
+      if (!list || list.tag !== tag) { if (list) out.push(`</${list.tag}>`); out.push(`<${tag}>`); list = { tag }; }
+      out.push(`<li>${inline(m[3])}</li>`);
+      continue;
+    }
+    if (list) { out.push(`</${list.tag}>`); list = null; }
+    if (line) out.push(`<p>${inline(line)}</p>`);
+  }
+  if (list) out.push(`</${list.tag}>`);
+  return out.join("");
+}
+
+async function ask() {
+  const question = $("#q").value.trim();
+  if (!question) return;
+  const go = $("#go");
+  go.disabled = true; go.textContent = "Thinking…";
+  $("#result").style.display = "block";
+  $("#answer").innerHTML = `<p class="spinner">Fetching the customer's context over MCP, searching the docs, asking the model… (10–30 s)</p>`;
+  $("#note").style.display = "none"; $("#sources").innerHTML = ""; $("#meta").textContent = "";
+  try {
+    const a = await api("/ask", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question, ...current() }) });
+    $("#answer").innerHTML = markdown(a.answer);
+    if (a.agent_note) { $("#note").innerHTML = `<b>Agent note</b><br>${esc(a.agent_note)}`; $("#note").style.display = "block"; }
+    $("#sources").innerHTML = `<h2>Knowledge base passages</h2>` + a.passages.map((p) => `
+      <details class="source ${p.cited ? "" : "uncited"}" id="src-${p.rank}">
+        <summary><span class="n">[${p.rank}]</span><span>${esc(p.label)}${p.cited ? "" : " · not cited"}</span></summary>
+        <pre>${esc(p.text)}</pre>
+      </details>`).join("");
+    document.querySelectorAll(".cite").forEach((c) => c.onclick = () => {
+      const s = $(`#src-${c.dataset.n}`); if (!s) return;
+      s.open = true; s.scrollIntoView({ behavior: "smooth", block: "center" });
+      s.classList.add("flash"); setTimeout(() => s.classList.remove("flash"), 1200);
+    });
+    renderContext(a.context);
+    const calls = a.crm_calls.map((c) => `${c.tool}(${Object.values(c.arguments).join(", ")})`).join(", ") || "none";
+    $("#meta").innerHTML = `${esc(a.model)} · ${a.seconds}s (retrieval ${a.timings.retrieval}s, model ${a.timings.llm}s) · `
+      + `${a.tokens.prompt}+${a.tokens.completion} tokens<br>MCP: ${esc(calls)}<br>search query: ${esc(a.search_query)}`;
+  } catch (e) {
+    $("#answer").innerHTML = `<p class="error">${esc(e.message)}</p>`;
+  } finally {
+    go.disabled = false; go.textContent = "Ask";
+  }
+}
+
+document.querySelectorAll(".tabs button").forEach((b) => b.onclick = () => {
+  mode = b.dataset.mode;
+  clearResult();
+  document.querySelectorAll(".tabs button").forEach((x) => x.classList.toggle("on", x === b));
+  renderPicker(); loadContext(mode === "ticket");
+});
+document.querySelectorAll(".chip").forEach((c) => c.onclick = () => { $("#q").value = c.dataset.q; ask(); });
+$("#go").onclick = ask;
+$("#q").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) ask(); });
+
+(async () => {
+  try {
+    [tickets, users] = await Promise.all([api("/tickets"), api("/users")]);
+    selected.ticket = tickets[0]?.id ?? null;
+    selected.user = users[0]?.id ?? null;
+    // Deep links: ?ticket=T-1003 or ?user=u_107 or ?none, &q=question, &ask=1 to ask at once.
+    const qs = new URLSearchParams(location.search);
+    if (qs.get("ticket")) { mode = "ticket"; selected.ticket = qs.get("ticket"); }
+    else if (qs.get("user")) { mode = "user"; selected.user = qs.get("user"); }
+    else if (qs.has("none")) mode = "none";
+    document.querySelectorAll(".tabs button").forEach((x) => x.classList.toggle("on", x.dataset.mode === mode));
+    if (qs.get("q")) $("#q").value = qs.get("q");
+    renderPicker(); loadContext(mode === "ticket" && !qs.get("q") && !qs.get("ask"));
+    if (qs.get("ask")) ask();
+    const h = await api("/health");
+    $("#health").textContent = `· ${h.model} · ${h.chunks} passages · MCP: ${h.mcp_tools.length} tools`;
+  } catch (e) { $("#picker").innerHTML = `<p class="error">${esc(e.message)}</p>`; }
+})();
+</script>
+</body>
+</html>
