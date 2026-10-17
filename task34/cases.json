@@ -1,0 +1,116 @@
+{
+  "_about": "Eval cases for `fileassist eval`. Each case is a scenario (or a goal in words) and checks done by code on the report, the diff and the files after the diff is applied. A list inside a list means any one of them. Ground truth: fixture/ and its history.toml.",
+  "cases": [
+    {
+      "id": "usages-quote_price",
+      "scenario": "usages",
+      "checks": {
+        "report_mentions": ["rates.py:21", "api.py:28", "batch.py:8", "cli.py:28", "test_cli.py:20",
+                            ["__init__.py:4", "__init__.py:6"], "qp"],
+        "no_changes": true
+      }
+    },
+    {
+      "id": "usages-WeightLimitError",
+      "scenario": "usages",
+      "arg": "WeightLimitError",
+      "checks": {
+        "report_mentions": ["rates.py:13", "rates.py:35", "cli.py:9", "cli.py:29", "test_rates.py:38"],
+        "report_lacks": ["api.py:"],
+        "no_changes": true
+      }
+    },
+    {
+      "id": "update-docs",
+      "scenario": "update-docs",
+      "checks": {
+        "diff_touches": ["README.md", "docs/usage.md", "docs/configuration.md", ".env.example"],
+        "diff_not_touches": ["parcel/*", "tests/*", "CHANGELOG.md", "docs/adr/*"],
+        "files_lack": {"README.md": ["--zone"], "docs/usage.md": ["--zone", "zone=FR"]},
+        "files_contain": {"docs/usage.md": ["--to", "express"], "docs/configuration.md": ["PARCEL_MAX_WEIGHT_KG"],
+                          ".env.example": ["PARCEL_MAX_WEIGHT_KG"]},
+        "files_match": {"docs/configuration.md": "\\|[^\\n]*\\|\\n\\| `PARCEL_MAX_WEIGHT_KG`"},
+        "added_lacks": ["FR [--express]", "[--to"]
+      }
+    },
+    {
+      "id": "update-docs-vague",
+      "goal": "Mira changed the command line last week. Can you make sure the README and the usage docs still match it?",
+      "checks": {
+        "diff_touches": ["README.md", "docs/usage.md"],
+        "diff_not_touches": ["parcel/*", "tests/*"],
+        "files_lack": {"README.md": ["--zone"], "docs/usage.md": ["--zone"]},
+        "files_contain": {"docs/usage.md": ["--to", "--express"]},
+        "added_lacks": ["FR [--express]"]
+      }
+    },
+    {
+      "id": "document-env-var",
+      "goal": "The code reads an environment variable for the maximum parcel weight that the configuration docs and .env.example don't mention yet. Document it.",
+      "checks": {
+        "diff_touches": ["docs/configuration.md", ".env.example"],
+        "diff_only": ["docs/configuration.md", ".env.example"],
+        "no_deletions": ["docs/configuration.md", ".env.example"],
+        "files_contain": {"docs/configuration.md": ["PARCEL_MAX_WEIGHT_KG", "30"], ".env.example": ["PARCEL_MAX_WEIGHT_KG=30"]},
+        "files_match": {"docs/configuration.md": "\\|[^\\n]*\\|\\n\\| `PARCEL_MAX_WEIGHT_KG`"}
+      }
+    },
+    {
+      "id": "check",
+      "scenario": "check",
+      "checks": {
+        "report_mentions": [["zones.py:33", "resolve_zone"], "batch.py", "PARCEL_MAX_WEIGHT_KG", "PARCEL_API_PREFIX",
+                            "zones.py:11", "parcel.batch", "test_batch"],
+        "no_changes": true
+      }
+    },
+    {
+      "id": "check-fix",
+      "scenario": "check-fix",
+      "checks": {
+        "diff_not_touches": ["CHANGELOG.md", "docs/adr/*"],
+        "file_exists": ["tests/test_batch.py"],
+        "files_lack": {"parcel/batch.py": ["print("]},
+        "files_contain": {"docs/configuration.md": ["PARCEL_MAX_WEIGHT_KG", "PARCEL_API_PREFIX"],
+                          "docs/usage.md": ["parcel.batch"]},
+        "files_match": {"parcel/zones.py": "def resolve_zone\\([^)]*\\)[^:]*:\\n\\s+(\"\"\"|''')"},
+        "added_lacks": ["TODO(#"],
+        "tests_pass": true
+      }
+    },
+    {
+      "id": "changelog",
+      "scenario": "changelog",
+      "checks": {
+        "diff_only": ["CHANGELOG.md"],
+        "no_deletions": ["CHANGELOG.md"],
+        "section_contains": {"CHANGELOG.md#[Unreleased]": ["### Added", "### Changed", "### Fixed", "express",
+                                                          "PARCEL_MAX_WEIGHT_KG", "--to", "quote_many",
+                                                          ["round", "cent"], ["breaking", "Breaking", "BREAKING"]],
+                             "CHANGELOG.md#### Fixed": [["round", "cent"]]},
+        "section_lacks": {"CHANGELOG.md#[Unreleased]": ["resolve_zone"]}
+      }
+    },
+    {
+      "id": "adr",
+      "scenario": "adr",
+      "checks": {
+        "file_exists": ["docs/adr/0003-*.md"],
+        "diff_only": ["docs/adr/0003-*.md", "docs/adr/README.md"],
+        "files_contain": {"docs/adr/0003-*.md": ["PARCEL_MAX_WEIGHT_KG", "WeightLimitError", "2026-10-12", "Mira"],
+                          "docs/adr/README.md": ["0003"]},
+        "files_match": {"docs/adr/README.md": "\\| \\[0002\\][^\\n]*\\n\\| \\[0003\\]\\(0003-"}
+      }
+    },
+    {
+      "id": "adr-from-history",
+      "scenario": "adr",
+      "arg": "Destinations are resolved to zones in one place, zones.resolve_zone, which accepts zone names and two-letter country codes.",
+      "checks": {
+        "file_exists": ["docs/adr/0003-*.md"],
+        "diff_only": ["docs/adr/0003-*.md", "docs/adr/README.md"],
+        "files_contain": {"docs/adr/0003-*.md": ["resolve_zone", "2026-10-01", "Jonas"], "docs/adr/README.md": ["0003"]}
+      }
+    }
+  ]
+}

@@ -171,3 +171,30 @@ def test_insert_lines(ws):
     assert "anything |\n| `PARCEL_X` | | |\n| `PARCEL_FUEL" in ws.staged["docs/configuration.md"]
     with pytest.raises(WorkspaceError, match="no such line"):
         ws.insert_lines("RULES.md", "8. **Nothing.**", "x")
+
+
+def test_insert_lines_warns_inside_a_code_block(ws):
+    fence = ws.text("docs/usage.md").splitlines().index("$ parcel quote 2.5 --zone FR")   # the line after ```
+    out = ws.insert_lines("docs/usage.md", str(fence), "Express delivery costs 1.5 times as much.")
+    assert "inside the ``` code block" in out
+    assert "code block" not in ws.insert_lines("docs/usage.md", "## Command line", "Prose.")
+
+
+def test_insert_lines_warns_about_a_row_outside_its_table(ws):
+    out = ws.insert_lines("docs/configuration.md", "9", "| `PARCEL_MAX_WEIGHT_KG` | `30` | max |")
+    assert "isn't part of a table" in out and "goes after line 8" in out
+    assert "table" not in ws.insert_lines("docs/configuration.md", "8", "| `PARCEL_X` | | |")
+
+
+def test_a_change_that_breaks_python_is_refused(ws):
+    doc = '    """Resolve a destination to a zone code."""'
+    with pytest.raises(WorkspaceError, match="delete `def resolve_zone.*use insert_lines"):
+        ws.edit_file("parcel/zones.py", "def resolve_zone(destination: str) -> str:", doc)
+    assert "parcel/zones.py" not in ws.staged
+    ws.insert_lines("parcel/zones.py", "def resolve_zone(destination: str) -> str:", doc)
+    assert 'def resolve_zone(destination: str) -> str:\n' + doc + "\n" in ws.staged["parcel/zones.py"]
+    with pytest.raises(WorkspaceError, match="syntax error"):
+        ws.write_file("parcel/new.py", "def broken(:\n")
+    ws.write_file("parcel/new.py", "def fine():\n    pass\n")
+    with pytest.raises(WorkspaceError, match="syntax error"):
+        ws.edit_file("parcel/new.py", "    pass", "    pass(")

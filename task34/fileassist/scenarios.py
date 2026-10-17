@@ -37,7 +37,11 @@ variables, exceptions, limits.
 - For each change, search the documentation (README.md, docs/, .env.example) for the old name and \
 for where similar things are documented.
 - Update every place that still describes the old behaviour, and add the new things where their \
-neighbours are documented (a new setting gets a row next to the other settings).
+neighbours are documented (a new setting gets a row next to the other settings). One change can be \
+described in several sections (Python API, command line, HTTP, settings): check each of them.
+- Leave text that is still true as it is. An example (a `$ ` command or a call followed by its \
+output) stays exactly runnable: never put "[--option]" placeholders into it. A synopsis line may show \
+an optional flag in brackets; describe a new option in prose next to it.
 - Change documentation only: no code, no tests, not CHANGELOG.md, not the ADRs.
 - At the end, search for the old names again; fix what is left.
 - Report what changed in the code and, per file, what you updated."""
@@ -45,15 +49,19 @@ neighbours are documented (a new setting gets a row next to the other settings).
 CHECK = """How to do it well:
 - Read RULES.md. For each rule, decide how to check it with the tools: outline shows functions and \
 classes without docstrings; search finds print(, TODO, os.environ; list_files shows which test files exist.
-- Check each rule against every file it applies to; don't stop at the first violation.
+- Check each rule against every file it applies to; don't stop at the first violation. For a rule \
+about every module, setting or function, first list them all (list_files, search), then compare each \
+one with the place the rule names (the Modules table, the tests/ directory, the settings table).
 - Check the facts in both places a rule names (e.g. code and docs) before calling something a violation.
 - Report per rule: the violations as `file:line` with one line of explanation, or "no violations"."""
 
-CHECK_REPORT_ONLY = "- Don't change any files."
+CHECK_REPORT_ONLY = "- Don't change any files: this is a report. End with finish(report)."
 
 CHECK_FIX = """- Then fix what you can without changing behaviour: add missing docstrings and documentation, \
-remove library prints, add missing test files with real tests of the module. A TODO needs an issue \
-number you don't know: report it, don't invent one.
+remove library prints, add missing test files with real tests of the module (read the module and \
+its neighbours' tests first; assert values the code really returns). Fix only what a rule covers \
+(a rule about public functions doesn't cover _private ones). A TODO needs an issue number you don't \
+know: leave the line as it is and report it.
 - The project's tests must keep passing: don't change existing code paths.
 - Report the violations and, separately, what you fixed and what is left."""
 
@@ -63,8 +71,9 @@ message isn't enough to tell what changed for users.
 - Read CHANGELOG.md and follow its format (Keep a Changelog).
 - Write the entries under "## [Unreleased]": groups "### Added", "### Changed", "### Fixed" (only \
 the ones needed), one bullet per user-visible change, in the words of a user rather than of the code. \
-Say "breaking" for a change that breaks existing callers. Internal refactors without a visible effect \
-don't belong in it.
+A bug fix goes under Fixed, a renamed or changed behaviour under Changed. Say "breaking" for a change \
+that breaks existing callers. A refactor without a visible effect doesn't belong in it: leave it out \
+and say so in the report.
 - Don't touch the released sections; change only CHANGELOG.md.
 - Report the entries and which commit each came from."""
 
@@ -75,7 +84,7 @@ that made it, its date and author, the code and settings involved.
 - Write the new ADR from the template as docs/adr/NNNN-short-title.md with the next free number. \
 Status accepted; date and deciders from that commit. Context, decision, consequences and \
 alternatives grounded in what you found; name the files and settings.
-- Add its row to the table in docs/adr/README.md.
+- Add its row to the table in docs/adr/README.md, after the last row (the numbers stay in order).
 - Change nothing else.
 - Report the new file and the facts it rests on."""
 

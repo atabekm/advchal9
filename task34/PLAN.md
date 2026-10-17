@@ -130,6 +130,14 @@ The model is a setting (`--model`, `FILEASSIST_MODEL`). Stage 2 pulls `qwen3:14b
 quick tool-calling smoke test on all three. Stage 4 runs the full eval and picks the default from
 the results.
 
+**After the smoke test (stage 2→3):** the 14B did struggle. With thinking off it misplaced
+inserts, and with thinking on it was right on a small goal but took 3–7 minutes per run. On
+`update-docs` it covered only one of the four files. So `gpt-oss:20b` was pulled. At reasoning
+level `low` it got the small goal right in 45 s and touched all four files in `update-docs` in
+about a minute. Level `medium` was ten times slower and no better. It is now the default
+(`--think` takes a level for it). The qwen models stay in the eval for comparison, with one pass
+each.
+
 ## Interface
 
 - **CLI**: `fileassist usages SYMBOL`, `update-docs`, `check [--fix]`, `changelog`,

@@ -1,7 +1,8 @@
 """A minimal client for a model served by Ollama (its native /api/chat), with tool calls.
 
 From task 31, plus a fixed seed and an optional thinking switch. Thinking is off by default: the
-agent makes 10-25 model calls per goal, and reasoning tokens would multiply the time.
+agent makes 10-25 model calls per goal, and reasoning tokens would multiply the time. gpt-oss always
+reasons; `think` is its level then ("low", "medium", "high"), and False means "low".
 """
 
 from __future__ import annotations
@@ -13,7 +14,7 @@ from dataclasses import dataclass, field
 
 import requests
 
-DEFAULT_MODEL = os.environ.get("FILEASSIST_MODEL", "qwen3:8b")
+DEFAULT_MODEL = os.environ.get("FILEASSIST_MODEL", "gpt-oss:20b")
 NUM_CTX = 32768  # system + goal + a dozen tool results; old results are trimmed past ~75 % of it
 NUM_PREDICT = 4096  # per reply: with thinking on, qwen3:8b can reason for 15+ minutes otherwise
 
@@ -41,12 +42,14 @@ class Reply:
 
 class LocalLLM:
     def __init__(self, model: str | None = None, base_url: str | None = None, temperature: float = 0.0,
-                 seed: int = 7, think: bool = False, timeout: float = 900, num_ctx: int = NUM_CTX):
+                 seed: int = 7, think: bool | str = False, timeout: float = 900, num_ctx: int = NUM_CTX):
         url = (base_url or os.environ.get("OLLAMA_HOST") or "http://localhost:11434").rstrip("/")
         self.base_url = url if "://" in url else f"http://{url}"
         self.model = model or DEFAULT_MODEL
         self.temperature = temperature
         self.seed = seed
+        if self.model.startswith("gpt-oss"):
+            think = think if isinstance(think, str) else ("medium" if think else "low")
         self.think = think
         self.timeout = timeout
         self.num_ctx = num_ctx

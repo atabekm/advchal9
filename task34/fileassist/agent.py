@@ -25,7 +25,7 @@ from dataclasses import dataclass, field
 from .files_client import FilesClient
 from .llm import LLMError, LocalLLM, ollama_specs
 
-MAX_STEPS = 25
+MAX_STEPS = 40
 MAX_RESULT_CHARS = 9000
 READ_ONLY = {"list_files", "read_file", "search", "outline", "git_log", "git_show", "git_diff"}
 WRITES = {"edit_file", "insert_lines", "write_file"}
@@ -72,8 +72,8 @@ Check it against the goal:
 Fix what is wrong with the tools, then call finish again with the report. If the diff is right, call \
 finish again now."""
 
-NUDGE = ("Continue with tool calls. If the work is done, call finish with the report; if it isn't, "
-         "use the tools to do it (edits are staged, so make them).")
+NUDGE = ("Use the tools, not text. If the goal is reached, call finish with the report (the text above "
+         "can be it); if it isn't, continue with the next tool call.")
 
 
 @dataclass
@@ -127,20 +127,23 @@ def _clip(text: str, limit: int = MAX_RESULT_CHARS) -> str:
 
 class Agent:
     def __init__(self, files: FilesClient, llm: LocalLLM | None = None, max_steps: int = MAX_STEPS,
-                 on_event: Callable[[Event], None] | None = None, system: str = SYSTEM, review: bool = True):
+                 on_event: Callable[[Event], None] | None = None, system: str = SYSTEM, review: bool = True,
+                 read_only: bool = False):
         self.files = files
         self.llm = llm or LocalLLM()
         self.max_steps = max_steps
         self.on_event = on_event or (lambda e: None)
         self.system = system
         self.review = review
+        self.read_only = read_only   # a goal that only reads: the write tools aren't offered at all
 
     async def run(self, goal: str, extra: str = "") -> Run:
         """Work on `goal` until finish or the budget. `extra` is a scenario checklist after the goal."""
         run = Run(goal=goal, model=self.llm.model)
         run.model_version = await asyncio.to_thread(self.llm.version)
         started = time.monotonic()
-        specs = ollama_specs(self.files.model_tools) + [FINISH]
+        tools = [t for t in self.files.model_tools if not (self.read_only and t.name in WRITES)]
+        specs = ollama_specs(tools) + [FINISH]
         user = f"Goal: {goal}" + (f"\n\n{extra}" if extra else "")
         messages: list[dict] = [{"role": "system", "content": self.system}, {"role": "user", "content": user}]
         seen: dict[str, int] = {}
@@ -196,9 +199,11 @@ class Agent:
                 messages.append({"role": "user", "content": NUDGE})
                 nudged = True
                 continue
-            messages.append({"role": "assistant", "content": reply.text,
-                             "tool_calls": [{"function": {"name": c.name, "arguments": c.arguments}}
-                                            for c in reply.tool_calls]})
+            turn = {"role": "assistant", "content": reply.text,
+                    "tool_calls": [{"function": {"name": c.name, "arguments": c.arguments}} for c in reply.tool_calls]}
+            if reply.thinking and self.llm.model.startswith("gpt-oss"):
+                turn["thinking"] = reply.thinking  # gpt-oss continues its reasoning across tool calls
+            messages.append(turn)
             for call in reply.tool_calls:
                 if call.name == "finish" and not reviewed:
                     reviewed = True
@@ -221,7 +226,9 @@ class Agent:
                     run.stop_reason = f"stuck: the same {call.name} call three times"
                     emit(Event("stop", run.steps, tool=call.name, arguments=call.arguments, text=run.stop_reason))
                     break
-                if call.name in READ_ONLY and key in seen:
+                if self.read_only and call.name in WRITES:
+                    result = f"error: this goal only reads; there is no {call.name}. Report your findings with finish."
+                elif call.name in READ_ONLY and key in seen:
                     earlier = await self.files.call(call.name, call.arguments)
                     result = (f"(You made this exact call at step {seen[key]}; the result is the same. Don't "
                               f"repeat it: use the result, or take the next step.)\n{earlier}")

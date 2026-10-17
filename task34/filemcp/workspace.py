@@ -316,7 +316,19 @@ class Workspace:
         first, last = at + 1, at + block.count("\n")
         shown = result.splitlines()
         lo, hi = max(1, first - 2), min(len(shown), last + 2)
-        return f"inserted lines {first}-{last} in {rel}; now:\n{_numbered(shown[lo - 1:hi], lo)}"
+        note = ""
+        if rel.endswith(".md"):
+            for a, b in _fences(lines):
+                if a <= at < b:
+                    note = (f"\nNote: these lines went inside the ``` code block of lines {a}-{b}. If they "
+                            f"are prose, not code, move them: they belong after line {b + block.count(chr(10))}.")
+            if block.lstrip().startswith("|") and not (at and lines[at - 1].lstrip().startswith("|")):
+                tables = _tables(lines)
+                if tables:
+                    a, b = min(tables, key=lambda t: min(abs(t[0] - at), abs(t[1] - at)))
+                    note += (f"\nNote: this table row doesn't follow a table row, so it isn't part of a table. "
+                             f"The nearest table is lines {a}-{b}; a row for it goes after line {b}.")
+        return f"inserted lines {first}-{last} in {rel}; now:\n{_numbered(shown[lo - 1:hi], lo)}{note}"
 
     def _closest(self, text: str, old: str) -> str:
         first = next((x.strip() for x in old.splitlines() if x.strip()), "")
@@ -341,16 +353,41 @@ class Workspace:
             raise WorkspaceError(f"{rel} is a directory")
         if content and not content.endswith("\n"):
             content += "\n"
-        self._stage(rel, content)
+        self._stage(rel, content, whole_file=True)
         self.read_paths.add(rel)
         n = len(content.splitlines())
         return f"{'replaced' if existed else 'created'} {rel} ({n} lines, staged)"
 
-    def _stage(self, rel: str, content: str) -> None:
+    def _stage(self, rel: str, content: str, whole_file: bool = False) -> None:
+        if rel.endswith(".py"):
+            self._check_python(rel, content, whole_file)
         if self.original(rel) == content:
             self.staged.pop(rel, None)   # an edit undone: nothing to apply
         else:
             self.staged[rel] = content
+
+    def _check_python(self, rel: str, content: str, whole_file: bool) -> None:
+        """Refuse a change that breaks a Python file which parsed before, or that drops a def or class
+        (unless the whole file is written: deleting a function is then deliberate)."""
+        before = self.staged.get(rel, self.original(rel))
+        defined = lambda text: set(re.findall(r"^[ \t]*(?:async[ \t]+def|def|class)[ \t]+(\w+)", text or "", re.M))
+        lost = sorted(defined(before) - defined(content)) if not whole_file else []
+        if lost:
+            line = next(x.strip() for x in before.splitlines()
+                        if re.match(rf"[ \t]*(?:async[ \t]+def|def|class)[ \t]+{lost[0]}\b", x))
+            raise WorkspaceError(
+                f"the change would delete `{line}` from {rel}; nothing was changed. Everything in `old` that "
+                "isn't in `new` is deleted: to add lines below a line (e.g. a docstring under a def), use "
+                "insert_lines with after= that line; to change the line, keep it in `new`.")
+        try:
+            ast.parse(content)
+        except SyntaxError as e:
+            try:
+                ast.parse(before or "")
+            except SyntaxError:
+                return   # it was broken already; don't block the fix
+            raise WorkspaceError(f"the change would leave {rel} with a Python syntax error ({e.msg}, line "
+                                 f"{e.lineno}); nothing was changed.") from None
 
     # the client's side
 
@@ -440,3 +477,28 @@ def _py_outline(node: ast.AST, indent: str) -> list[str]:
         if any(n.isupper() or n.startswith("__") for n in names):
             return [f"L{node.lineno} {' = '.join(names)} = …"]
     return []
+
+
+def _fences(lines: list[str]) -> list[tuple[int, int]]:
+    """The ``` / ~~~ code blocks of a Markdown file as (opening line, closing line), 1-based."""
+    out, start = [], None
+    for i, line in enumerate(lines, 1):
+        if line.lstrip().startswith(("```", "~~~")):
+            if start is None:
+                start = i
+            else:
+                out.append((start, i))
+                start = None
+    return out
+
+
+def _tables(lines: list[str]) -> list[tuple[int, int]]:
+    """The Markdown tables (runs of lines starting with "|") as (first line, last line), 1-based."""
+    out, start = [], None
+    for i, line in enumerate(lines + [""], 1):
+        if line.lstrip().startswith("|"):
+            start = start or i
+        elif start:
+            out.append((start, i - 1))
+            start = None
+    return out

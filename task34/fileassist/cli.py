@@ -7,6 +7,7 @@
     fileassist adr ["DECISION"]    write an ADR for a decision and add it to the index
     fileassist run "GOAL"          any goal, in words
     fileassist fixture DIR         build the fixture project ("parcel") into DIR to look at it
+    fileassist eval                run the cases in cases.json and check the results by code
 
 Without --root every run gets a fresh build of the fixture in workspace/<time>/parcel. Changes are
 staged: the run prints the diff, and --apply writes it to the files.
@@ -81,10 +82,11 @@ def resolve_root(root: str | None) -> Path:
 
 
 async def execute(goal: str, root: Path, model: str | None, steps: int, think: bool, apply: bool,
-                  extra: str = "", scenario: str = "", quiet: bool = False) -> tuple[Run, Path]:
+                  extra: str = "", scenario: str = "", quiet: bool = False,
+                  read_only: bool = False) -> tuple[Run, Path]:
     llm = LocalLLM(model, think=think)
     async with FilesClient(root) as fs:
-        agent = Agent(fs, llm, max_steps=steps, on_event=None if quiet else print_event)
+        agent = Agent(fs, llm, max_steps=steps, on_event=None if quiet else print_event, read_only=read_only)
         run = await agent.run(goal, extra)
         if apply and run.diff:
             await fs.apply()
@@ -113,7 +115,8 @@ def add_common(p: argparse.ArgumentParser) -> None:
     p.add_argument("--root", help="the project directory (default: a fresh build of the fixture)")
     p.add_argument("--model", default=None, help=f"Ollama model (default {DEFAULT_MODEL}, or FILEASSIST_MODEL)")
     p.add_argument("--steps", type=int, default=MAX_STEPS, help=f"tool-call budget (default {MAX_STEPS})")
-    p.add_argument("--think", action="store_true", help="let qwen3 reason before each step (slower)")
+    p.add_argument("--think", nargs="?", const=True, default=False, choices=[True, "low", "medium", "high"],
+                   help="let the model reason before each step (slower); for gpt-oss a level, default low")
     p.add_argument("--apply", action="store_true", help="write the changes to the files")
     p.add_argument("--quiet", action="store_true", help="don't print the tool calls as they happen")
 
@@ -139,7 +142,21 @@ def main(argv: list[str] | None = None) -> int:
     add_common(p)
     p = sub.add_parser("fixture", help="build the fixture project into a directory")
     p.add_argument("dir")
+    p = sub.add_parser("eval", help="run the eval cases and check the results")
+    p.add_argument("--models", default=DEFAULT_MODEL, help="comma-separated Ollama models")
+    p.add_argument("--cases", default="", help="comma-separated case ids (default all)")
+    p.add_argument("--repeat", type=int, default=3, help="runs per case and model (default 3)")
+    p.add_argument("--think", nargs="?", const=True, default=False, choices=[True, "low", "medium", "high"])
+    p.add_argument("--steps", type=int, default=MAX_STEPS)
     args = parser.parse_args(argv)
+
+    if args.command == "eval":
+        from . import evaluate
+        out = evaluate.main([m.strip() for m in args.models.split(",") if m.strip()],
+                            [c.strip() for c in args.cases.split(",") if c.strip()] or None,
+                            args.repeat, args.think, args.steps)
+        print(f"\nsaved {out.relative_to(runs.TASK_DIR)}")
+        return 0
 
     if args.command == "fixture":
         try:
@@ -151,17 +168,17 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "run":
-        goal, extra, name = " ".join(args.goal), "", ""
+        goal, extra, name, read_only = " ".join(args.goal), "", "", False
     else:
         arg = {"usages": getattr(args, "symbol", None), "adr": " ".join(getattr(args, "decision", []) or [])}
         name = "check-fix" if args.command == "check" and args.fix else args.command
         sc = scenarios.by_name(name, arg.get(args.command) or None)
-        goal, extra, name = sc.goal, sc.checklist, sc.name
+        goal, extra, name, read_only = sc.goal, sc.checklist, sc.name, not sc.changes_files
     root = resolve_root(args.root)
     print(_c("2", f"project {root}\ngoal    {goal}\n"))
     try:
         run, out = asyncio.run(execute(goal, root, args.model, args.steps, args.think, args.apply,
-                                       extra=extra, scenario=name, quiet=args.quiet))
+                                       extra=extra, scenario=name, quiet=args.quiet, read_only=read_only))
     except LLMError as e:
         print(f"fileassist: {e}", file=sys.stderr)
         return 1

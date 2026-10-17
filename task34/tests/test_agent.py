@@ -122,7 +122,7 @@ def test_text_without_tools_gets_one_nudge(repo):
     run = go(repo, llm)
     assert run.finished and run.stop_reason == "answered without finish"
     assert run.report == "The README needs --to." and run.steps == 0
-    assert llm.seen[1][0][-1]["content"].startswith("Continue with tool calls.")
+    assert llm.seen[1][0][-1]["content"].startswith("Use the tools, not text.")
 
 
 def test_unknown_tool_and_errors_go_back_to_the_model(repo):
@@ -166,3 +166,12 @@ def test_a_text_answer_with_changes_gets_the_review_too(repo):
     kinds = [e.kind for e in run.events]
     assert kinds.count("review") == 1 and run.report == "Reviewed, all good."
     assert llm.seen[3][0][-1]["content"].startswith("Before you finish")
+
+
+def test_a_read_only_run_has_no_write_tools(repo):
+    llm = ScriptedLLM([call("edit_file", path="README.md", old="# parcel\n", new="# parcel!\n"),
+                       call("finish", report="done")])
+    run = go(repo, llm, read_only=True)
+    offered = {t["function"]["name"] for t in llm.seen[0][1]}
+    assert not offered & {"edit_file", "insert_lines", "write_file"} and "read_file" in offered
+    assert run.calls[-1].result.startswith("error: this goal only reads") and run.diff == ""

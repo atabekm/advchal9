@@ -15,8 +15,8 @@ def test_arguments_and_file_policy():
     assert "`resolve_zone`" in scenarios.by_name("usages", "resolve_zone").goal
     assert scenarios.by_name("adr", "We use SQLite.").goal.endswith("this decision: We use SQLite.")
     assert not scenarios.by_name("check").changes_files and scenarios.by_name("check-fix").changes_files
-    assert "Don't change any files." in scenarios.by_name("check").checklist
-    assert "Don't change any files." not in scenarios.by_name("check-fix").checklist
+    assert "Don't change any files" in scenarios.by_name("check").checklist
+    assert "Don't change any files" not in scenarios.by_name("check-fix").checklist
 
 
 def test_goals_name_no_source_files():
