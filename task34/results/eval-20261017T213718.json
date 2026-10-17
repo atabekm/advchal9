@@ -1,0 +1,1737 @@
+{
+  "stamp": "20261017T213718",
+  "models": [
+    "qwen3:8b",
+    "qwen3:8b-q8_0",
+    "qwen3:14b"
+  ],
+  "repeat": 1,
+  "think": false,
+  "results": [
+    {
+      "case": "usages-quote_price",
+      "model": "qwen3:8b",
+      "n": 1,
+      "passed": true,
+      "checks": [
+        {
+          "name": "report mentions rates.py:21",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "report mentions api.py:28",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "report mentions batch.py:8",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "report mentions cli.py:28",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "report mentions test_cli.py:20",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "report mentions __init__.py:4 or __init__.py:6",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "report mentions qp",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "no file changed",
+          "ok": true,
+          "detail": ""
+        }
+      ],
+      "steps": 22,
+      "seconds": 104.96104062488303,
+      "stop_reason": "finished",
+      "path": "results/eval-20261017T213718/qwen3-8b/usages-quote_price-1/20261017T213904-usages-quote-price"
+    },
+    {
+      "case": "usages-WeightLimitError",
+      "model": "qwen3:8b",
+      "n": 1,
+      "passed": true,
+      "checks": [
+        {
+          "name": "report mentions rates.py:13",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "report mentions rates.py:35",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "report mentions cli.py:9",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "report mentions cli.py:29",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "report mentions test_rates.py:38",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "report doesn't mention api.py:",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "no file changed",
+          "ok": true,
+          "detail": ""
+        }
+      ],
+      "steps": 4,
+      "seconds": 24.07219274993986,
+      "stop_reason": "finished",
+      "path": "results/eval-20261017T213718/qwen3-8b/usages-WeightLimitError-1/20261017T213929-usages-weightlimiterror"
+    },
+    {
+      "case": "update-docs",
+      "model": "qwen3:8b",
+      "n": 1,
+      "passed": false,
+      "checks": [
+        {
+          "name": "changes README.md",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "changes docs/usage.md",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "changes docs/configuration.md",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "changes .env.example",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "leaves parcel/*, tests/*, CHANGELOG.md, docs/adr/* alone",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "adds no FR [--express]",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "adds no [--to",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "docs/usage.md has --to",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "docs/usage.md has express",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "docs/configuration.md has PARCEL_MAX_WEIGHT_KG",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": ".env.example has PARCEL_MAX_WEIGHT_KG",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "README.md has no --zone",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "docs/usage.md has no --zone",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "docs/usage.md has no zone=FR",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "docs/configuration.md matches /\\|[^\\n]*\\|\\n\\| `PARCEL_MAX_WEIGHT_KG`/",
+          "ok": false,
+          "detail": ""
+        }
+      ],
+      "steps": 16,
+      "seconds": 44.25348862493411,
+      "stop_reason": "stuck: the same search call three times",
+      "path": "results/eval-20261017T213718/qwen3-8b/update-docs-1/20261017T214015-update-docs"
+    },
+    {
+      "case": "update-docs-vague",
+      "model": "qwen3:8b",
+      "n": 1,
+      "passed": false,
+      "checks": [
+        {
+          "name": "changes README.md",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "changes docs/usage.md",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "leaves parcel/*, tests/* alone",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "adds no FR [--express]",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "docs/usage.md has --to",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "docs/usage.md has --express",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "README.md has no --zone",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "docs/usage.md has no --zone",
+          "ok": false,
+          "detail": ""
+        }
+      ],
+      "steps": 18,
+      "seconds": 43.4187380829826,
+      "stop_reason": "stuck: the same search call three times",
+      "path": "results/eval-20261017T213718/qwen3-8b/update-docs-vague-1/20261017T214059-update-docs-vague"
+    },
+    {
+      "case": "document-env-var",
+      "model": "qwen3:8b",
+      "n": 1,
+      "passed": false,
+      "checks": [
+        {
+          "name": "changes docs/configuration.md",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "changes .env.example",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "changes only docs/configuration.md, .env.example",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "deletes no line of docs/configuration.md",
+          "ok": false,
+          "detail": "| `PARCEL_FUEL_SURCHARGE` | `0.00` | fuel surcharge as a fraction of the price, e.g. `0.08` for 8 % |"
+        },
+        {
+          "name": "deletes no line of .env.example",
+          "ok": false,
+          "detail": "PARCEL_FUEL_SURCHARGE=0.00"
+        },
+        {
+          "name": "docs/configuration.md has PARCEL_MAX_WEIGHT_KG",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "docs/configuration.md has 30",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": ".env.example has PARCEL_MAX_WEIGHT_KG=30",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "docs/configuration.md matches /\\|[^\\n]*\\|\\n\\| `PARCEL_MAX_WEIGHT_KG`/",
+          "ok": true,
+          "detail": ""
+        }
+      ],
+      "steps": 6,
+      "seconds": 31.764718958875164,
+      "stop_reason": "finished",
+      "path": "results/eval-20261017T213718/qwen3-8b/document-env-var-1/20261017T214132-document-env-var"
+    },
+    {
+      "case": "check",
+      "model": "qwen3:8b",
+      "n": 1,
+      "passed": false,
+      "checks": [
+        {
+          "name": "report mentions zones.py:33 or resolve_zone",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "report mentions batch.py",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "report mentions PARCEL_MAX_WEIGHT_KG",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "report mentions PARCEL_API_PREFIX",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "report mentions zones.py:11",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "report mentions parcel.batch",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "report mentions test_batch",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "no file changed",
+          "ok": true,
+          "detail": ""
+        }
+      ],
+      "steps": 32,
+      "seconds": 96.63155879196711,
+      "stop_reason": "stuck: the same search call three times",
+      "path": "results/eval-20261017T213718/qwen3-8b/check-1/20261017T214310-check"
+    },
+    {
+      "case": "check-fix",
+      "model": "qwen3:8b",
+      "n": 1,
+      "passed": false,
+      "checks": [
+        {
+          "name": "leaves CHANGELOG.md, docs/adr/* alone",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "adds no TODO(#",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "tests/test_batch.py exists",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "docs/configuration.md has PARCEL_MAX_WEIGHT_KG",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "docs/configuration.md has PARCEL_API_PREFIX",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "docs/usage.md has parcel.batch",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "parcel/batch.py has no print(",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "parcel/zones.py matches /def resolve_zone\\([^)]*\\)[^:]*:\\n\\s+(\"\"\"|''')/",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "the project's tests pass",
+          "ok": true,
+          "detail": "20 passed in 0.04s"
+        }
+      ],
+      "steps": 14,
+      "seconds": 37.401924500009045,
+      "stop_reason": "stuck: the same search call three times",
+      "path": "results/eval-20261017T213718/qwen3-8b/check-fix-1/20261017T214349-check-fix"
+    },
+    {
+      "case": "changelog",
+      "model": "qwen3:8b",
+      "n": 1,
+      "passed": false,
+      "checks": [
+        {
+          "name": "changes only CHANGELOG.md",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "deletes no line of CHANGELOG.md",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "[Unreleased] has ### Added",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "[Unreleased] has ### Changed",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "[Unreleased] has ### Fixed",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "[Unreleased] has express",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "[Unreleased] has PARCEL_MAX_WEIGHT_KG",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "[Unreleased] has --to",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "[Unreleased] has quote_many",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "[Unreleased] has round or cent",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "[Unreleased] has breaking or Breaking or BREAKING",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "### Fixed has round or cent",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "[Unreleased] has no resolve_zone",
+          "ok": true,
+          "detail": ""
+        }
+      ],
+      "steps": 6,
+      "seconds": 55.635645542060956,
+      "stop_reason": "finished",
+      "path": "results/eval-20261017T213718/qwen3-8b/changelog-1/20261017T214445-changelog"
+    },
+    {
+      "case": "adr",
+      "model": "qwen3:8b",
+      "n": 1,
+      "passed": false,
+      "checks": [
+        {
+          "name": "changes only docs/adr/0003-*.md, docs/adr/README.md",
+          "ok": false,
+          "detail": "nothing changed"
+        },
+        {
+          "name": "docs/adr/0003-*.md exists",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "docs/adr/0003-*.md has PARCEL_MAX_WEIGHT_KG",
+          "ok": false,
+          "detail": "no such file"
+        },
+        {
+          "name": "docs/adr/0003-*.md has WeightLimitError",
+          "ok": false,
+          "detail": "no such file"
+        },
+        {
+          "name": "docs/adr/0003-*.md has 2026-10-12",
+          "ok": false,
+          "detail": "no such file"
+        },
+        {
+          "name": "docs/adr/0003-*.md has Mira",
+          "ok": false,
+          "detail": "no such file"
+        },
+        {
+          "name": "docs/adr/README.md has 0003",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "docs/adr/README.md matches /\\| \\[0002\\][^\\n]*\\n\\| \\[0003\\]\\(0003-/",
+          "ok": false,
+          "detail": ""
+        }
+      ],
+      "steps": 28,
+      "seconds": 77.48695600009523,
+      "stop_reason": "stuck: the same search call three times",
+      "path": "results/eval-20261017T213718/qwen3-8b/adr-1/20261017T214604-adr"
+    },
+    {
+      "case": "adr-from-history",
+      "model": "qwen3:8b",
+      "n": 1,
+      "passed": false,
+      "checks": [
+        {
+          "name": "changes only docs/adr/0003-*.md, docs/adr/README.md",
+          "ok": false,
+          "detail": "nothing changed"
+        },
+        {
+          "name": "docs/adr/0003-*.md exists",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "docs/adr/0003-*.md has resolve_zone",
+          "ok": false,
+          "detail": "no such file"
+        },
+        {
+          "name": "docs/adr/0003-*.md has 2026-10-01",
+          "ok": false,
+          "detail": "no such file"
+        },
+        {
+          "name": "docs/adr/0003-*.md has Jonas",
+          "ok": false,
+          "detail": "no such file"
+        },
+        {
+          "name": "docs/adr/README.md has 0003",
+          "ok": false,
+          "detail": ""
+        }
+      ],
+      "steps": 22,
+      "seconds": 57.00842645810917,
+      "stop_reason": "stuck: the same search call three times",
+      "path": "results/eval-20261017T213718/qwen3-8b/adr-from-history-1/20261017T214702-adr-from-history"
+    },
+    {
+      "case": "usages-quote_price",
+      "model": "qwen3:8b-q8_0",
+      "n": 1,
+      "passed": false,
+      "checks": [
+        {
+          "name": "report mentions rates.py:21",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "report mentions api.py:28",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "report mentions batch.py:8",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "report mentions cli.py:28",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "report mentions test_cli.py:20",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "report mentions __init__.py:4 or __init__.py:6",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "report mentions qp",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "no file changed",
+          "ok": true,
+          "detail": ""
+        }
+      ],
+      "steps": 6,
+      "seconds": 29.122744374908507,
+      "stop_reason": "stuck: the same search call three times",
+      "path": "results/eval-20261017T213718/qwen3-8b-q8-0/usages-quote_price-1/20261017T214733-usages-quote-price"
+    },
+    {
+      "case": "usages-WeightLimitError",
+      "model": "qwen3:8b-q8_0",
+      "n": 1,
+      "passed": false,
+      "checks": [
+        {
+          "name": "report mentions rates.py:13",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "report mentions rates.py:35",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "report mentions cli.py:9",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "report mentions cli.py:29",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "report mentions test_rates.py:38",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "report doesn't mention api.py:",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "no file changed",
+          "ok": true,
+          "detail": ""
+        }
+      ],
+      "steps": 10,
+      "seconds": 25.268416000064462,
+      "stop_reason": "stuck: the same search call three times",
+      "path": "results/eval-20261017T213718/qwen3-8b-q8-0/usages-WeightLimitError-1/20261017T214759-usages-weightlimiterror"
+    },
+    {
+      "case": "update-docs",
+      "model": "qwen3:8b-q8_0",
+      "n": 1,
+      "passed": false,
+      "checks": [
+        {
+          "name": "changes README.md",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "changes docs/usage.md",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "changes docs/configuration.md",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "changes .env.example",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "leaves parcel/*, tests/*, CHANGELOG.md, docs/adr/* alone",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "adds no FR [--express]",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "adds no [--to",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "docs/usage.md has --to",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "docs/usage.md has express",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "docs/configuration.md has PARCEL_MAX_WEIGHT_KG",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": ".env.example has PARCEL_MAX_WEIGHT_KG",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "README.md has no --zone",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "docs/usage.md has no --zone",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "docs/usage.md has no zone=FR",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "docs/configuration.md matches /\\|[^\\n]*\\|\\n\\| `PARCEL_MAX_WEIGHT_KG`/",
+          "ok": false,
+          "detail": ""
+        }
+      ],
+      "steps": 34,
+      "seconds": 86.37700179195963,
+      "stop_reason": "stuck: the same search call three times",
+      "path": "results/eval-20261017T213718/qwen3-8b-q8-0/update-docs-1/20261017T214927-update-docs"
+    },
+    {
+      "case": "update-docs-vague",
+      "model": "qwen3:8b-q8_0",
+      "n": 1,
+      "passed": false,
+      "checks": [
+        {
+          "name": "changes README.md",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "changes docs/usage.md",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "leaves parcel/*, tests/* alone",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "adds no FR [--express]",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "docs/usage.md has --to",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "docs/usage.md has --express",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "README.md has no --zone",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "docs/usage.md has no --zone",
+          "ok": false,
+          "detail": ""
+        }
+      ],
+      "steps": 9,
+      "seconds": 39.24589412496425,
+      "stop_reason": "finished",
+      "path": "results/eval-20261017T213718/qwen3-8b-q8-0/update-docs-vague-1/20261017T215007-update-docs-vague"
+    },
+    {
+      "case": "document-env-var",
+      "model": "qwen3:8b-q8_0",
+      "n": 1,
+      "passed": false,
+      "checks": [
+        {
+          "name": "changes docs/configuration.md",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "changes .env.example",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "changes only docs/configuration.md, .env.example",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "deletes no line of docs/configuration.md",
+          "ok": false,
+          "detail": "| `PARCEL_FUEL_SURCHARGE` | `0.00` | fuel surcharge as a fraction of the price, e.g. `0.08` for 8 % |"
+        },
+        {
+          "name": "deletes no line of .env.example",
+          "ok": false,
+          "detail": "PARCEL_FUEL_SURCHARGE=0.00"
+        },
+        {
+          "name": "docs/configuration.md has PARCEL_MAX_WEIGHT_KG",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "docs/configuration.md has 30",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": ".env.example has PARCEL_MAX_WEIGHT_KG=30",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "docs/configuration.md matches /\\|[^\\n]*\\|\\n\\| `PARCEL_MAX_WEIGHT_KG`/",
+          "ok": true,
+          "detail": ""
+        }
+      ],
+      "steps": 5,
+      "seconds": 33.34260137495585,
+      "stop_reason": "finished",
+      "path": "results/eval-20261017T213718/qwen3-8b-q8-0/document-env-var-1/20261017T215042-document-env-var"
+    },
+    {
+      "case": "check",
+      "model": "qwen3:8b-q8_0",
+      "n": 1,
+      "passed": false,
+      "checks": [
+        {
+          "name": "report mentions zones.py:33 or resolve_zone",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "report mentions batch.py",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "report mentions PARCEL_MAX_WEIGHT_KG",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "report mentions PARCEL_API_PREFIX",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "report mentions zones.py:11",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "report mentions parcel.batch",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "report mentions test_batch",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "no file changed",
+          "ok": true,
+          "detail": ""
+        }
+      ],
+      "steps": 11,
+      "seconds": 27.402635041158646,
+      "stop_reason": "stuck: the same search call three times",
+      "path": "results/eval-20261017T213718/qwen3-8b-q8-0/check-1/20261017T215111-check"
+    },
+    {
+      "case": "check-fix",
+      "model": "qwen3:8b-q8_0",
+      "n": 1,
+      "passed": false,
+      "checks": [
+        {
+          "name": "leaves CHANGELOG.md, docs/adr/* alone",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "adds no TODO(#",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "tests/test_batch.py exists",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "docs/configuration.md has PARCEL_MAX_WEIGHT_KG",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "docs/configuration.md has PARCEL_API_PREFIX",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "docs/usage.md has parcel.batch",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "parcel/batch.py has no print(",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "parcel/zones.py matches /def resolve_zone\\([^)]*\\)[^:]*:\\n\\s+(\"\"\"|''')/",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "the project's tests pass",
+          "ok": true,
+          "detail": "20 passed in 0.03s"
+        }
+      ],
+      "steps": 10,
+      "seconds": 49.062317291041836,
+      "stop_reason": "stuck: the same search call three times",
+      "path": "results/eval-20261017T213718/qwen3-8b-q8-0/check-fix-1/20261017T215201-check-fix"
+    },
+    {
+      "case": "changelog",
+      "model": "qwen3:8b-q8_0",
+      "n": 1,
+      "passed": false,
+      "checks": [
+        {
+          "name": "changes only CHANGELOG.md",
+          "ok": false,
+          "detail": "nothing changed"
+        },
+        {
+          "name": "deletes no line of CHANGELOG.md",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "[Unreleased] has ### Added",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "[Unreleased] has ### Changed",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "[Unreleased] has ### Fixed",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "[Unreleased] has express",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "[Unreleased] has PARCEL_MAX_WEIGHT_KG",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "[Unreleased] has --to",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "[Unreleased] has quote_many",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "[Unreleased] has round or cent",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "[Unreleased] has breaking or Breaking or BREAKING",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "### Fixed has round or cent",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "[Unreleased] has no resolve_zone",
+          "ok": true,
+          "detail": ""
+        }
+      ],
+      "steps": 17,
+      "seconds": 47.75938879093155,
+      "stop_reason": "stuck: the same search call three times",
+      "path": "results/eval-20261017T213718/qwen3-8b-q8-0/changelog-1/20261017T215251-changelog"
+    },
+    {
+      "case": "adr",
+      "model": "qwen3:8b-q8_0",
+      "n": 1,
+      "passed": false,
+      "checks": [
+        {
+          "name": "changes only docs/adr/0003-*.md, docs/adr/README.md",
+          "ok": false,
+          "detail": "nothing changed"
+        },
+        {
+          "name": "docs/adr/0003-*.md exists",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "docs/adr/0003-*.md has PARCEL_MAX_WEIGHT_KG",
+          "ok": false,
+          "detail": "no such file"
+        },
+        {
+          "name": "docs/adr/0003-*.md has WeightLimitError",
+          "ok": false,
+          "detail": "no such file"
+        },
+        {
+          "name": "docs/adr/0003-*.md has 2026-10-12",
+          "ok": false,
+          "detail": "no such file"
+        },
+        {
+          "name": "docs/adr/0003-*.md has Mira",
+          "ok": false,
+          "detail": "no such file"
+        },
+        {
+          "name": "docs/adr/README.md has 0003",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "docs/adr/README.md matches /\\| \\[0002\\][^\\n]*\\n\\| \\[0003\\]\\(0003-/",
+          "ok": false,
+          "detail": ""
+        }
+      ],
+      "steps": 10,
+      "seconds": 28.323510291986167,
+      "stop_reason": "stuck: the same search call three times",
+      "path": "results/eval-20261017T213718/qwen3-8b-q8-0/adr-1/20261017T215320-adr"
+    },
+    {
+      "case": "adr-from-history",
+      "model": "qwen3:8b-q8_0",
+      "n": 1,
+      "passed": false,
+      "checks": [
+        {
+          "name": "changes only docs/adr/0003-*.md, docs/adr/README.md",
+          "ok": false,
+          "detail": "nothing changed"
+        },
+        {
+          "name": "docs/adr/0003-*.md exists",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "docs/adr/0003-*.md has resolve_zone",
+          "ok": false,
+          "detail": "no such file"
+        },
+        {
+          "name": "docs/adr/0003-*.md has 2026-10-01",
+          "ok": false,
+          "detail": "no such file"
+        },
+        {
+          "name": "docs/adr/0003-*.md has Jonas",
+          "ok": false,
+          "detail": "no such file"
+        },
+        {
+          "name": "docs/adr/README.md has 0003",
+          "ok": false,
+          "detail": ""
+        }
+      ],
+      "steps": 19,
+      "seconds": 48.414964499883354,
+      "stop_reason": "stuck: the same search call three times",
+      "path": "results/eval-20261017T213718/qwen3-8b-q8-0/adr-from-history-1/20261017T215410-adr-from-history"
+    },
+    {
+      "case": "usages-quote_price",
+      "model": "qwen3:14b",
+      "n": 1,
+      "passed": false,
+      "checks": [
+        {
+          "name": "report mentions rates.py:21",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "report mentions api.py:28",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "report mentions batch.py:8",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "report mentions cli.py:28",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "report mentions test_cli.py:20",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "report mentions __init__.py:4 or __init__.py:6",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "report mentions qp",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "no file changed",
+          "ok": true,
+          "detail": ""
+        }
+      ],
+      "steps": 12,
+      "seconds": 347.3685800000094,
+      "stop_reason": "finished",
+      "path": "results/eval-20261017T213718/qwen3-14b/usages-quote_price-1/20261017T215959-usages-quote-price"
+    },
+    {
+      "case": "usages-WeightLimitError",
+      "model": "qwen3:14b",
+      "n": 1,
+      "passed": true,
+      "checks": [
+        {
+          "name": "report mentions rates.py:13",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "report mentions rates.py:35",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "report mentions cli.py:9",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "report mentions cli.py:29",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "report mentions test_rates.py:38",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "report doesn't mention api.py:",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "no file changed",
+          "ok": true,
+          "detail": ""
+        }
+      ],
+      "steps": 7,
+      "seconds": 120.63538324995898,
+      "stop_reason": "finished",
+      "path": "results/eval-20261017T213718/qwen3-14b/usages-WeightLimitError-1/20261017T220201-usages-weightlimiterror"
+    },
+    {
+      "case": "update-docs",
+      "model": "qwen3:14b",
+      "n": 1,
+      "passed": false,
+      "checks": [
+        {
+          "name": "changes README.md",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "changes docs/usage.md",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "changes docs/configuration.md",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "changes .env.example",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "leaves parcel/*, tests/*, CHANGELOG.md, docs/adr/* alone",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "adds no FR [--express]",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "adds no [--to",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "docs/usage.md has --to",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "docs/usage.md has express",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "docs/configuration.md has PARCEL_MAX_WEIGHT_KG",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": ".env.example has PARCEL_MAX_WEIGHT_KG",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "README.md has no --zone",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "docs/usage.md has no --zone",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "docs/usage.md has no zone=FR",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "docs/configuration.md matches /\\|[^\\n]*\\|\\n\\| `PARCEL_MAX_WEIGHT_KG`/",
+          "ok": false,
+          "detail": ""
+        }
+      ],
+      "steps": 40,
+      "seconds": 233.08120891614817,
+      "stop_reason": "budget of 40 tool calls used up",
+      "path": "results/eval-20261017T213718/qwen3-14b/update-docs-1/20261017T220555-update-docs"
+    },
+    {
+      "case": "update-docs-vague",
+      "model": "qwen3:14b",
+      "n": 1,
+      "passed": false,
+      "checks": [
+        {
+          "name": "changes README.md",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "changes docs/usage.md",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "leaves parcel/*, tests/* alone",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "adds no FR [--express]",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "docs/usage.md has --to",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "docs/usage.md has --express",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "README.md has no --zone",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "docs/usage.md has no --zone",
+          "ok": false,
+          "detail": ""
+        }
+      ],
+      "steps": 18,
+      "seconds": 98.2114524168428,
+      "stop_reason": "finished",
+      "path": "results/eval-20261017T213718/qwen3-14b/update-docs-vague-1/20261017T220735-update-docs-vague"
+    },
+    {
+      "case": "document-env-var",
+      "model": "qwen3:14b",
+      "n": 1,
+      "passed": true,
+      "checks": [
+        {
+          "name": "changes docs/configuration.md",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "changes .env.example",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "changes only docs/configuration.md, .env.example",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "deletes no line of docs/configuration.md",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "deletes no line of .env.example",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "docs/configuration.md has PARCEL_MAX_WEIGHT_KG",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "docs/configuration.md has 30",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": ".env.example has PARCEL_MAX_WEIGHT_KG=30",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "docs/configuration.md matches /\\|[^\\n]*\\|\\n\\| `PARCEL_MAX_WEIGHT_KG`/",
+          "ok": true,
+          "detail": ""
+        }
+      ],
+      "steps": 13,
+      "seconds": 78.99605712504126,
+      "stop_reason": "stuck: the same edit_file call three times",
+      "path": "results/eval-20261017T213718/qwen3-14b/document-env-var-1/20261017T220855-document-env-var"
+    },
+    {
+      "case": "check",
+      "model": "qwen3:14b",
+      "n": 1,
+      "passed": false,
+      "checks": [
+        {
+          "name": "report mentions zones.py:33 or resolve_zone",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "report mentions batch.py",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "report mentions PARCEL_MAX_WEIGHT_KG",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "report mentions PARCEL_API_PREFIX",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "report mentions zones.py:11",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "report mentions parcel.batch",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "report mentions test_batch",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "no file changed",
+          "ok": true,
+          "detail": ""
+        }
+      ],
+      "steps": 10,
+      "seconds": 51.25461829104461,
+      "stop_reason": "stuck: the same search call three times",
+      "path": "results/eval-20261017T213718/qwen3-14b/check-1/20261017T220948-check"
+    },
+    {
+      "case": "check-fix",
+      "model": "qwen3:14b",
+      "n": 1,
+      "passed": false,
+      "checks": [
+        {
+          "name": "leaves CHANGELOG.md, docs/adr/* alone",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "adds no TODO(#",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "tests/test_batch.py exists",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "docs/configuration.md has PARCEL_MAX_WEIGHT_KG",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "docs/configuration.md has PARCEL_API_PREFIX",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "docs/usage.md has parcel.batch",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "parcel/batch.py has no print(",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "parcel/zones.py matches /def resolve_zone\\([^)]*\\)[^:]*:\\n\\s+(\"\"\"|''')/",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "the project's tests pass",
+          "ok": true,
+          "detail": "20 passed in 0.03s"
+        }
+      ],
+      "steps": 22,
+      "seconds": 110.29111816594377,
+      "stop_reason": "stuck: the same search call three times",
+      "path": "results/eval-20261017T213718/qwen3-14b/check-fix-1/20261017T221140-check-fix"
+    },
+    {
+      "case": "changelog",
+      "model": "qwen3:14b",
+      "n": 1,
+      "passed": false,
+      "checks": [
+        {
+          "name": "changes only CHANGELOG.md",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "deletes no line of CHANGELOG.md",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "[Unreleased] has ### Added",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "[Unreleased] has ### Changed",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "[Unreleased] has ### Fixed",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "[Unreleased] has express",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "[Unreleased] has PARCEL_MAX_WEIGHT_KG",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "[Unreleased] has --to",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "[Unreleased] has quote_many",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "[Unreleased] has round or cent",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "[Unreleased] has breaking or Breaking or BREAKING",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "### Fixed has round or cent",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "[Unreleased] has no resolve_zone",
+          "ok": true,
+          "detail": ""
+        }
+      ],
+      "steps": 9,
+      "seconds": 102.0561801251024,
+      "stop_reason": "finished",
+      "path": "results/eval-20261017T213718/qwen3-14b/changelog-1/20261017T221323-changelog"
+    },
+    {
+      "case": "adr",
+      "model": "qwen3:14b",
+      "n": 1,
+      "passed": false,
+      "checks": [
+        {
+          "name": "changes only docs/adr/0003-*.md, docs/adr/README.md",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "docs/adr/0003-*.md exists",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "docs/adr/0003-*.md has PARCEL_MAX_WEIGHT_KG",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "docs/adr/0003-*.md has WeightLimitError",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "docs/adr/0003-*.md has 2026-10-12",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "docs/adr/0003-*.md has Mira",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "docs/adr/README.md has 0003",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "docs/adr/README.md matches /\\| \\[0002\\][^\\n]*\\n\\| \\[0003\\]\\(0003-/",
+          "ok": false,
+          "detail": ""
+        }
+      ],
+      "steps": 12,
+      "seconds": 152.2326990419533,
+      "stop_reason": "finished",
+      "path": "results/eval-20261017T213718/qwen3-14b/adr-1/20261017T221557-adr"
+    },
+    {
+      "case": "adr-from-history",
+      "model": "qwen3:14b",
+      "n": 1,
+      "passed": false,
+      "checks": [
+        {
+          "name": "changes only docs/adr/0003-*.md, docs/adr/README.md",
+          "ok": false,
+          "detail": "nothing changed"
+        },
+        {
+          "name": "docs/adr/0003-*.md exists",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "docs/adr/0003-*.md has resolve_zone",
+          "ok": false,
+          "detail": "no such file"
+        },
+        {
+          "name": "docs/adr/0003-*.md has 2026-10-01",
+          "ok": false,
+          "detail": "no such file"
+        },
+        {
+          "name": "docs/adr/0003-*.md has Jonas",
+          "ok": false,
+          "detail": "no such file"
+        },
+        {
+          "name": "docs/adr/README.md has 0003",
+          "ok": false,
+          "detail": ""
+        }
+      ],
+      "steps": 71,
+      "seconds": 392.9933984170202,
+      "stop_reason": "stuck: the same search call three times",
+      "path": "results/eval-20261017T213718/qwen3-14b/adr-from-history-1/20261017T222231-adr-from-history"
+    }
+  ]
+}

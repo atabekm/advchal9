@@ -308,6 +308,17 @@ class Workspace:
                 raise WorkspaceError(f"after: the line occurs {len(starts)} times in {rel} (lines "
                                      f"{', '.join(str(s + 1) for s in starts)}); give two lines to make it unique")
             at = starts[0] + len(want)
+        new_lines = [x.rstrip() for x in block.splitlines()]
+        if sum(1 for x in new_lines if x.strip()) >= 2:   # the same block again: a retry, not an addition
+            have = [x.rstrip() for x in content.splitlines()]
+            core = new_lines[next(i for i, x in enumerate(new_lines) if x.strip()):]
+            core = core[:max(i for i, x in enumerate(core) if x.strip()) + 1]
+            for i in range(len(have) - len(core) + 1):
+                if have[i:i + len(core)] == core:
+                    raise WorkspaceError(
+                        f"these lines are already in {rel} (lines {i + 1}-{i + len(core)}); nothing was inserted. "
+                        "To move them, edit_file the old copy (old = those lines, new = what should stay), "
+                        "then insert them where they belong.")
         if at and not lines[at - 1].endswith("\n"):
             lines[at - 1] += "\n"
         result = "".join(lines[:at]) + block + "".join(lines[at:])

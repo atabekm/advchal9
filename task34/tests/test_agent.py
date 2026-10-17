@@ -175,3 +175,9 @@ def test_a_read_only_run_has_no_write_tools(repo):
     offered = {t["function"]["name"] for t in llm.seen[0][1]}
     assert not offered & {"edit_file", "insert_lines", "write_file"} and "read_file" in offered
     assert run.calls[-1].result.startswith("error: this goal only reads") and run.diff == ""
+
+
+def test_a_finish_written_as_json_text_finishes(repo):
+    llm = ScriptedLLM([Reply(text='{"report": "Nothing to change."}')])
+    run = go(repo, llm, review=False)
+    assert run.finished and run.report == "Nothing to change." and llm.seen[-1][0][-1]["role"] == "user"

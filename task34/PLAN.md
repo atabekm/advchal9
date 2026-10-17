@@ -181,3 +181,24 @@ One branch `task34/file-assistant`, a commit per stage, one PR at the end.
 4. **Evaluation**: `cases.json`, the checks, `fileassist eval` over the models, pick the default.
 5. **Web UI and README**: `fileassist serve` with SSE, diff view and apply/discard. The README
    gets the eval table and real transcripts.
+
+## What the build changed
+
+- **The model.** `gpt-oss:20b` at reasoning level `low` is the default, not a qwen3 model (see
+  Model). A higher reasoning level made it slower and no better.
+- **Forgiving tools, then guarded tools.** The first runs showed the same mistakes in every
+  model. Models pasted the `12| ` prefixes into `old`, gave several globs in one pattern, and
+  replaced a line when they meant to add one. The tools now accept the first two. A separate
+  `insert_lines` handles adding. `edit_file` refuses a change that deletes a `def`/`class` or
+  breaks a Python file. `insert_lines` warns when it puts a line inside a code block or a row
+  outside its table. Each guard came from a failed run.
+- **The loop.** The agent itself opens with `list_files`. The staged diff goes back to the model
+  once for a review before it finishes. Read-only scenarios (`usages`, `check`) are offered no
+  write tools at all, after a nudge talked `check` into editing. The budget is 40 tool calls,
+  not 25.
+- **The eval.** It runs at temperature 0 with a fixed seed. gpt-oss gave the same result on all
+  three repeats within one session. A later session on the final code took different paths on
+  some cases (6/10 instead of 5/10). So the README reports both sessions. The qwen models run
+  once each.
+- **The web UI.** Each run keeps its MCP session open until Apply or Discard, so the diff on the
+  page is the one the server would write.

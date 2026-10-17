@@ -1,0 +1,585 @@
+{
+  "stamp": "20261017T223210",
+  "models": [
+    "gpt-oss:20b"
+  ],
+  "repeat": 1,
+  "think": false,
+  "results": [
+    {
+      "case": "usages-quote_price",
+      "model": "gpt-oss:20b",
+      "n": 1,
+      "passed": true,
+      "checks": [
+        {
+          "name": "report mentions rates.py:21",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "report mentions api.py:28",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "report mentions batch.py:8",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "report mentions cli.py:28",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "report mentions test_cli.py:20",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "report mentions __init__.py:4 or __init__.py:6",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "report mentions qp",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "no file changed",
+          "ok": true,
+          "detail": ""
+        }
+      ],
+      "steps": 13,
+      "seconds": 136.46346545917913,
+      "stop_reason": "finished",
+      "path": "results/eval-20261017T223210/gpt-oss-20b/usages-quote_price-1/20261017T223428-usages-quote-price"
+    },
+    {
+      "case": "usages-WeightLimitError",
+      "model": "gpt-oss:20b",
+      "n": 1,
+      "passed": true,
+      "checks": [
+        {
+          "name": "report mentions rates.py:13",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "report mentions rates.py:35",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "report mentions cli.py:9",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "report mentions cli.py:29",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "report mentions test_rates.py:38",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "report doesn't mention api.py:",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "no file changed",
+          "ok": true,
+          "detail": ""
+        }
+      ],
+      "steps": 5,
+      "seconds": 48.44779762509279,
+      "stop_reason": "finished",
+      "path": "results/eval-20261017T223210/gpt-oss-20b/usages-WeightLimitError-1/20261017T223518-usages-weightlimiterror"
+    },
+    {
+      "case": "update-docs",
+      "model": "gpt-oss:20b",
+      "n": 1,
+      "passed": false,
+      "checks": [
+        {
+          "name": "changes README.md",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "changes docs/usage.md",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "changes docs/configuration.md",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "changes .env.example",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "leaves parcel/*, tests/*, CHANGELOG.md, docs/adr/* alone",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "adds no FR [--express]",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "adds no [--to",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "docs/usage.md has --to",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "docs/usage.md has express",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "docs/configuration.md has PARCEL_MAX_WEIGHT_KG",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": ".env.example has PARCEL_MAX_WEIGHT_KG",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "README.md has no --zone",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "docs/usage.md has no --zone",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "docs/usage.md has no zone=FR",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "docs/configuration.md matches /\\|[^\\n]*\\|\\n\\| `PARCEL_MAX_WEIGHT_KG`/",
+          "ok": false,
+          "detail": ""
+        }
+      ],
+      "steps": 32,
+      "seconds": 104.10072741704062,
+      "stop_reason": "stuck: the same search call three times",
+      "path": "results/eval-20261017T223210/gpt-oss-20b/update-docs-1/20261017T223703-update-docs"
+    },
+    {
+      "case": "update-docs-vague",
+      "model": "gpt-oss:20b",
+      "n": 1,
+      "passed": false,
+      "checks": [
+        {
+          "name": "changes README.md",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "changes docs/usage.md",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "leaves parcel/*, tests/* alone",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "adds no FR [--express]",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "docs/usage.md has --to",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "docs/usage.md has --express",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "README.md has no --zone",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "docs/usage.md has no --zone",
+          "ok": true,
+          "detail": ""
+        }
+      ],
+      "steps": 11,
+      "seconds": 60.69610458286479,
+      "stop_reason": "finished",
+      "path": "results/eval-20261017T223210/gpt-oss-20b/update-docs-vague-1/20261017T223806-update-docs-vague"
+    },
+    {
+      "case": "document-env-var",
+      "model": "gpt-oss:20b",
+      "n": 1,
+      "passed": true,
+      "checks": [
+        {
+          "name": "changes docs/configuration.md",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "changes .env.example",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "changes only docs/configuration.md, .env.example",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "deletes no line of docs/configuration.md",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "deletes no line of .env.example",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "docs/configuration.md has PARCEL_MAX_WEIGHT_KG",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "docs/configuration.md has 30",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": ".env.example has PARCEL_MAX_WEIGHT_KG=30",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "docs/configuration.md matches /\\|[^\\n]*\\|\\n\\| `PARCEL_MAX_WEIGHT_KG`/",
+          "ok": true,
+          "detail": ""
+        }
+      ],
+      "steps": 6,
+      "seconds": 31.196606709156185,
+      "stop_reason": "finished",
+      "path": "results/eval-20261017T223210/gpt-oss-20b/document-env-var-1/20261017T223838-document-env-var"
+    },
+    {
+      "case": "check",
+      "model": "gpt-oss:20b",
+      "n": 1,
+      "passed": false,
+      "checks": [
+        {
+          "name": "report mentions zones.py:33 or resolve_zone",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "report mentions batch.py",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "report mentions PARCEL_MAX_WEIGHT_KG",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "report mentions PARCEL_API_PREFIX",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "report mentions zones.py:11",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "report mentions parcel.batch",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "report mentions test_batch",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "no file changed",
+          "ok": true,
+          "detail": ""
+        }
+      ],
+      "steps": 20,
+      "seconds": 63.93518737494014,
+      "stop_reason": "finished",
+      "path": "results/eval-20261017T223210/gpt-oss-20b/check-1/20261017T223943-check"
+    },
+    {
+      "case": "check-fix",
+      "model": "gpt-oss:20b",
+      "n": 1,
+      "passed": false,
+      "checks": [
+        {
+          "name": "leaves CHANGELOG.md, docs/adr/* alone",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "adds no TODO(#",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "tests/test_batch.py exists",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "docs/configuration.md has PARCEL_MAX_WEIGHT_KG",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "docs/configuration.md has PARCEL_API_PREFIX",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "docs/usage.md has parcel.batch",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "parcel/batch.py has no print(",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "parcel/zones.py matches /def resolve_zone\\([^)]*\\)[^:]*:\\n\\s+(\"\"\"|''')/",
+          "ok": false,
+          "detail": ""
+        },
+        {
+          "name": "the project's tests pass",
+          "ok": false,
+          "detail": "1 failed, 20 passed in 0.05s"
+        }
+      ],
+      "steps": 23,
+      "seconds": 116.31393020809628,
+      "stop_reason": "finished",
+      "path": "results/eval-20261017T223210/gpt-oss-20b/check-fix-1/20261017T224142-check-fix"
+    },
+    {
+      "case": "changelog",
+      "model": "gpt-oss:20b",
+      "n": 1,
+      "passed": true,
+      "checks": [
+        {
+          "name": "changes only CHANGELOG.md",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "deletes no line of CHANGELOG.md",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "[Unreleased] has ### Added",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "[Unreleased] has ### Changed",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "[Unreleased] has ### Fixed",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "[Unreleased] has express",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "[Unreleased] has PARCEL_MAX_WEIGHT_KG",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "[Unreleased] has --to",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "[Unreleased] has quote_many",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "[Unreleased] has round or cent",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "[Unreleased] has breaking or Breaking or BREAKING",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "### Fixed has round or cent",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "[Unreleased] has no resolve_zone",
+          "ok": true,
+          "detail": ""
+        }
+      ],
+      "steps": 5,
+      "seconds": 44.188258999958634,
+      "stop_reason": "finished",
+      "path": "results/eval-20261017T223210/gpt-oss-20b/changelog-1/20261017T224227-changelog"
+    },
+    {
+      "case": "adr",
+      "model": "gpt-oss:20b",
+      "n": 1,
+      "passed": true,
+      "checks": [
+        {
+          "name": "changes only docs/adr/0003-*.md, docs/adr/README.md",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "docs/adr/0003-*.md exists",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "docs/adr/0003-*.md has PARCEL_MAX_WEIGHT_KG",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "docs/adr/0003-*.md has WeightLimitError",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "docs/adr/0003-*.md has 2026-10-12",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "docs/adr/0003-*.md has Mira",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "docs/adr/README.md has 0003",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "docs/adr/README.md matches /\\| \\[0002\\][^\\n]*\\n\\| \\[0003\\]\\(0003-/",
+          "ok": true,
+          "detail": ""
+        }
+      ],
+      "steps": 13,
+      "seconds": 61.77345608314499,
+      "stop_reason": "finished",
+      "path": "results/eval-20261017T223210/gpt-oss-20b/adr-1/20261017T224331-adr"
+    },
+    {
+      "case": "adr-from-history",
+      "model": "gpt-oss:20b",
+      "n": 1,
+      "passed": true,
+      "checks": [
+        {
+          "name": "changes only docs/adr/0003-*.md, docs/adr/README.md",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "docs/adr/0003-*.md exists",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "docs/adr/0003-*.md has resolve_zone",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "docs/adr/0003-*.md has 2026-10-01",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "docs/adr/0003-*.md has Jonas",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "docs/adr/README.md has 0003",
+          "ok": true,
+          "detail": ""
+        }
+      ],
+      "steps": 13,
+      "seconds": 63.05534662492573,
+      "stop_reason": "finished",
+      "path": "results/eval-20261017T223210/gpt-oss-20b/adr-from-history-1/20261017T224435-adr-from-history"
+    }
+  ]
+}

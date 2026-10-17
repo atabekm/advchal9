@@ -23,7 +23,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from .files_client import FilesClient
-from .llm import LLMError, LocalLLM, ollama_specs
+from .llm import LLMError, LocalLLM, ToolCall, ollama_specs
 
 MAX_STEPS = 40
 MAX_RESULT_CHARS = 9000
@@ -121,6 +121,18 @@ def _key(name: str, args: dict) -> str:
     return name + json.dumps(args, sort_keys=True, ensure_ascii=False)
 
 
+def _report_in_text(text: str) -> str | None:
+    """The report when a reply's text is a finish call written as JSON ({"report": "..."}), else None."""
+    t = text.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+    if not t.startswith("{"):
+        return None
+    try:
+        data = json.loads(t)
+    except ValueError:
+        return None
+    return data["report"] if isinstance(data, dict) and isinstance(data.get("report"), str) else None
+
+
 def _clip(text: str, limit: int = MAX_RESULT_CHARS) -> str:
     return text if len(text) <= limit else text[:limit] + f"\n… cut at {limit} characters; narrow the call"
 
@@ -179,6 +191,9 @@ class Agent:
                 emit(Event("think", run.steps, text=reply.thinking, seconds=reply.seconds))
             if reply.text and reply.tool_calls:
                 emit(Event("text", run.steps, text=reply.text, seconds=reply.seconds))
+            if not reply.tool_calls and (report := _report_in_text(reply.text)) is not None:
+                reply.tool_calls = [ToolCall("finish", {"report": report})]   # finish written as JSON text
+                reply.text = ""
             if not reply.tool_calls:
                 if reply.text and nudged and not reviewed and (review := await self._review()):
                     reviewed = True

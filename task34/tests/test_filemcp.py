@@ -198,3 +198,11 @@ def test_a_change_that_breaks_python_is_refused(ws):
     ws.write_file("parcel/new.py", "def fine():\n    pass\n")
     with pytest.raises(WorkspaceError, match="syntax error"):
         ws.edit_file("parcel/new.py", "    pass", "    pass(")
+
+
+def test_inserting_the_same_block_twice_is_refused(ws):
+    block = "### Added\n- Express delivery.\n"
+    ws.insert_lines("CHANGELOG.md", "## [Unreleased]", "\n" + block)
+    with pytest.raises(WorkspaceError, match="already in CHANGELOG.md"):
+        ws.insert_lines("CHANGELOG.md", "7", block + "\n")
+    ws.insert_lines("CHANGELOG.md", "7", "- Express delivery.")   # one repeated line is fine
