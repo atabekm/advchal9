@@ -8,6 +8,7 @@
     fileassist run "GOAL"          any goal, in words
     fileassist fixture DIR         build the fixture project ("parcel") into DIR to look at it
     fileassist eval                run the cases in cases.json and check the results by code
+    fileassist serve               the web UI on http://127.0.0.1:8034
 
 Without --root every run gets a fresh build of the fixture in workspace/<time>/parcel. Changes are
 staged: the run prints the diff, and --apply writes it to the files.
@@ -148,7 +149,21 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--repeat", type=int, default=3, help="runs per case and model (default 3)")
     p.add_argument("--think", nargs="?", const=True, default=False, choices=[True, "low", "medium", "high"])
     p.add_argument("--steps", type=int, default=MAX_STEPS)
+    p = sub.add_parser("serve", help="the web UI")
+    p.add_argument("--host", default="127.0.0.1")
+    p.add_argument("--port", type=int, default=8034)
+    p.add_argument("--model", default=None, help=f"Ollama model (default {DEFAULT_MODEL})")
+    p.add_argument("--think", nargs="?", const=True, default=False, choices=[True, "low", "medium", "high"])
     args = parser.parse_args(argv)
+
+    if args.command == "serve":
+        import uvicorn
+
+        from .web import create_app
+        app = create_app(lambda model: LocalLLM(model or args.model, think=args.think))
+        print(f"fileassist on http://{args.host}:{args.port}  (model {args.model or DEFAULT_MODEL})")
+        uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
+        return 0
 
     if args.command == "eval":
         from . import evaluate

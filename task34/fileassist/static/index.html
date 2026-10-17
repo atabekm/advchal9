@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>File Assistant</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --text: #1d2330; --muted: #677085; --line: #e3e6ec;
+    --accent: #3b5bdb; --accent-soft: #e8edff; --code: #f1f3f6;
+    --add: #e6f6ea; --add-text: #1f6f33; --del: #fdecec; --del-text: #a12626; --hunk: #6741d9;
+    --ok: #2b8a3e; --warn: #c2410c; --note: #fff7e0; --note-line: #f0c64a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #14161b; --panel: #1c1f26; --text: #e6e8ee; --muted: #9aa2b4; --line: #2c313b;
+      --accent: #7b93ff; --accent-soft: #252c45; --code: #262a33;
+      --add: #1d3324; --add-text: #8ce99a; --del: #3b1f22; --del-text: #ffa8a8; --hunk: #b197fc;
+      --ok: #69db7c; --warn: #ff9f5a; --note: #2e2816; --note-line: #9a7a1e; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif; }
+  header { padding: 14px 24px; border-bottom: 1px solid var(--line); background: var(--panel);
+    display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  header h1 { font-size: 18px; margin: 0; }
+  header .sub { color: var(--muted); font-size: 13px; }
+  header .model { margin-left: auto; font-size: 13px; color: var(--muted); }
+  main { display: grid; grid-template-columns: minmax(280px, 360px) 1fr; gap: 20px; padding: 20px 24px;
+    max-width: 1500px; margin: 0 auto; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; padding: 16px; } header { padding: 12px 16px; } }
+  section.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px;
+    min-width: 0; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 10px; }
+  .list { display: flex; flex-direction: column; gap: 6px; }
+  .item { text-align: left; border: 1px solid var(--line); background: var(--panel); color: var(--text);
+    border-radius: 8px; padding: 8px 10px; cursor: pointer; font: inherit; }
+  .item:hover { border-color: var(--accent); }
+  .item.on { border-color: var(--accent); background: var(--accent-soft); }
+  .item .title { font-weight: 600; display: flex; justify-content: space-between; gap: 8px; }
+  .item .goal { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .pill { font-size: 11px; font-weight: 500; padding: 0 6px; border-radius: 9px; border: 1px solid var(--line);
+    color: var(--muted); white-space: nowrap; align-self: center; }
+  .pill.writes { color: var(--warn); border-color: currentColor; }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 4px; }
+  input, textarea { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--panel); color: var(--text); font: inherit; }
+  textarea { min-height: 80px; resize: vertical; }
+  button.primary { background: var(--accent); color: #fff; border: 0; border-radius: 8px; padding: 9px 18px;
+    font: inherit; font-weight: 600; cursor: pointer; margin-top: 14px; width: 100%; }
+  button.primary:disabled { opacity: .5; cursor: wait; }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 10px; }
+  .goalline { font-size: 14px; margin-bottom: 4px; }
+  .meta { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+  .empty { color: var(--muted); padding: 40px 0; text-align: center; }
+  .steps { display: flex; flex-direction: column; gap: 3px; margin-top: 12px; }
+  details.step { border: 1px solid var(--line); border-radius: 6px; }
+  details.step > summary { list-style: none; cursor: pointer; padding: 5px 10px; display: flex; gap: 10px;
+    align-items: baseline; font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; min-width: 0; }
+  details.step > summary::-webkit-details-marker { display: none; }
+  .n { color: var(--muted); width: 22px; text-align: right; flex: none; }
+  .tool { font-weight: 700; flex: none; }
+  .args { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
+  .mark { flex: none; }
+  .mark.ok { color: var(--ok); }
+  .mark.err { color: var(--del-text); }
+  .secs { color: var(--muted); flex: none; }
+  .write > summary .tool { color: var(--warn); }
+  .think, .say, .review, .stop { font-size: 12.5px; padding: 3px 10px 3px 42px; color: var(--muted); }
+  .think summary { cursor: pointer; }
+  .review { color: var(--hunk); }
+  .stop { color: var(--warn); }
+  pre { white-space: pre-wrap; overflow-wrap: anywhere; background: var(--code); padding: 10px; border-radius: 6px;
+    font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; margin: 6px 10px 10px; max-height: 360px;
+    overflow: auto; }
+  .spinner { display: inline-block; width: 10px; height: 10px; border: 2px solid var(--line);
+    border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; margin-right: 6px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .working { font-size: 13px; color: var(--muted); padding: 6px 10px; }
+  #outcome { display: none; margin-top: 16px; }
+  .cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 16px; }
+  @media (max-width: 1200px) { .cols { grid-template-columns: 1fr; } }
+  .box { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; min-width: 0; }
+  .report { font-size: 14.5px; overflow-wrap: anywhere; }
+  .report h1, .report h2, .report h3, .report h4 { font-size: 15px; text-transform: none; letter-spacing: 0;
+    color: var(--text); margin: 12px 0 6px; }
+  .report p { margin: 0 0 8px; }
+  .report ul, .report ol { margin: 0 0 8px; padding-left: 20px; }
+  .report code { background: var(--code); padding: 1px 4px; border-radius: 4px; font-size: 12.5px; }
+  .report pre { margin: 6px 0; }
+  .report table { border-collapse: collapse; font-size: 13px; margin: 6px 0 10px; display: block; overflow-x: auto; }
+  .report th, .report td { border: 1px solid var(--line); padding: 3px 7px; text-align: left; vertical-align: top; }
+  .report th { background: var(--code); }
+  .stats { font-size: 12px; color: var(--muted); margin-top: 10px; overflow-wrap: anywhere; }
+  .file { border: 1px solid var(--line); border-radius: 6px; margin-bottom: 8px; overflow: hidden; }
+  .file > summary { cursor: pointer; padding: 6px 10px; background: var(--code); font: 600 12.5px ui-monospace,
+    SFMono-Regular, Menlo, monospace; display: flex; gap: 8px; }
+  .file > summary .cnt { margin-left: auto; font-weight: 400; }
+  .cnt .a { color: var(--add-text); } .cnt .d { color: var(--del-text); }
+  .diff { font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-x: auto; }
+  .diff div { white-space: pre; padding: 0 10px; min-width: max-content; }
+  .diff .add { background: var(--add); color: var(--add-text); }
+  .diff .del { background: var(--del); color: var(--del-text); }
+  .diff .hunk { color: var(--hunk); background: var(--code); }
+  .actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; align-items: center; }
+  .actions button { border-radius: 8px; padding: 7px 16px; font: inherit; font-weight: 600; cursor: pointer; }
+  .apply { background: var(--ok); color: #fff; border: 0; }
+  .discard { background: transparent; color: var(--text); border: 1px solid var(--line); }
+  .actions button:disabled { opacity: .5; cursor: default; }
+  .note { background: var(--note); border-left: 3px solid var(--note-line); padding: 8px 12px; border-radius: 4px;
+    font-size: 13.5px; margin-top: 10px; overflow-wrap: anywhere; }
+</style>
+</head>
+<body>
+<header>
+  <h1>File Assistant</h1>
+  <span class="sub">give it a goal; it reads, searches and edits the project through filemcp</span>
+  <span class="model" id="model">…</span>
+</header>
+<main>
+  <section class="panel">
+    <h2>Goal</h2>
+    <div class="list" id="scenarios"></div>
+    <div id="argbox" style="display:none">
+      <label for="arg" id="arglabel"></label>
+      <input id="arg">
+    </div>
+    <div id="goalbox" style="display:none">
+      <label for="goal">Your goal, in words</label>
+      <textarea id="goal" placeholder="e.g. The README still shows --zone. Fix it."></textarea>
+    </div>
+    <button class="primary" id="run">Run</button>
+    <div class="hint">Each run works on a fresh copy of the fixture project "parcel" (with its git history).
+      Edits are staged: you see the diff and decide.</div>
+  </section>
+  <section class="panel" id="work">
+    <div class="empty" id="empty">Pick a goal and press Run. The tool calls appear here as the model makes them.</div>
+    <div id="live" style="display:none">
+      <div class="goalline" id="goalline"></div>
+      <div class="meta" id="runmeta"></div>
+      <div class="steps" id="steps"></div>
+      <div class="working" id="working"><span class="spinner"></span>the model is working…</div>
+    </div>
+    <div id="outcome">
+      <div class="cols">
+        <div class="box"><h2>Report</h2><div class="report" id="report"></div><div class="stats" id="stats"></div></div>
+        <div class="box"><h2 id="changeshead">Changes</h2><div id="diff"></div>
+          <div class="actions" id="actions">
+            <button class="apply" id="apply">Apply</button>
+            <button class="discard" id="discard">Discard</button>
+          </div>
+          <div id="decided"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const WRITES = new Set(["edit_file", "insert_lines", "write_file"]);
+let scenarios = [], picked = null, runId = null, source = null;
+
+function inline(s) {
+  return esc(s).replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
+    .replace(/(^|[\s(])\*([^*\s][^*]*)\*/g, "$1<i>$2</i>");
+}
+
+function markdown(md) {   // enough Markdown for the reports: headings, lists, tables, code, emphasis
+  const lines = md.replace(/\r/g, "").split("\n"), out = [];
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    if (/^```/.test(line)) {
+      const code = [];
+      for (i++; i < lines.length && !/^```/.test(lines[i]); i++) code.push(lines[i]);
+      out.push(`<pre>${esc(code.join("\n"))}</pre>`); i++; continue;
+    }
+    const h = line.match(/^(#{1,6})\s+(.*)/);
+    if (h) { out.push(`<h${h[1].length}>${inline(h[2])}</h${h[1].length}>`); i++; continue; }
+    if (/^\s*\|/.test(line)) {
+      const rows = [];
+      for (; i < lines.length && /^\s*\|/.test(lines[i]); i++) rows.push(lines[i]);
+      const cells = r => r.trim().replace(/^\||\|$/g, "").split("|").map(c => c.trim());
+      const body = rows.filter(r => !/^\s*\|[\s:|-]+\|?\s*$/.test(r));
+      const [head, ...rest] = body;
+      out.push("<table><tr>" + cells(head).map(c => `<th>${inline(c)}</th>`).join("") + "</tr>" +
+        rest.map(r => "<tr>" + cells(r).map(c => `<td>${inline(c)}</td>`).join("") + "</tr>").join("") + "</table>");
+      continue;
+    }
+    if (/^\s*([-*+]|\d+\.)\s/.test(line)) {
+      const ordered = /^\s*\d+\./.test(line), items = [];
+      for (; i < lines.length && /^\s*([-*+]|\d+\.)\s|^\s{2,}\S/.test(lines[i]); i++) {
+        if (/^\s*([-*+]|\d+\.)\s/.test(lines[i])) items.push(lines[i].replace(/^\s*([-*+]|\d+\.)\s/, ""));
+        else items[items.length - 1] += " " + lines[i].trim();
+      }
+      const tag = ordered ? "ol" : "ul";
+      out.push(`<${tag}>` + items.map(x => `<li>${inline(x)}</li>`).join("") + `</${tag}>`);
+      continue;
+    }
+    if (!line.trim()) { i++; continue; }
+    const para = [];
+    for (; i < lines.length && lines[i].trim() && !/^(#|```|\s*\||\s*([-*+]|\d+\.)\s)/.test(lines[i]); i++)
+      para.push(lines[i]);
+    out.push(`<p>${inline(para.join(" "))}</p>`);
+  }
+  return out.join("");
+}
+
+function diffHtml(diff) {
+  const files = [];
+  for (const line of diff.split("\n")) {
+    if (line.startsWith("diff --git ")) files.push({path: line.split(" b/")[1], lines: [], add: 0, del: 0});
+    else if (files.length) {
+      const f = files[files.length - 1];
+      if (/^(---|\+\+\+|new file|index )/.test(line)) { if (line.startsWith("new file")) f.isNew = true; continue; }
+      f.lines.push(line);
+      if (line.startsWith("+")) f.add++; else if (line.startsWith("-")) f.del++;
+    }
+  }
+  return files.map(f => `<details class="file" open><summary>${esc(f.path)}${f.isNew ? " (new)" : ""}` +
+    `<span class="cnt"><span class="a">+${f.add}</span> <span class="d">−${f.del}</span></span></summary>` +
+    `<div class="diff">` + f.lines.filter(l => l !== "").map(l => {
+      const cls = l.startsWith("@@") ? "hunk" : l.startsWith("+") ? "add" : l.startsWith("-") ? "del" : "";
+      return `<div class="${cls}">${esc(l) || " "}</div>`;
+    }).join("") + `</div></details>`).join("");
+}
+
+function argsShort(args) {
+  return Object.entries(args).map(([k, v]) => {
+    let s = typeof v === "string" ? JSON.stringify(v) : JSON.stringify(v);
+    return `${k}=${s.length > 50 ? s.slice(0, 47) + "…" : s}`;
+  }).join(", ");
+}
+
+function pick(name) {
+  picked = name;
+  document.querySelectorAll(".item").forEach(el => el.classList.toggle("on", el.dataset.name === name));
+  const sc = scenarios.find(s => s.name === name);
+  $("goalbox").style.display = name === "goal" ? "" : "none";
+  $("argbox").style.display = sc && sc.arg ? "" : "none";
+  if (sc && sc.arg) { $("arglabel").textContent = sc.arg; $("arg").value = sc.arg_default; }
+}
+
+async function load() {
+  scenarios = await (await fetch("/scenarios")).json();
+  const box = $("scenarios");
+  box.innerHTML = scenarios.map(s => `<button class="item" data-name="${s.name}"><div class="title">${esc(s.title)}` +
+    `<span class="pill ${s.changes_files ? "writes" : ""}">${s.changes_files ? "edits files" : "read only"}</span>` +
+    `</div><div class="goal">${esc(s.goal)}</div></button>`).join("") +
+    `<button class="item" data-name="goal"><div class="title">Your own goal<span class="pill writes">edits files</span>` +
+    `</div><div class="goal">Anything about the project, in words.</div></button>`;
+  box.querySelectorAll(".item").forEach(el => el.onclick = () => pick(el.dataset.name));
+  const q = new URLSearchParams(location.search);   // deep links: ?scenario=changelog&run=1, ?goal=...
+  if (q.get("goal")) { pick("goal"); $("goal").value = q.get("goal"); }
+  else pick(scenarios.some(s => s.name === q.get("scenario")) ? q.get("scenario") : "usages");
+  if (q.get("arg")) $("arg").value = q.get("arg");
+  if (q.get("run")) run();
+  fetch("/health").then(r => r.json()).then(h => {
+    $("model").textContent = `${h.model} · ${h.version}` + (h.ollama ? "" : " · Ollama not reachable");
+  }).catch(() => $("model").textContent = "?");
+}
+
+function addStep(kind, e) {
+  const steps = $("steps");
+  if (kind === "call") {
+    const el = document.createElement("details");
+    el.className = "step" + (WRITES.has(e.tool) ? " write" : "");
+    const first = (e.result.split("\n")[0] || "");
+    el.innerHTML = `<summary><span class="n">${e.step}</span><span class="tool">${esc(e.tool)}</span>` +
+      `<span class="args">${esc(argsShort(e.arguments))}</span>` +
+      `<span class="mark ${e.error ? "err" : "ok"}">${e.error ? "✗" : "→"} ${esc(first.slice(0, 60))}</span>` +
+      (e.seconds ? `<span class="secs">${e.seconds}s</span>` : "") + `</summary>` +
+      `<pre>${esc(JSON.stringify(e.arguments, null, 2))}</pre><pre>${esc(e.result)}${e.cut ? "\n…" : ""}</pre>`;
+    steps.appendChild(el);
+  } else if (kind === "think") {
+    const el = document.createElement("details");
+    el.className = "think";
+    el.innerHTML = `<summary>thinking (${e.seconds}s)</summary><pre>${esc(e.text)}</pre>`;
+    steps.appendChild(el);
+  } else if (kind === "text" || kind === "review" || kind === "stop") {
+    const el = document.createElement("div");
+    el.className = { text: "say", review: "review", stop: "stop" }[kind];
+    el.textContent = (kind === "review" ? "↺ " : kind === "stop" ? "! " : "· ") + e.text.slice(0, 300);
+    steps.appendChild(el);
+  }
+}
+
+function finish(e) {
+  $("working").style.display = "none";
+  $("run").disabled = false;
+  $("outcome").style.display = "block";
+  $("report").innerHTML = markdown(e.report || "(no report)");
+  $("stats").textContent = `${e.model} (${e.model_version}) · ${e.steps} tool calls, ${e.model_calls} model calls · ` +
+    `${e.seconds}s · ${e.stop_reason} · saved ${e.saved}`;
+  $("decided").innerHTML = "";
+  if (e.diff) {
+    $("changeshead").textContent = `Changes (${e.changed.length} files, staged)`;
+    $("diff").innerHTML = diffHtml(e.diff);
+    $("actions").style.display = "flex";
+    $("apply").disabled = $("discard").disabled = false;
+  } else {
+    $("changeshead").textContent = "Changes";
+    $("diff").innerHTML = `<div class="meta">No file changes.</div>`;
+    $("actions").style.display = "none";
+  }
+}
+
+async function decide(what) {
+  $("apply").disabled = $("discard").disabled = true;
+  const r = await fetch(`/runs/${runId}/${what}`, {method: "POST"});
+  const d = await r.json();
+  $("decided").innerHTML = !r.ok ? `<div class="note">${esc(d.detail || r.statusText)}</div>` :
+    d.applied ? `<div class="note">Written to ${esc(d.applied.join(", "))} in <code>${esc(d.root)}</code></div>` :
+    `<div class="note">Discarded; the project is unchanged.</div>`;
+}
+
+async function run() {
+  const body = picked === "goal" ? {goal: $("goal").value} : {scenario: picked, arg: $("arg").value};
+  if (picked === "goal" && !body.goal.trim()) { $("goal").focus(); return; }
+  $("run").disabled = true;
+  const r = await fetch("/runs", {method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(body)});
+  const d = await r.json();
+  if (!r.ok) { $("run").disabled = false; alertBox(d.detail || r.statusText); return; }
+  runId = d.id;
+  $("empty").style.display = "none"; $("live").style.display = "block"; $("outcome").style.display = "none";
+  $("steps").innerHTML = ""; $("working").style.display = "";
+  $("goalline").innerHTML = `<b>Goal:</b> ${esc(d.goal)}`;
+  if (source) source.close();
+  source = new EventSource(`/runs/${runId}/events`);
+  source.addEventListener("start", m => {
+    const e = JSON.parse(m.data);
+    $("steps").innerHTML = "";   // a reconnect replays the run from the start
+    $("runmeta").textContent = `${e.model} · project ${e.root} at ${e.head}` + (e.read_only ? " · read only" : "");
+  });
+  for (const kind of ["call", "think", "text", "review", "stop"])
+    source.addEventListener(kind, m => addStep(kind, JSON.parse(m.data)));
+  source.addEventListener("done", m => { source.close(); finish(JSON.parse(m.data)); });
+  source.addEventListener("error", m => {
+    if (!m.data) return;   // a dropped connection; EventSource retries by itself
+    source.close(); $("working").style.display = "none"; $("run").disabled = false;
+    alertBox(JSON.parse(m.data).text);
+  });
+}
+
+function alertBox(text) {
+  const el = document.createElement("div");
+  el.className = "note"; el.textContent = text;
+  ($("live").style.display === "none" ? $("empty") : $("steps")).after(el);
+}
+
+$("run").onclick = run;
+$("apply").onclick = () => decide("apply");
+$("discard").onclick = () => decide("discard");
+load();
+</script>
+</body>
+</html>
