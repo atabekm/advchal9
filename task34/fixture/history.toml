@@ -1,0 +1,63 @@
+# The fixture project's git history, replayed by `fileassist fixture`. Each commit copies its
+# directory over the tree (full files) and commits everything with the given author and date,
+# so the hashes are the same on every build.
+
+[[commit]]
+dir = "01-initial"
+author = "Mira Kovač <mira@parcel.dev>"
+date = "2026-07-06T10:12:00+02:00"
+message = "Initial version: quote_price, zones and the parcel command"
+tag = "v0.1.0"
+
+[[commit]]
+dir = "02-api"
+author = "Jonas Weber <jonas@parcel.dev>"
+date = "2026-07-28T16:40:00+02:00"
+message = """Add a WSGI handler for quotes and accept country codes
+
+GET /quote?weight=2.5&zone=FR. Two-letter country codes map to zones;
+countries not in the table are "world"."""
+tag = "v0.2.0"
+
+[[commit]]
+dir = "03-decimal"
+author = "Mira Kovač <mira@parcel.dev>"
+date = "2026-08-25T11:05:00+02:00"
+message = """Release 0.3.0: money as Decimal, fuel surcharge
+
+Prices are Decimal rounded half-up to cents (ADR 0002). New setting
+PARCEL_FUEL_SURCHARGE."""
+tag = "v0.3.0"
+
+[[commit]]
+dir = "04-surcharge-fix"
+author = "Jonas Weber <jonas@parcel.dev>"
+date = "2026-09-08T09:30:00+02:00"
+message = """Fix: round the remote surcharge to cents before the fuel surcharge
+
+ADR 0002 says every surcharge is rounded; the remote one wasn't, so remote
+quotes with a fuel surcharge could be a cent off."""
+
+[[commit]]
+dir = "05-batch"
+author = "Mira Kovač <mira@parcel.dev>"
+date = "2026-09-22T14:20:00+02:00"
+message = """Add quote_many for batch quotes
+
+For the warehouse's daily shipment list: prices of (weight, zone) pairs."""
+
+[[commit]]
+dir = "06-resolve-zone"
+author = "Jonas Weber <jonas@parcel.dev>"
+date = "2026-10-01T17:45:00+02:00"
+message = "Refactor: move destination parsing into zones.resolve_zone"
+
+[[commit]]
+dir = "07-express"
+author = "Mira Kovač <mira@parcel.dev>"
+date = "2026-10-12T12:00:00+02:00"
+message = """Add express delivery and a maximum parcel weight; rename --zone to --to
+
+quote_price(..., express=True) costs 1.5x. Parcels over PARCEL_MAX_WEIGHT_KG
+(default 30) raise WeightLimitError. The CLI flag --zone is now --to, with a
+new --express flag, and the HTTP handler takes to= and express=."""

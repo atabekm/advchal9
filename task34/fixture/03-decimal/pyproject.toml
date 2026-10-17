@@ -1,0 +1,11 @@
+[project]
+name = "parcel"
+version = "0.3.0"
+description = "Shipping cost quotes by weight and destination zone"
+requires-python = ">=3.11"
+
+[project.scripts]
+parcel = "parcel.cli:main"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
